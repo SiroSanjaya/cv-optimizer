@@ -4,6 +4,7 @@ import {
   CvAnalysis,
   StructuredCv,
   CoverLetterResult,
+  CoverLetterOptions,
   InterviewQuestion,
 } from "../../types/cv.types";
 import { logger } from "../../utils/logger";
@@ -46,7 +47,7 @@ export async function generateTailoredCv(
 export async function generateCoverLetter(
   cv: StructuredCv,
   jobDescription: string,
-  options?: { language?: "id" | "en"; tone?: "professional" | "modern" }
+  options?: CoverLetterOptions
 ): Promise<CoverLetterResult> {
   const provider = getAIProvider();
   return provider.generateCoverLetter(cv, jobDescription, options);
@@ -59,4 +60,3 @@ export async function generateInterviewPrep(
   const provider = getAIProvider();
   return provider.generateInterviewPrep(cv, jobDescription);
 }
-

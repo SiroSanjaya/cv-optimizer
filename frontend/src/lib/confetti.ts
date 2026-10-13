@@ -101,8 +101,8 @@ export function fireConfetti(durationMs = 3000) {
     for (const p of particles) {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.45; // Gravity
-      p.vx *= 0.98; // Drag
+      p.vy += 0.45;
+      p.vx *= 0.98;
       p.vy *= 0.98;
       p.rotation += p.rotationSpeed;
       p.opacity = Math.max(0, 1 - progress * 1.1);

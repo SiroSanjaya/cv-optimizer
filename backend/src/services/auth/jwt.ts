@@ -1,7 +1,22 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "cv-optimizer-dev-super-secret-key-123456";
+const DEVELOPMENT_JWT_SECRET = "local-only-cv-optimizer-secret-do-not-use-in-production";
 const JWT_EXPIRES_IN = "7d";
+
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    if (!secret || secret.length < 32) {
+      throw new Error("JWT_SECRET must be set to at least 32 characters in production.");
+    }
+    return secret;
+  }
+  return secret || DEVELOPMENT_JWT_SECRET;
+}
+
+export function validateJwtConfiguration(): void {
+  getJwtSecret();
+}
 
 export interface TokenPayload {
   userId: string;
@@ -11,12 +26,12 @@ export interface TokenPayload {
 }
 
 export function signToken(payload: TokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, getJwtSecret()) as TokenPayload;
   } catch {
     return null;
   }

@@ -3,7 +3,7 @@ export function HeroDocument() {
     <div className="relative mx-auto w-full max-w-sm">
       {/* Match score card, offset behind the CV sheet */}
       <div className="absolute -right-4 -top-6 z-0 w-40 rotate-3 rounded-lg border border-line bg-paper-raised p-4 shadow-sm">
-        <p className="text-xs font-medium text-ink-soft">Job Match Score</p>
+        <p className="text-xs font-medium text-ink-soft">Contoh ilustrasi skor</p>
         <p className="mt-1 font-serif text-3xl font-semibold text-forest">87%</p>
         <div className="mt-2 h-1.5 w-full rounded-full bg-forest-tint">
           <div className="h-1.5 w-[87%] rounded-full bg-forest" />

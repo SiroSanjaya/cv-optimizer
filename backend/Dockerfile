@@ -1,8 +1,8 @@
 # ---- deps: install all deps (incl. dev) for building ----
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # ---- build: compile TS + generate Prisma client ----
 FROM node:20-bookworm-slim AS build
@@ -16,8 +16,8 @@ RUN npm run build
 # ---- prod deps: install only production deps ----
 FROM node:20-bookworm-slim AS prod-deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 # ---- runtime ----
 FROM node:20-bookworm-slim AS runtime
@@ -36,4 +36,4 @@ RUN mkdir -p /app/tmp_uploads
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma db push && node dist/server.js"]
+CMD ["node", "dist/server.js"]

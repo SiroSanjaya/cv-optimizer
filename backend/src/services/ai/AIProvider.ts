@@ -2,6 +2,7 @@ import {
   CvAnalysis,
   StructuredCv,
   CoverLetterResult,
+  CoverLetterOptions,
   InterviewQuestion,
 } from "../../types/cv.types";
 
@@ -39,7 +40,7 @@ export interface AIProvider {
   generateCoverLetter(
     cv: StructuredCv,
     jobDescription: string,
-    options?: { language?: "id" | "en"; tone?: "professional" | "modern" }
+    options?: CoverLetterOptions
   ): Promise<CoverLetterResult>;
 
   /**
@@ -50,4 +51,3 @@ export interface AIProvider {
     jobDescription: string
   ): Promise<InterviewQuestion[]>;
 }
-

@@ -5,7 +5,11 @@ import { logger } from "../utils/logger";
 import { MAX_FILE_SIZE_MB } from "./upload";
 
 export function notFoundHandler(_req: Request, res: Response) {
-  res.status(404).json({ success: false, error: "Not found." });
+  res.status(404).json({
+    success: false,
+    error: "Not found.",
+    code: "NOT_FOUND",
+  });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -23,6 +27,7 @@ export function errorHandler(
     return res.status(mapped.statusCode).json({
       success: false,
       error: mapped.userMessage,
+      code: mapped.code,
     });
   }
 
@@ -32,7 +37,11 @@ export function errorHandler(
     }
     return res.status(err.statusCode).json({
       success: false,
-      error: err.userMessage,
+      error:
+        err.statusCode >= 500 && err.code === "INTERNAL_ERROR"
+          ? "Something went wrong on our end. Please try again."
+          : err.userMessage,
+      code: err.code,
     });
   }
 
@@ -43,5 +52,6 @@ export function errorHandler(
   return res.status(500).json({
     success: false,
     error: "Something went wrong on our end. Please try again.",
+    code: "INTERNAL_ERROR",
   });
 }

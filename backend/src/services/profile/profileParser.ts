@@ -54,17 +54,32 @@ Return ONLY valid JSON. Do not include markdown codeblocks or extra text.
 `;
 
 export async function parseProfileFromUrl(url: string): Promise<StructuredCv> {
+  let parsedUrl: URL;
   try {
-    const cleanUrl = url.trim();
-    if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
-      throw Errors.validation("Invalid URL. Please include https://");
-    }
+    parsedUrl = new URL(url.trim());
+  } catch {
+    throw Errors.validation("Invalid profile URL.");
+  }
+  if (
+    parsedUrl.protocol !== "https:" ||
+    !["linkedin.com", "www.linkedin.com"].includes(parsedUrl.hostname) ||
+    parsedUrl.username ||
+    parsedUrl.password ||
+    parsedUrl.port
+  ) {
+    throw Errors.validation("Only public HTTPS LinkedIn profile URLs are supported.");
+  }
 
-    logger.info("scraping_profile_url", { url: cleanUrl });
+  try {
+    const cleanUrl = parsedUrl.toString();
+    logger.info("scraping_profile_url", { host: parsedUrl.hostname });
 
     // Fetch page text
     const response = await axios.get(cleanUrl, {
       timeout: 10000,
+      maxRedirects: 0,
+      maxContentLength: 1_000_000,
+      responseType: "text",
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -85,9 +100,11 @@ export async function parseProfileFromUrl(url: string): Promise<StructuredCv> {
 
     return await structureProfileTextWithAI(rawText.slice(0, 10000), `Source URL: ${cleanUrl}`);
   } catch (err: any) {
-    logger.warn("scrape_url_failed", { message: err.message });
+    logger.warn("scrape_url_failed", {
+      message: err instanceof Error ? err.name : "unknown",
+    });
     throw Errors.validation(
-      `Could not automatically extract profile from ${url} (${err.message}). Social networks often block direct bots. Please try copying & pasting your profile text or JSON export instead!`
+      "Could not automatically extract this LinkedIn profile. LinkedIn may block automated access; try pasting profile text or importing a JSON export."
     );
   }
 }

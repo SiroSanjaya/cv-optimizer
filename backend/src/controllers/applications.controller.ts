@@ -64,10 +64,10 @@ export async function getApplicationMetrics(
     const scores = apps
       .map((a) => a.matchScore)
       .filter((s): s is number => typeof s === "number");
-    const avgMatchScore =
+    const avgMatchScore: number | null =
       scores.length > 0
         ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-        : 0;
+        : null;
 
     res.json({
       success: true,

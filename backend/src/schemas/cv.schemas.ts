@@ -148,6 +148,10 @@ export const generateRequestSchema = z.object({
 export const coverLetterRequestSchema = z.object({
   cvData: structuredCvSchema,
   jobDescription: z.string().trim().min(10).max(30000),
+  companyName: z.string().trim().max(160).optional(),
+  targetRole: z.string().trim().max(160).optional(),
+  hiringManager: z.string().trim().max(160).optional(),
+  motivation: z.string().trim().max(2000).optional(),
   language: z.enum(["id", "en"]).default("id"),
   tone: z.enum(["professional", "modern"]).default("professional"),
 });
@@ -159,4 +163,13 @@ export const interviewPrepRequestSchema = z.object({
 
 export const pdfRequestSchema = z.object({
   cv: structuredCvSchema,
+});
+
+export const coverLetterPdfRequestSchema = z.object({
+  subject: z.string().trim().max(300),
+  recipient: z.string().trim().max(300),
+  content: z.string().trim().min(1).max(20000),
+  applicantName: z.string().trim().max(200),
+  email: z.string().trim().max(320).optional(),
+  phone: z.string().trim().max(80).optional(),
 });

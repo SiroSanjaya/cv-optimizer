@@ -3,6 +3,7 @@ import { prisma } from "../utils/prisma";
 import { signToken } from "../services/auth/jwt";
 import { Errors } from "../utils/AppError";
 import axios from "axios";
+import { getMonthlyQuota } from "../services/ai/aiTasks";
 
 export async function getCurrentUser(
   req: Request,
@@ -40,8 +41,16 @@ export async function getCurrentUser(
         picture: user.picture,
         applicationCount: user._count.applications,
         cvVersionCount: user._count.cvVersions,
-        credits: user.usageCredit?.limit ?? 10,
-        usedCredits: user.usageCredit?.used ?? 0,
+        credits: getMonthlyQuota(),
+        usedCredits:
+          user.usageCredit &&
+          user.usageCredit.periodStart >= new Date(Date.UTC(
+            new Date().getUTCFullYear(),
+            new Date().getUTCMonth(),
+            1
+          ))
+            ? user.usageCredit.used
+            : 0,
       },
     });
   } catch (err) {
@@ -50,7 +59,7 @@ export async function getCurrentUser(
 }
 
 /**
- * Exchange Google Access Token or ID Token sent by client
+ * Verify a Google Identity Services credential and create an application session.
  */
 export async function googleLoginWithToken(
   req: Request,
@@ -58,11 +67,14 @@ export async function googleLoginWithToken(
   next: NextFunction
 ) {
   try {
-    const { token, credential } = req.body;
-    const tokenToVerify = token || credential;
+    const { credential } = req.body;
+    if (typeof credential !== "string" || credential.length === 0) {
+      throw Errors.validation("Google credential is required.");
+    }
 
-    if (!tokenToVerify) {
-      throw Errors.validation("Google token or credential is required.");
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      throw Errors.internal("Google sign-in is not configured.");
     }
 
     let email: string;
@@ -70,33 +82,28 @@ export async function googleLoginWithToken(
     let picture: string | undefined;
     let googleId: string;
 
+    let tokenInfo;
     try {
-      // Query Google's tokeninfo or userinfo endpoint
       const response = await axios.get(
-        `https://oauth2.googleapis.com/tokeninfo?id_token=${tokenToVerify}`
+        "https://oauth2.googleapis.com/tokeninfo",
+        { params: { id_token: credential }, timeout: 10_000 }
       );
-      const data = response.data;
-      email = data.email;
-      name = data.name;
-      picture = data.picture;
-      googleId = data.sub;
+      tokenInfo = response.data;
     } catch {
-      // If id_token failed, try as access_token
-      try {
-        const userInfoRes = await axios.get(
-          "https://www.googleapis.com/oauth2/v3/userinfo",
-          {
-            headers: { Authorization: `Bearer ${tokenToVerify}` },
-          }
-        );
-        email = userInfoRes.data.email;
-        name = userInfoRes.data.name;
-        picture = userInfoRes.data.picture;
-        googleId = userInfoRes.data.sub;
-      } catch (innerErr) {
-        throw Errors.unauthorized("Invalid Google authentication token.");
-      }
+      throw Errors.unauthorized("Invalid Google authentication credential.");
     }
+
+    if (
+      tokenInfo.aud !== googleClientId ||
+      String(tokenInfo.email_verified).toLowerCase() !== "true"
+    ) {
+      throw Errors.unauthorized("Google account verification failed.");
+    }
+
+    email = tokenInfo.email;
+    name = tokenInfo.name;
+    picture = tokenInfo.picture;
+    googleId = tokenInfo.sub;
 
     if (!email) {
       throw Errors.unauthorized("Email not provided by Google account.");
@@ -117,8 +124,9 @@ export async function googleLoginWithToken(
         googleId,
         usageCredit: {
           create: {
-            limit: 25,
+            limit: getMonthlyQuota(),
             used: 0,
+            periodStart: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)),
           },
         },
       },
@@ -134,62 +142,6 @@ export async function googleLoginWithToken(
     res.cookie("token", jwtToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.json({
-      success: true,
-      token: jwtToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        picture: user.picture,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * Demo / Quick Test Login (Allows testing all platform features immediately without Google Cloud credentials setup)
- */
-export async function devDemoLogin(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  try {
-    const { email = "jobseeker@demo.com", name = "Budi Pratama" } = req.body;
-
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: {},
-      create: {
-        email,
-        name,
-        picture: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
-        usageCredit: {
-          create: {
-            limit: 50,
-            used: 0,
-          },
-        },
-      },
-    });
-
-    const jwtToken = signToken({
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      picture: user.picture,
-    });
-
-    res.cookie("token", jwtToken, {
-      httpOnly: true,
-      secure: false,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });

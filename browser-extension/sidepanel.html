@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CV Optimizer Assistant</title>
+    <link rel="stylesheet" href="sidepanel.css">
+  </head>
+  <body>
+    <main>
+      <h1>CV Optimizer</h1>
+      <p class="intro">Asisten apply lokal untuk Greenhouse dan Lever.</p>
+      <div class="notice">
+        Setelah batch disetujui, extension mengisi kontak, cover letter, dan CV
+        PDF, lalu submit hanya jika semua field wajib lolos pemeriksaan.
+        Pertanyaan tak dikenal dan CAPTCHA dilewati.
+      </div>
+      <label class="file-picker">
+        Import batch lamaran (.json)
+        <input id="package-file" type="file" accept="application/json,.json">
+      </label>
+      <section id="package-summary" class="summary" hidden></section>
+      <button id="fill-button" type="button" disabled>Setujui & kirim batch</button>
+      <button id="receipt-button" type="button" hidden>Unduh receipt submit</button>
+      <p id="status" role="status" aria-live="polite">Belum ada batch lamaran.</p>
+      <p class="footnote">
+        Hanya lowongan dengan skor kecocokan minimal 70% yang diterima. Tidak
+        mengisi jawaban screening, izin kerja, data EEO, atau CAPTCHA. Hasil tak
+        terkonfirmasi perlu dicek manual. Paket berisi data pribadi—jangan
+        bagikan file JSON ke orang lain.
+      </p>
+    </main>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

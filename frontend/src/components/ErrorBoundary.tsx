@@ -45,14 +45,8 @@ export class ErrorBoundary extends Component<Props, State> {
               Terjadi Kendala Tampilan
             </h2>
             <p className="mt-2 text-xs text-ink-soft leading-relaxed">
-              Ada data yang tidak terduga saat memproses tampilan. Tim kami sedang memperbaiki hal ini.
+              Terjadi kesalahan saat menampilkan halaman. Coba muat ulang, atau kembali ke beranda.
             </p>
-
-            {this.state.error && (
-              <div className="mt-4 rounded-lg bg-paper p-3 text-[11px] text-rust font-mono text-left overflow-x-auto border border-line">
-                {this.state.error.message || "Unknown error"}
-              </div>
-            )}
 
             <div className="mt-6 flex flex-col sm:flex-row gap-2 justify-center">
               <button

@@ -32,6 +32,7 @@ model User {
   cvVersions   CvVersion[]
   applications Application[]
   usageCredit  UsageCredit?
+  aiJobReservations AiJobReservation[]
 }
 
 model CvVersion {
@@ -74,10 +75,24 @@ model Application {
 }
 
 model UsageCredit {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  used      Int      @default(0)
-  limit     Int      @default(10)  // increased from 2 for logged-in users
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  used        Int      @default(0)
+  limit       Int      @default(10)
+  periodStart DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AiJobReservation {
+  id          String   @id @default(cuid())
+  jobId       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodStart DateTime
+  status      String   @default("reserved")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, periodStart])
 }

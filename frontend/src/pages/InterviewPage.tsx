@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "../components/Header";
+import { useAuth } from "../context/AuthContextValue";
+import { getSessionCvSkills } from "../lib/sessionProfile";
 import {
   startMockInterviewSession,
   evaluateMockInterviewAnswer,
@@ -11,7 +13,6 @@ import {
   Sparkles,
   Mic,
   MicOff,
-  Volume2,
   VolumeX,
   CheckCircle2,
   AlertTriangle,
@@ -19,28 +20,75 @@ import {
   RotateCcw,
   Award,
   ChevronRight,
-  Lightbulb,
   Check,
   BrainCircuit,
   MessageSquare,
+  Eye,
+  EyeOff,
+  Languages,
+  Volume2 as VolumeIcon,
 } from "lucide-react";
 
-export function InterviewPage() {
+interface SpeechRecognitionResultLike {
+  0: { transcript: string };
+  isFinal?: boolean;
+}
 
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | undefined {
+  const browserWindow = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition;
+}
+
+export function InterviewPage() {
+  const { user } = useAuth();
 
   // Setup state
-  const [role, setRole] = useState("Software Engineer");
+  const [role, setRole] = useState(
+    () => sessionStorage.getItem("interview_target_role") || "Software Engineer"
+  );
   const [level, setLevel] = useState("Mid-Senior");
   const [interviewType, setInterviewType] = useState<"technical" | "behavioral" | "system_design" | "mixed">("mixed");
   const [questionCount, setQuestionCount] = useState(3);
-  const [customJobDesc, setCustomJobDesc] = useState("");
+  const [language, setLanguage] = useState<"id" | "en">("id");
+  const [voiceMode, setVoiceMode] = useState(
+    () => typeof window !== "undefined" && Boolean(getSpeechRecognitionConstructor())
+  );
+  const [customJobDesc, setCustomJobDesc] = useState(
+    () => sessionStorage.getItem("interview_target_job") || ""
+  );
 
   // Flow state
   const [step, setStep] = useState<"setup" | "interviewing" | "completed">("setup");
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<MockInterviewQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeQuestion, setActiveQuestion] = useState<MockInterviewQuestion | null>(null);
+  const [isFollowUp, setIsFollowUp] = useState(false);
+  const [showQuestionText, setShowQuestionText] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
 
   // Answering state
   const [userAnswer, setUserAnswer] = useState("");
@@ -50,61 +98,55 @@ export function InterviewPage() {
   // Audio / Speech-to-text
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(true);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const speechAnswerRef = useRef("");
+  const speechSupported =
+    typeof window !== "undefined" && Boolean(getSpeechRecognitionConstructor());
+  const speechOutputSupported =
+    typeof window !== "undefined" && "speechSynthesis" in window;
 
   // Check if target job description was passed from JobsPage
   useEffect(() => {
-    const passedJd = sessionStorage.getItem("interview_target_job");
-    if (passedJd) {
-      setCustomJobDesc(passedJd);
-      const passedRole = sessionStorage.getItem("interview_target_role");
-      if (passedRole) setRole(passedRole);
-      // Clean up after reading
-      sessionStorage.removeItem("interview_target_job");
-      sessionStorage.removeItem("interview_target_role");
-    }
-
-    // Check SpeechRecognition support
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setSpeechSupported(false);
-    }
+    sessionStorage.removeItem("interview_target_job");
+    sessionStorage.removeItem("interview_target_role");
   }, []);
 
   const handleStartSession = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
+    setSessionError(null);
 
     // Retrieve saved CV skills if available
     let cvSkills: string[] | undefined;
-    const saved = sessionStorage.getItem("user_cv_skills");
-    if (saved) {
-      try {
-        cvSkills = JSON.parse(saved);
-      } catch {}
-    }
+    if (user?.id) cvSkills = getSessionCvSkills(user.id);
 
     try {
       const generated = await startMockInterviewSession({
         role,
         level,
         type: interviewType,
+        language,
         cvSkills,
         jobDescription: customJobDesc || undefined,
         questionCount,
       });
 
       if (generated && generated.length > 0) {
+        speechAnswerRef.current = "";
         setQuestions(generated);
         setCurrentIndex(0);
+        setActiveQuestion(generated[0]);
+        setIsFollowUp(false);
+        setShowQuestionText(false);
+        setShowTranscript(false);
         setCurrentEvaluation(null);
         setUserAnswer("");
+        speechAnswerRef.current = "";
         setEvaluationsHistory([]);
         setStep("interviewing");
       }
     } catch (err: any) {
-      alert(err.message || "Gagal membuat sesi wawancara. Coba lagi.");
+      setSessionError(err instanceof Error ? err.message : "Gagal membuat sesi wawancara. Coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -112,9 +154,14 @@ export function InterviewPage() {
 
   // Toggle Speech-to-Text
   const toggleSpeechRecognition = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!SpeechRecognition) {
-      alert("Browser Anda belum mendukung input suara Speech-to-Text. Silakan ketik langsung jawaban Anda.");
+      setSessionError(
+        language === "id"
+          ? "Browser ini belum mendukung input suara. Aktifkan jawaban teks atau coba Chrome/Edge."
+          : "This browser does not support speech input. Switch to text answers or try Chrome/Edge."
+      );
+      setVoiceMode(false);
       return;
     }
 
@@ -122,65 +169,149 @@ export function InterviewPage() {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
-      setIsRecording(false);
     } else {
       try {
         const recognition = new SpeechRecognition();
-        recognition.lang = "id-ID";
+        recognition.lang = language === "id" ? "id-ID" : "en-US";
         recognition.continuous = true;
         recognition.interimResults = true;
 
-        recognition.onresult = (event: any) => {
-          let transcript = "";
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            transcript += event.results[i][0].transcript;
+        recognition.onresult = (event) => {
+          if (recognitionRef.current !== recognition) return;
+          const baseTranscript = speechAnswerRef.current.trim();
+          let finalDelta = "";
+          let interimTranscript = "";
+
+          for (let i = event.resultIndex; i < event.results.length; i += 1) {
+            const result = event.results[i];
+            const text = result?.[0]?.transcript?.trim();
+            if (!text) continue;
+
+            if (result.isFinal) {
+              finalDelta = finalDelta ? `${finalDelta} ${text}`.trim() : text;
+            } else {
+              interimTranscript = text;
+            }
           }
-          setUserAnswer((prev) => prev ? `${prev} ${transcript}` : transcript);
+
+          if (finalDelta) {
+            speechAnswerRef.current = baseTranscript
+              ? `${baseTranscript} ${finalDelta}`.trim()
+              : finalDelta;
+          }
+
+          const stableTranscript = speechAnswerRef.current.trim();
+          const preview = interimTranscript
+            ? [stableTranscript, interimTranscript].filter(Boolean).join(" ")
+            : stableTranscript;
+          setUserAnswer(preview);
         };
 
-        recognition.onerror = (err: any) => {
-          console.error("Speech recognition error:", err);
+        recognition.onerror = (event) => {
+          if (recognitionRef.current !== recognition) return;
+          recognitionRef.current = null;
           setIsRecording(false);
+          setSessionError(
+            event.error === "not-allowed"
+              ? language === "id"
+                ? "Izin mikrofon ditolak. Izinkan akses mikrofon di browser atau gunakan jawaban teks."
+                : "Microphone access was denied. Allow microphone access or switch to text answers."
+              : language === "id"
+                ? "Input suara terputus. Coba aktifkan mikrofon lagi."
+                : "Speech input stopped unexpectedly. Please try the microphone again."
+          );
         };
 
         recognition.onend = () => {
-          setIsRecording(false);
+          if (recognitionRef.current === recognition) {
+            recognitionRef.current = null;
+            setIsRecording(false);
+          }
         };
 
-        recognition.start();
         recognitionRef.current = recognition;
+        setUserAnswer(speechAnswerRef.current);
+        recognition.start();
         setIsRecording(true);
       } catch (err) {
-        console.error(err);
+        recognitionRef.current = null;
         setIsRecording(false);
+        setSessionError(
+          err instanceof Error
+            ? err.message
+            : language === "id"
+              ? "Mikrofon tidak dapat dimulai."
+              : "Could not start the microphone."
+        );
       }
     }
   };
 
-  // Read out question with SpeechSynthesis
-  const speakQuestion = (text: string) => {
+  const resetSpokenAnswer = () => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    speechAnswerRef.current = "";
+    setIsRecording(false);
+    setUserAnswer("");
+    setShowTranscript(false);
+    setSessionError(null);
+  };
+
+  const speakText = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
 
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "id-ID";
-    utterance.rate = 1.0;
+    const locale = language === "id" ? "id-ID" : "en-US";
+    utterance.lang = locale;
+    utterance.rate = 0.96;
+    utterance.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    utterance.voice =
+      voices.find((voice) => voice.lang.toLowerCase() === locale.toLowerCase()) ??
+      voices.find((voice) => voice.lang.toLowerCase().startsWith(language)) ??
+      null;
+    utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
 
+    window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
-    setIsSpeaking(true);
-  };
+  }, [language]);
+
+  useEffect(() => {
+    if (step === "interviewing" && activeQuestion && voiceMode && speechOutputSupported) {
+      const opening =
+        language === "id"
+          ? `Baik, kita mulai. ${activeQuestion.question}`
+          : `All right, let's begin. ${activeQuestion.question}`;
+      speakText(opening);
+    }
+  }, [activeQuestion, language, speechOutputSupported, speakText, step, voiceMode]);
+
+  useEffect(() => {
+    if (!currentEvaluation || !voiceMode || !speechOutputSupported) return;
+    const response = currentEvaluation.interviewerResponse?.trim();
+    const followUp = !isFollowUp ? currentEvaluation.followUpQuestion?.trim() : undefined;
+    const spokenResponse = [response, followUp].filter(Boolean).join(" ");
+    if (spokenResponse) speakText(spokenResponse);
+  }, [currentEvaluation, isFollowUp, speakText, speechOutputSupported, voiceMode]);
+
+  useEffect(
+    () => () => {
+      recognitionRef.current?.stop();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    },
+    []
+  );
 
   // Submit Answer for AI Evaluation
   const handleSubmitAnswer = async () => {
     if (!userAnswer.trim()) {
-      alert("Mohon ketik atau rekam suara jawaban Anda terlebih dahulu.");
+      setSessionError(
+        language === "id"
+          ? "Tulis atau rekam jawaban sebelum meminta umpan balik."
+          : "Write or record an answer before requesting feedback."
+      );
       return;
     }
 
@@ -190,7 +321,17 @@ export function InterviewPage() {
     }
 
     setEvaluating(true);
-    const currentQ = questions[currentIndex];
+    setSessionError(null);
+    const currentQ = activeQuestion ?? questions[currentIndex];
+    if (!currentQ) {
+      setEvaluating(false);
+      setSessionError(
+        language === "id"
+          ? "Pertanyaan aktif tidak ditemukan. Coba mulai ulang sesi."
+          : "The active question could not be found. Please restart the session."
+      );
+      return;
+    }
 
     try {
       const evaluation = await evaluateMockInterviewAnswer({
@@ -199,6 +340,7 @@ export function InterviewPage() {
         category: currentQ.category,
         targetSkillOrTopic: currentQ.targetSkillOrTopic,
         role,
+        language,
       });
 
       setCurrentEvaluation(evaluation);
@@ -207,7 +349,7 @@ export function InterviewPage() {
         { question: currentQ, answer: userAnswer, evaluation },
       ]);
     } catch (err: any) {
-      alert(err.message || "Gagal mengevaluasi jawaban. Coba lagi.");
+      setSessionError(err instanceof Error ? err.message : "Gagal mengevaluasi jawaban. Coba lagi.");
     } finally {
       setEvaluating(false);
     }
@@ -216,21 +358,49 @@ export function InterviewPage() {
   // Move to Next Question or Complete
   const handleNext = () => {
     if (currentIndex + 1 < questions.length) {
-      setCurrentIndex((prev) => prev + 1);
+      const nextIndex = currentIndex + 1;
+      speechAnswerRef.current = "";
+      setCurrentIndex(nextIndex);
+      setActiveQuestion(questions[nextIndex]);
+      setIsFollowUp(false);
       setUserAnswer("");
       setCurrentEvaluation(null);
+      setShowQuestionText(false);
+      setShowTranscript(false);
     } else {
+      if (speechOutputSupported) window.speechSynthesis.cancel();
+      setIsSpeaking(false);
       setStep("completed");
     }
+  };
+
+  const handleFollowUp = () => {
+    const followUpQuestion = currentEvaluation?.followUpQuestion?.trim();
+    if (!followUpQuestion || !activeQuestion || isFollowUp) return;
+
+    speechAnswerRef.current = "";
+    setActiveQuestion({
+      ...activeQuestion,
+      id: `${activeQuestion.id}-follow-up`,
+      question: followUpQuestion,
+      context:
+        language === "id"
+          ? "Pertanyaan lanjutan berdasarkan jawabanmu barusan."
+          : "A follow-up based on your previous answer.",
+      hint: "",
+      keyConceptsExpected: [],
+    });
+    setIsFollowUp(true);
+    setUserAnswer("");
+    setCurrentEvaluation(null);
+    setShowQuestionText(false);
+    setShowTranscript(false);
   };
 
   // Calculate session metrics
   const avgScore = evaluationsHistory.length > 0
     ? Math.round(evaluationsHistory.reduce((acc, curr) => acc + curr.evaluation.score, 0) / evaluationsHistory.length)
     : 0;
-
-  const totalProbDelta = evaluationsHistory.reduce((acc, curr) => acc + (curr.evaluation.hireProbabilityDelta || 0), 0);
-  const projectedProb = Math.min(96, Math.max(35, 75 + totalProbDelta));
 
   return (
     <div className="min-h-screen bg-paper flex flex-col justify-between">
@@ -249,6 +419,18 @@ export function InterviewPage() {
             <button
               onClick={() => {
                 if (confirm("Keluar dari sesi wawancara saat ini? Progress akan direset.")) {
+                  recognitionRef.current?.stop();
+                  recognitionRef.current = null;
+                  if (speechOutputSupported) window.speechSynthesis.cancel();
+                  setIsRecording(false);
+                  setIsSpeaking(false);
+                  setQuestions([]);
+                  setActiveQuestion(null);
+                  setCurrentEvaluation(null);
+                  setEvaluationsHistory([]);
+                  setUserAnswer("");
+                  setCurrentIndex(0);
+                  setIsFollowUp(false);
                   setStep("setup");
                 }
               }}
@@ -259,6 +441,12 @@ export function InterviewPage() {
             </button>
           )}
         </div>
+
+        {sessionError && (
+          <div className="mb-5 rounded-lg border border-rust/30 bg-rust-tint px-4 py-3 text-sm text-rust" role="alert">
+            {sessionError}
+          </div>
+        )}
 
         {/* STEP 1: SETUP SCREEN */}
         {step === "setup" && (
@@ -272,7 +460,7 @@ export function InterviewPage() {
                 Latihan Wawancara Kerja Berbasis AI
               </h1>
               <p className="mt-2 text-sm text-ink-soft leading-relaxed">
-                Tingkatkan probabilitas lolos wawancara Anda. AI kami akan mengajukan studi kasus nyata, mengevaluasi kedalaman teknis dan metode STAR Anda, mendeteksi keyword yang terlewat, serta memberikan contoh <b>Jawaban Ideal</b> tingkat Senior Engineer.
+                Latih jawaban untuk posisi yang dituju. AI memberi umpan balik berdasarkan jawaban yang kamu masukkan; hasilnya adalah bahan latihan, bukan prediksi hasil wawancara.
               </p>
             </div>
 
@@ -305,6 +493,21 @@ export function InterviewPage() {
                     <option value="Mid-Level">Mid-Level (2 - 5 tahun)</option>
                     <option value="Senior">Senior (5+ tahun)</option>
                     <option value="Lead / Principal">Tech Lead / Principal</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-ink">
+                    <Languages className="h-3.5 w-3.5" />
+                    Bahasa Wawancara
+                  </label>
+                  <select
+                    value={language}
+                    onChange={(event) => setLanguage(event.target.value as "id" | "en")}
+                    className="w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest"
+                  >
+                    <option value="id">Bahasa Indonesia</option>
+                    <option value="en">English</option>
                   </select>
                 </div>
 
@@ -359,6 +562,28 @@ export function InterviewPage() {
                   </div>
                 </div>
 
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-forest/20 bg-forest-tint/40 p-3">
+                  <input
+                    type="checkbox"
+                    checked={voiceMode}
+                    onChange={(event) => setVoiceMode(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-[var(--color-forest)]"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-ink">
+                      Mode wawancara suara
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
+                      Pewawancara membacakan pertanyaan dan merespons jawabanmu. Browser dapat memproses audio untuk membuat transkrip; transkrip dikirim ke AI untuk evaluasi.
+                    </span>
+                  </span>
+                </label>
+                {voiceMode && (!speechSupported || !speechOutputSupported) && (
+                  <p className="text-xs text-amber-800">
+                    Dukungan suara bergantung pada browser. Jika mikrofon atau audio tidak tersedia, sesi akan memakai kontrol yang didukung browser.
+                  </p>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wider">
                     Deskripsi Pekerjaan / Job Requirements (Opsional)
@@ -373,44 +598,49 @@ export function InterviewPage() {
                 </div>
               </div>
 
-              <div className="md:col-span-2 pt-4 border-t border-line flex items-center justify-between">
-                <div className="flex items-center gap-3 text-xs text-ink-soft">
-                  <span className="flex items-center gap-1">
-                    <Mic className="h-4 w-4 text-forest" />
-                    Mendukung Suara (Mic)
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Sparkles className="h-4 w-4 text-amber" />
-                    Evaluasi STAR Real-time
-                  </span>
-                </div>
+              <div className="md:col-span-2 flex flex-col gap-3 border-t border-line pt-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-ink-soft">
+                    <span className="flex items-center gap-1">
+                      {voiceMode ? <Mic className="h-4 w-4 text-forest" /> : <MessageSquare className="h-4 w-4 text-forest" />}
+                      {voiceMode ? "Pertanyaan & jawaban suara" : "Jawaban teks"}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="h-4 w-4 text-amber" />
+                      Evaluasi STAR
+                    </span>
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex items-center gap-2 rounded-xl bg-forest px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-forest-dark hover:shadow-lg disabled:opacity-60 cursor-pointer"
-                >
-                  {loading ? (
-                    <>
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
-                      <span>Menyiapkan Skenario AI...</span>
-                    </>
-                  ) : (
-                    <>
-                      <BrainCircuit className="h-4 w-4" />
-                      <span>Mulai Simulasi Wawancara</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex items-center gap-2 rounded-xl bg-forest px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-forest-dark hover:shadow-lg disabled:opacity-60 cursor-pointer"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                        <span>Menyiapkan Skenario AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <BrainCircuit className="h-4 w-4" />
+                        <span>Mulai Simulasi Wawancara</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-ink-soft">
+                  Membuat sesi dan mengevaluasi setiap jawaban (termasuk follow-up) memakai kuota AI.
+                </p>
               </div>
             </form>
           </div>
         )}
 
         {/* STEP 2: LIVE INTERVIEWING ROOM */}
-        {step === "interviewing" && questions.length > 0 && (
+        {step === "interviewing" && activeQuestion && (
           <div className="space-y-6">
             {/* Top Progress & Context */}
             <div className="rounded-xl border border-line bg-paper-raised p-4 shadow-sm flex items-center justify-between">
@@ -420,10 +650,12 @@ export function InterviewPage() {
                 </span>
                 <div>
                   <span className="text-xs font-semibold text-ink">
-                    Pertanyaan {currentIndex + 1} dari {questions.length}
+                    {isFollowUp
+                      ? "Pertanyaan lanjutan"
+                      : `Pertanyaan ${currentIndex + 1} dari ${questions.length}`}
                   </span>
                   <p className="text-[11px] text-ink-soft">
-                    Kategori: <span className="font-semibold uppercase text-forest">{questions[currentIndex].category}</span> • Topik: {questions[currentIndex].targetSkillOrTopic}
+                    Kategori: <span className="font-semibold uppercase text-forest">{activeQuestion.category}</span> • Topik: {activeQuestion.targetSkillOrTopic}
                   </p>
                 </div>
               </div>
@@ -451,97 +683,206 @@ export function InterviewPage() {
                     <span>Pewawancara Bertanya</span>
                   </div>
 
-                  <h2 className="font-serif text-xl font-bold text-ink leading-relaxed">
-                    "{questions[currentIndex].question}"
-                  </h2>
-
-                  {questions[currentIndex].context && (
-                    <div className="rounded-lg bg-paper p-3 text-xs text-ink-soft border border-line/60">
-                      <span className="font-bold text-ink block mb-0.5">Skenario Lapangan:</span>
-                      {questions[currentIndex].context}
+                  {voiceMode && !showQuestionText ? (
+                    <div className="rounded-xl border border-forest/20 bg-forest-tint/40 p-4">
+                        <p className="flex items-center gap-2 font-medium text-forest" role="status" aria-live="polite">
+                          {isSpeaking && (
+                            <span className="flex h-4 items-center gap-0.5" aria-hidden="true">
+                              <span className="h-2 w-0.5 animate-pulse rounded-full bg-forest" />
+                              <span className="h-4 w-0.5 animate-pulse rounded-full bg-forest [animation-delay:150ms]" />
+                              <span className="h-2.5 w-0.5 animate-pulse rounded-full bg-forest [animation-delay:300ms]" />
+                            </span>
+                          )}
+                          {isSpeaking
+                            ? "Pewawancara sedang berbicara..."
+                            : isFollowUp
+                            ? "Dengarkan pertanyaan lanjutan, lalu jawab dengan suaramu."
+                            : "Dengarkan pertanyaan, lalu jawab dengan suaramu."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuestionText(true)}
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-forest"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Tampilkan teks pertanyaan
+                      </button>
                     </div>
-                  )}
-
-                  {questions[currentIndex].hint && (
-                    <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50/80 rounded-lg p-3 border border-amber-200/60">
-                      <Lightbulb className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-                      <div>
-                        <span className="font-semibold">Tips Menjawab: </span>
-                        {questions[currentIndex].hint}
-                      </div>
-                    </div>
+                  ) : (
+                    <>
+                      <h2 className="font-serif text-xl font-bold leading-relaxed text-ink">
+                        "{activeQuestion.question}"
+                      </h2>
+                      {activeQuestion.context && (
+                        <div className="rounded-lg border border-line/60 bg-paper p-3 text-xs text-ink-soft">
+                          <span className="mb-0.5 block font-bold text-ink">Konteks</span>
+                          {activeQuestion.context}
+                        </div>
+                      )}
+                      {voiceMode && (
+                        <button
+                          type="button"
+                          onClick={() => setShowQuestionText(false)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft hover:text-forest"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" />
+                          Sembunyikan teks
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
                 <button
-                  onClick={() => speakQuestion(questions[currentIndex].question)}
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all ${
+                  type="button"
+                  disabled={!speechOutputSupported}
+                  onClick={() => {
+                    if (isSpeaking) {
+                      window.speechSynthesis.cancel();
+                      setIsSpeaking(false);
+                    } else {
+                      speakText(activeQuestion.question);
+                    }
+                  }}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                     isSpeaking
                       ? "border-forest bg-forest text-white"
                       : "border-line bg-paper-raised text-ink-soft hover:text-ink hover:border-forest"
                   }`}
                   title={isSpeaking ? "Hentikan Suara" : "Dengarkan Pertanyaan"}
                 >
-                  {isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                  {isSpeaking ? <VolumeX className="h-5 w-5" /> : <VolumeIcon className="h-5 w-5" />}
                 </button>
               </div>
-
-              {/* Expected Concepts */}
-              {questions[currentIndex].keyConceptsExpected?.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-line flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-semibold text-ink-soft">Konsep Kunci yang Dinilai:</span>
-                  {questions[currentIndex].keyConceptsExpected.map((kc, i) => (
-                    <span key={i} className="rounded bg-paper px-2 py-0.5 text-[10px] font-medium text-ink border border-line">
-                      {kc}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Answer Input Area (Only show if not yet evaluated) */}
             {!currentEvaluation && (
               <div className="rounded-2xl border border-line bg-paper-raised p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-ink uppercase tracking-wider">
-                    Jawaban Anda (Ketik atau Bicara via Mic)
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-ink">
+                      {voiceMode ? "Jawaban lisan" : "Jawaban Anda"}
+                    </span>
+                    {voiceMode && (
+                      <p className="mt-1 text-[11px] text-ink-soft">
+                        {isRecording
+                          ? "Mendengarkan jawabanmu..."
+                          : userAnswer.trim()
+                            ? "Transkrip tersimpan. Kamu bisa lanjut bicara atau rekam ulang."
+                            : "Jawab dengan suaramu seperti sedang berbicara dengan interviewer."}
+                      </p>
+                    )}
+                  </div>
 
-                  {speechSupported && (
-                    <button
-                      type="button"
-                      onClick={toggleSpeechRecognition}
-                      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer ${
-                        isRecording
-                          ? "bg-rose-500 text-white animate-pulse"
-                          : "bg-forest-tint text-forest hover:bg-forest hover:text-white"
-                      }`}
-                    >
-                      {isRecording ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-                      <span>{isRecording ? "Sedang Merekam... (Klik Stop)" : "Gunakan Mic (Bicara)"}</span>
-                    </button>
+                  {speechSupported && voiceMode && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {userAnswer.trim() && !isRecording && (
+                        <button
+                          type="button"
+                          onClick={resetSpokenAnswer}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink-soft transition-colors hover:border-forest hover:text-forest"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Rekam ulang
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={toggleSpeechRecognition}
+                        disabled={isSpeaking}
+                        aria-pressed={isRecording}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+                          isRecording
+                            ? "bg-rose-600 text-white shadow-sm"
+                            : "bg-forest text-white shadow-sm hover:bg-forest-dark"
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                      >
+                        {isRecording ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                        <span>
+                          {isRecording
+                            ? "Selesai menjawab"
+                            : userAnswer.trim()
+                              ? "Lanjut bicara"
+                              : "Mulai menjawab"}
+                        </span>
+                      </button>
+                    </div>
                   )}
                 </div>
 
-                <div className="relative">
-                  <textarea
-                    rows={6}
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    placeholder="Uraikan jawaban Anda secara terstruktur. Gunakan metode STAR (Situation, Task, Action, Result) dan sebutkan teknologi/tools yang Anda kuasai..."
-                    className="w-full rounded-xl border border-line bg-paper p-4 text-sm text-ink outline-none focus:border-forest transition-colors leading-relaxed"
-                  />
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-ink-soft">
-                    <span>{userAnswer.trim().split(/\s+/).filter(Boolean).length} kata</span>
-                    <span>Tips: Minimal 40-70 kata untuk evaluasi mendalam</span>
+                {voiceMode ? (
+                  <div className="rounded-xl border border-line bg-paper p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold text-ink-soft" role="status" aria-live="polite">
+                        {isRecording
+                          ? "Sedang mendengarkan — tekan selesai setelah jawabanmu tuntas."
+                          : userAnswer.trim()
+                            ? `${userAnswer.trim().split(/\s+/).filter(Boolean).length} kata tertangkap`
+                            : "Transkrip jawaban akan digunakan untuk evaluasi. Audio mentah tidak dikirim ke AI."}
+                      </p>
+                      {isRecording && (
+                        <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-700">
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-600" />
+                          REKAM
+                        </span>
+                      )}
+                    </div>
+                    {userAnswer.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setShowTranscript((visible) => !visible)}
+                        className="mt-2 text-xs font-semibold text-forest hover:underline"
+                      >
+                        {showTranscript ? "Sembunyikan transkrip" : "Lihat transkrip"}
+                      </button>
+                    )}
+                    {showTranscript && (
+                      <p className="mt-3 min-h-16 whitespace-pre-wrap rounded-lg border border-line bg-paper-raised p-3 text-sm leading-relaxed text-ink">
+                        {userAnswer}
+                      </p>
+                    )}
+                    {!speechSupported && (
+                      <p className="mt-2 text-xs text-rust">
+                        Browser belum mendukung mikrofon. Pilih jawaban teks pada pengaturan sesi.
+                      </p>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  <div className="relative">
+                    <textarea
+                      rows={6}
+                      value={userAnswer}
+                      onChange={(e) => setUserAnswer(e.target.value)}
+                      placeholder="Uraikan jawaban Anda secara terstruktur. Gunakan metode STAR (Situation, Task, Action, Result) dan sebutkan teknologi/tools yang Anda kuasai..."
+                      className="w-full rounded-xl border border-line bg-paper p-4 text-sm text-ink outline-none focus:border-forest transition-colors leading-relaxed"
+                    />
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-ink-soft">
+                      <span>{userAnswer.trim().split(/\s+/).filter(Boolean).length} kata</span>
+                      <span>Tips: Minimal 40-70 kata untuk evaluasi mendalam</span>
+                    </div>
+                  </div>
+                )}
+
+                {voiceMode && !isRecording && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (speechOutputSupported) window.speechSynthesis.cancel();
+                      setIsSpeaking(false);
+                      setVoiceMode(false);
+                    }}
+                    className="text-xs font-medium text-ink-soft underline underline-offset-2 hover:text-forest"
+                  >
+                    Ganti ke jawaban teks
+                  </button>
+                )}
 
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="button"
                     onClick={handleSubmitAnswer}
-                    disabled={evaluating || !userAnswer.trim()}
+                    disabled={evaluating || isRecording || !userAnswer.trim()}
                     className="flex items-center gap-2 rounded-xl bg-forest px-6 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-forest-dark hover:shadow disabled:opacity-50 cursor-pointer"
                   >
                     {evaluating ? (
@@ -581,22 +922,61 @@ export function InterviewPage() {
                         </span>
                       </div>
                       <p className="text-xs text-ink-soft">
-                        Dampak ke probabilitas diterima:{" "}
-                        <span className={currentEvaluation.hireProbabilityDelta >= 0 ? "font-bold text-emerald-600" : "font-bold text-rose-600"}>
-                          {currentEvaluation.hireProbabilityDelta >= 0 ? `+${currentEvaluation.hireProbabilityDelta}%` : `${currentEvaluation.hireProbabilityDelta}%`}
-                        </span>
+                        Umpan balik AI adalah panduan latihan, bukan penilaian dari perusahaan.
                       </p>
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleNext}
-                    className="flex items-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-forest-dark transition-all"
-                  >
-                    <span>{currentIndex + 1 < questions.length ? "Pertanyaan Berikutnya" : "Lihat Hasil Akhir"}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!isFollowUp && currentEvaluation.followUpQuestion && (
+                      <button
+                        type="button"
+                        onClick={handleFollowUp}
+                        className="flex items-center gap-2 rounded-xl border border-forest px-4 py-2.5 text-xs font-bold text-forest transition-colors hover:bg-forest-tint"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        Jawab follow-up pewawancara
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      className="flex items-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-forest-dark"
+                    >
+                      <span>{currentIndex + 1 < questions.length ? "Pertanyaan Berikutnya" : "Lihat Hasil Akhir"}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
+
+                {currentEvaluation.interviewerResponse && (
+                  <div className="flex items-start justify-between gap-3 rounded-xl border border-forest/20 bg-forest-tint/40 p-4">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-forest">
+                        Respons pewawancara
+                      </p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink">
+                        {currentEvaluation.interviewerResponse}
+                      </p>
+                    </div>
+                    {speechOutputSupported && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const spokenText = [
+                            currentEvaluation.interviewerResponse,
+                            !isFollowUp ? currentEvaluation.followUpQuestion : undefined,
+                          ].filter(Boolean).join(" ");
+                          speakText(spokenText);
+                        }}
+                        aria-label="Dengarkan respons pewawancara"
+                        className="rounded-full p-2 text-forest hover:bg-white"
+                      >
+                        <VolumeIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* STAR Rubric Breakdown */}
                 <div>
@@ -716,9 +1096,9 @@ export function InterviewPage() {
                 </div>
 
                 {/* Follow-up question if any */}
-                {currentEvaluation.followUpQuestion && (
+                {currentEvaluation.followUpQuestion && !isFollowUp && (
                   <div className="rounded-lg bg-paper p-3 text-xs text-ink border border-line">
-                    <span className="font-bold text-ink block mb-0.5">Pertanyaan Lanjutan yang Mungkin Diajukan:</span>
+                    <span className="font-bold text-ink block mb-0.5">Pewawancara ingin menggali:</span>
                     <p className="text-ink-soft">{currentEvaluation.followUpQuestion}</p>
                   </div>
                 )}
@@ -738,12 +1118,12 @@ export function InterviewPage() {
                 Simulasi Wawancara Selesai!
               </h2>
               <p className="mt-2 text-xs text-ink-soft">
-                Berikut adalah laporan komprehensif performa dan estimasi probabilitas keterterimaan Anda untuk posisi <b>{role} ({level})</b>.
+                Berikut ringkasan latihan dan masukan AI untuk posisi <b>{role} ({level})</b>. Ringkasan ini bukan prediksi hasil seleksi.
               </p>
             </div>
 
             {/* Score Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-line bg-paper p-5 text-center">
                 <span className="text-xs font-medium text-ink-soft">Skor Rata-Rata Jawaban</span>
                 <p className="mt-2 font-serif text-4xl font-bold text-forest">
@@ -755,22 +1135,12 @@ export function InterviewPage() {
               </div>
 
               <div className="rounded-xl border border-line bg-paper p-5 text-center">
-                <span className="text-xs font-medium text-ink-soft">Estimasi Probabilitas Lolos</span>
-                <p className="mt-2 font-serif text-4xl font-bold text-indigo-600">
-                  {projectedProb}%
-                </p>
-                <span className="mt-1 block text-[11px] text-ink-soft">
-                  Berdasarkan pemenuhan STAR & Kedalaman Teknis
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-line bg-paper p-5 text-center">
                 <span className="text-xs font-medium text-ink-soft">Pertanyaan Diselesaikan</span>
                 <p className="mt-2 font-serif text-4xl font-bold text-ink">
                   {evaluationsHistory.length}
                 </p>
                 <span className="mt-1 block text-[11px] text-ink-soft">
-                  Studi Kasus & Tantangan Nyata
+                  Dalam sesi latihan ini
                 </span>
               </div>
             </div>

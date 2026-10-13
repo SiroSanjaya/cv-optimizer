@@ -15,39 +15,39 @@ import { HeroDocument } from "../components/HeroDocument";
 import { Button } from "../components/Button";
 
 const trustPoints = [
-  { icon: Sparkles, label: "Gratis selama masa beta" },
-  { icon: CheckCircle2, label: "Format standar ATS 100%" },
-  { icon: UploadCloud, label: "Analisa Gemini AI Cerdas" },
-  { icon: ShieldCheck, label: "Anti-halusinasi data CV" },
+  { icon: Sparkles, label: "Kuota gratis selama beta" },
+  { icon: CheckCircle2, label: "Estimasi relevansi CV" },
+  { icon: UploadCloud, label: "Analisis berbantuan AI" },
+  { icon: ShieldCheck, label: "Periksa hasil sebelum digunakan" },
 ];
 
 const features = [
   {
     icon: TrendingUp,
-    title: "Probabilitas Lolos Screening",
+    title: "Estimasi Kecocokan CV",
     description:
-      "Ketahui persis persentase kemungkinan CV kamu lolos filter ATS dan recruiter sebelum mengirimkan lamaran.",
+      "Bandingkan skill dan pengalaman yang terbaca pada CV dengan persyaratan lowongan. Skor adalah panduan, bukan prediksi hasil seleksi.",
     color: "bg-emerald-50 text-emerald-700",
   },
   {
     icon: Link2,
-    title: "Import Link LinkedIn & Web",
+    title: "Import Profil atau Tempel Teks",
     description:
-      "Tinggal paste URL profil LinkedIn, JobStreet, atau teks bio kamu — AI kami otomatis menstrukturkannya jadi CV rapi.",
+      "Coba impor profil publik yang dapat diakses, atau tempel teks profil untuk membantu menyusun CV.",
     color: "bg-blue-50 text-blue-700",
   },
   {
     icon: Search,
     title: "Rekomendasi Loker Otomatis",
     description:
-      "Temukan puluhan lowongan aktif di Indonesia (Indeed, Kalibrr, tech ecosystem) yang paling cocok dengan skill kamu.",
+      "Jelajahi lowongan dari sumber yang tersedia dan periksa kembali detail serta statusnya pada situs penyedia.",
     color: "bg-amber-50 text-amber-700",
   },
   {
     icon: Layers,
-    title: "Application Pipeline Tracker",
+    title: "Tracker Lamaran",
     description:
-      "Kelola semua lamaran dalam kanban board terpadu: pantau tahap screening, Interview HR, User, hingga penawaran offer.",
+      "Catat lowongan dan pantau perubahan status lamaran di satu tempat.",
     color: "bg-purple-50 text-purple-700",
   },
 ];
@@ -55,8 +55,8 @@ const features = [
 const steps = [
   {
     number: "01",
-    title: "Upload CV atau Tempel Link",
-    body: "Upload file PDF/Word, atau cukup paste link profil LinkedIn kamu. AI kami mengekstrak keahlian dan pengalaman kerja.",
+    title: "Upload CV atau Tempel Profil",
+    body: "Upload PDF/Word, coba impor profil publik, atau tempel teks profil agar AI membantu menstrukturkan informasi.",
   },
   {
     number: "02",
@@ -65,13 +65,13 @@ const steps = [
   },
   {
     number: "03",
-    title: "Cek Probabilitas & Gap Skill",
-    body: "Lihat visualisasi skor kecocokan, keyword yang kurang, serta rekomendasi penyesuaian poin pengalamanmu.",
+    title: "Tinjau Kecocokan & Gap Skill",
+    body: "Lihat estimasi kecocokan, skill yang belum terdeteksi, dan saran untuk ditinjau.",
   },
   {
     number: "04",
     title: "Generate & Pantau di Tracker",
-    body: "Unduh CV versi ATS terbaikmu (PDF/Word) dan langsung simpan ke dashboard pipeline lamaran kerja!",
+    body: "Tinjau dan unduh draf CV (PDF/Word), lalu catat progres lamaran di tracker.",
   },
 ];
 
@@ -82,26 +82,26 @@ export function LandingPage() {
 
       <main>
         {/* Hero Section */}
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 sm:py-24 lg:grid-cols-2">
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-12 sm:px-6 sm:py-24 lg:grid-cols-2">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-forest/30 bg-forest-tint px-3 py-1 text-xs font-semibold text-forest">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Platform Pencari Kerja All-in-One #1 di Indonesia</span>
+              <span>Alat bantu untuk proses pencarian kerja</span>
             </div>
 
             <h1 className="mt-4 font-serif text-4xl font-bold leading-tight text-ink sm:text-5xl">
-              Optimasi CV & Pantau Interview Sampai Diterima Kerja.
+              Siapkan CV dan kelola progres lamaran dengan lebih teratur.
             </h1>
 
             <p className="mt-5 max-w-lg text-sm sm:text-base leading-relaxed text-ink-soft">
-              Bukan sekadar pembuat CV biasa. Ukur <strong>probabilitas keterima</strong>, sesuaikan keyword dengan standar ATS, pantau tahapan interview HR & User, dan dapatkan rekomendasi lowongan yang paling cocok dengan skill kamu.
+              Sesuaikan CV dengan lowongan yang dituju, tinjau kecocokan skill, catat progres lamaran, dan siapkan diri untuk wawancara. Skor dan saran AI hanya panduan—bukan jaminan lolos seleksi.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link to="/optimize">
                 <Button className="px-6 py-3 text-sm gap-2 shadow-md">
                   <Sparkles className="h-4 w-4" />
-                  Mulai Optimasi Sekarang (Gratis)
+                  Coba Optimasi CV
                 </Button>
               </Link>
               <Link
@@ -109,7 +109,7 @@ export function LandingPage() {
                 className="flex items-center gap-1.5 rounded-lg border border-line bg-paper-raised px-5 py-3 text-xs font-bold text-ink shadow-xs hover:border-forest hover:text-forest transition-colors"
               >
                 <Briefcase className="h-4 w-4" />
-                Buka Pipeline Tracker
+                Lihat Tracker Lamaran
               </Link>
             </div>
 
@@ -132,10 +132,10 @@ export function LandingPage() {
           <div className="mx-auto max-w-6xl px-6">
             <div className="text-center max-w-2xl mx-auto">
               <span className="text-xs font-bold uppercase tracking-wider text-forest">
-                Fitur Lengkap Modern
+                Fitur Utama
               </span>
               <h2 className="mt-2 font-serif text-2xl font-bold text-ink sm:text-3xl">
-                Semua yang Kamu Butuhkan untuk Lolos Seleksi Kerja
+                Dukungan Praktis untuk Proses Melamar Kerja
               </h2>
               <p className="mt-2 text-xs text-ink-soft">
                 Dibangun dengan teknologi Google Gemini AI untuk memaksimalkan setiap kesempatan interview.
@@ -201,10 +201,11 @@ export function LandingPage() {
         <section className="border-t border-line bg-paper-raised py-16 text-center sm:py-20">
           <div className="mx-auto max-w-3xl px-6">
             <h2 className="font-serif text-3xl font-bold text-ink sm:text-4xl">
-              Siap Lolos ke Tahap Interview Berikutnya?
+              Siap Menyiapkan Lamaran Berikutnya?
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-xs sm:text-sm text-ink-soft leading-relaxed">
-              Bergabung dengan ribuan pencari kerja yang telah meningkatkan peluang lolos screening hingga 3x lipat dengan CV terarah.
+              Sesuaikan CV dengan pekerjaan yang dituju, tinjau rekomendasi, dan
+              siapkan diri untuk proses seleksi berikutnya.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link to="/optimize">
@@ -225,7 +226,14 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t border-line py-8 text-center text-xs text-ink-soft bg-paper">
-        CV Optimizer — Dibuat untuk para pencari kerja di Indonesia dan global.
+        <p>CV Optimizer — Dibuat untuk para pencari kerja di Indonesia dan global.</p>
+        <Link to="/privacy" className="mt-2 inline-block font-semibold text-forest underline">
+          Privasi & penggunaan AI
+        </Link>
+        <span className="mx-2 text-ink-soft" aria-hidden="true">·</span>
+        <Link to="/faq" className="mt-2 inline-block font-semibold text-forest underline">
+          Pusat Bantuan
+        </Link>
       </footer>
     </div>
   );

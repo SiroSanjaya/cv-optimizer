@@ -43,14 +43,11 @@ export async function getRecommendedJobs(
       }
     }
 
-    // Fallback popular benchmark skills if completely empty
-    if (candidateSkills.length === 0) {
-      candidateSkills = ["React", "TypeScript", "Node.js", "JavaScript", "SQL", "Git", "REST API"];
-      isPersonalized = false;
-    }
-
     const searchKeyword = (typeof keyword === "string" && keyword.trim()) ? keyword.trim() : "";
-    const locFilter = (["indonesia", "remote", "all"].includes(String(location)) ? String(location) : "all") as "indonesia" | "remote" | "all";
+    const supportedLocations = ["indonesia", "malaysia", "singapore", "australia", "remote", "all"] as const;
+    const locFilter = supportedLocations.includes(String(location) as (typeof supportedLocations)[number])
+      ? String(location) as (typeof supportedLocations)[number]
+      : "all";
     const catFilter = (["frontend", "backend", "fullstack", "data", "devops", "mobile", "all"].includes(String(category)) ? String(category) : "all") as any;
 
     const jobs = await getAggregatedRecommendations(candidateSkills, {

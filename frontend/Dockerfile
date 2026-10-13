@@ -8,6 +8,8 @@ WORKDIR /app
 # to allow the frontend's host-mapped origin.
 ARG VITE_API_URL="http://localhost:4000"
 ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 COPY package.json package-lock.json* ./
 RUN npm install

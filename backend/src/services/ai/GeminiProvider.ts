@@ -4,6 +4,7 @@ import {
   CvAnalysis,
   StructuredCv,
   CoverLetterResult,
+  CoverLetterOptions,
   InterviewQuestion,
 } from "../../types/cv.types";
 import {
@@ -49,12 +50,17 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function withTimeout<T>(promise: Promise<T>): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(Errors.aiTimeout()), AI_TIMEOUT_MS)
-    ),
-  ]);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(() => reject(Errors.aiTimeout()), AI_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
 }
 
 export class GeminiProvider implements AIProvider {
@@ -158,7 +164,6 @@ export class GeminiProvider implements AIProvider {
       logger.error("schema_validation_failed", {
         stage: "extractStructuredCv",
         issues: JSON.stringify(parsed.error.issues),
-        raw: JSON.stringify(json),
       });
       throw Errors.malformedAiResponse();
     }
@@ -177,7 +182,6 @@ export class GeminiProvider implements AIProvider {
       logger.error("schema_validation_failed", {
         stage: "analyzeMatch",
         issues: JSON.stringify(parsed.error.issues),
-        raw: JSON.stringify(json),
       });
       throw Errors.malformedAiResponse();
     }
@@ -201,7 +205,6 @@ export class GeminiProvider implements AIProvider {
       logger.error("schema_validation_failed", {
         stage: "generateTailoredCv",
         issues: JSON.stringify(parsed.error.issues),
-        raw: JSON.stringify(json),
       });
       throw Errors.malformedAiResponse();
     }
@@ -211,13 +214,14 @@ export class GeminiProvider implements AIProvider {
   async generateCoverLetter(
     cv: StructuredCv,
     jobDescription: string,
-    options: { language?: "id" | "en"; tone?: "professional" | "modern" } = {}
+    options: CoverLetterOptions = {}
   ): Promise<CoverLetterResult> {
     const prompt = buildCoverLetterPrompt(
       JSON.stringify(cv),
       jobDescription,
       options.language || "id",
-      options.tone || "professional"
+      options.tone || "professional",
+      options
     );
     const raw = await this.generate(prompt);
     const json = extractJson<any>(raw);

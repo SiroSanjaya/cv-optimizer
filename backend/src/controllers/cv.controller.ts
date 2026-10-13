@@ -4,6 +4,7 @@ import {
   analyzeRequestSchema,
   generateRequestSchema,
   pdfRequestSchema,
+  coverLetterPdfRequestSchema,
   coverLetterRequestSchema,
   interviewPrepRequestSchema,
   structuredCvSchema,
@@ -13,12 +14,15 @@ import { logger } from "../utils/logger";
 import {
   analyzeCvAgainstJob,
   generateTailoredCv,
-  parseAndStructureCv,
   generateCoverLetter as serviceGenerateCoverLetter,
   generateInterviewPrep as serviceGenerateInterviewPrep,
 } from "../services/cv/cvService";
+import { extractTextFromFile } from "../services/parser/cvParser";
 import { generateCvPdf } from "../services/document/pdfGenerator";
+import { generateCoverLetterPdf } from "../services/document/coverLetterPdfGenerator";
 import { generateCvDocx } from "../services/document/docxGenerator";
+import { aiJobRequestSchema } from "../schemas/aiJob.schemas";
+import { submitAiJob } from "../services/ai/aiTasks";
 
 /**
  * POST /api/cv/analyze
@@ -36,10 +40,14 @@ export async function analyzeCv(req: Request, res: Response, next: NextFunction)
       throw Errors.emptyJobDescription();
     }
 
-    let structuredCv;
+    let taskInput: {
+      cvData?: unknown;
+      rawCvText?: string;
+      jobDescription: string;
+    };
 
     if (req.body?.cvData) {
-      // Structured CV supplied directly (e.g. 1-Click Demo or profile import)
+      // Structured CV supplied directly (e.g. profile import)
       let rawCv = req.body.cvData;
       if (typeof rawCv === "string") {
         try {
@@ -52,31 +60,43 @@ export async function analyzeCv(req: Request, res: Response, next: NextFunction)
       if (!parsedCv.success) {
         throw Errors.validation("Invalid structured CV data format.");
       }
-      structuredCv = parsedCv.data;
+      taskInput = {
+        cvData: parsedCv.data,
+        jobDescription: parsedJd.data.jobDescription,
+      };
     } else if (req.file) {
       tempFilePath = req.file.path;
-      structuredCv = await parseAndStructureCv(
+      const rawCvText = await extractTextFromFile(
         tempFilePath,
         req.file.mimetype
       );
+      taskInput = {
+        rawCvText,
+        jobDescription: parsedJd.data.jobDescription,
+      };
     } else {
       throw Errors.invalidFileType();
     }
 
-    const analysis = await analyzeCvAgainstJob(
-      structuredCv,
-      parsedJd.data.jobDescription
-    );
-
-    logger.info("cv_analyzed", { matchScore: analysis.matchScore });
-
-    res.json({ success: true, cv: structuredCv, analysis });
+    const parsedTask = aiJobRequestSchema.safeParse({
+      task: "cv.analyze",
+      input: taskInput,
+    });
+    if (!parsedTask.success) {
+      throw Errors.validation("Invalid CV analysis request.");
+    }
+    const userId = req.userPayload?.userId;
+    if (!userId) throw Errors.unauthorized();
+    const job = await submitAiJob(userId, parsedTask.data);
+    res.status(202).json({ success: true, ...job });
   } catch (err) {
     next(err);
   } finally {
     if (tempFilePath) {
-      fs.unlink(tempFilePath).catch(() => {
-        /* best-effort cleanup */
+      fs.unlink(tempFilePath).catch((err: unknown) => {
+        logger.warn("cv_upload_cleanup_failed", {
+          message: err instanceof Error ? err.message : "unknown",
+        });
       });
     }
   }
@@ -125,6 +145,34 @@ export async function downloadCvPdf(req: Request, res: Response, next: NextFunct
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${filename}.pdf"`
+    );
+    stream.pipe(res);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadCoverLetterPdf(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const parsed = coverLetterPdfRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw Errors.validation("Invalid cover letter data for PDF generation.");
+    }
+
+    const stream = generateCoverLetterPdf(parsed.data);
+    const filenameBase = parsed.data.applicantName
+      .trim()
+      .replace(/[^a-zA-Z0-9-_ ]/g, "")
+      .replace(/\s+/g, "_");
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Cover_Letter_${filenameBase || "Applicant"}.pdf"`
     );
     stream.pipe(res);
   } catch (err) {
@@ -283,5 +331,3 @@ export async function evaluateMockInterviewAnswerController(
     next(err);
   }
 }
-
-

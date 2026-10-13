@@ -1,84 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "../components/Header";
 import {
-  searchTalentByRequirements,
   bulkScreenCvs,
   generateInterviewInvitation,
   type TalentCandidate,
   type BulkScreenResultItem,
 } from "../lib/api";
-import {
-  Building2,
-  Search,
-  Sparkles,
-  Mail,
-  Send,
-  Copy,
-  Check,
-  Filter,
-  FileSpreadsheet,
-  X,
-} from "lucide-react";
-
+import { Building2, Search, Sparkles, Mail, Send, Copy, Check, FileSpreadsheet, X } from "lucide-react";
 
 export function RecruiterPage() {
-  const [activeTab, setActiveTab] = useState<"sourcing" | "bulk" | "invite">("sourcing");
+  const [activeTab, setActiveTab] = useState<"sourcing" | "bulk" | "invite">("bulk");
 
   // Sourcing tab state
-  const [requirementText, setRequirementText] = useState(
-    "Senior Full Stack Engineer dengan pengalaman React, TypeScript, dan Node.js minimal 3 tahun. Berpengalaman membangun REST API dan database PostgreSQL."
-  );
-  const [minExp, setMinExp] = useState(0);
-  const [candidates, setCandidates] = useState<TalentCandidate[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [extractedInfo, setExtractedInfo] = useState<{ role: string; skills: string[] } | null>(null);
-
+  const [candidates] = useState<TalentCandidate[]>([]);
   // Bulk screener state
-  const [bulkRequirement, setBulkRequirement] = useState(
-    "Frontend Developer menguasai React, Tailwind CSS, TypeScript, dan performa web."
-  );
-  const [bulkInputCvs, setBulkInputCvs] = useState(
-    `1. Budi Santoso - 3 tahun pengalaman React, TypeScript, Redux, Tailwind. Portfolio: budi.dev\n---\n2. Siti Rahma - 1 tahun pengalaman HTML, CSS, JavaScript dasar, baru belajar React.\n---\n3. Rian Pratama - 5 tahun Full Stack, lead developer di e-commerce, menguasai React, Node.js, Next.js.`
-  );
+  const [bulkRequirement, setBulkRequirement] = useState("");
+  const [bulkInputCvs, setBulkInputCvs] = useState("");
   const [bulkResults, setBulkResults] = useState<BulkScreenResultItem[]>([]);
   const [screening, setScreening] = useState(false);
 
   // Invitation modal state
   const [inviteCandidate, setInviteCandidate] = useState<TalentCandidate | null>(null);
-  const [inviteJobTitle, setInviteJobTitle] = useState("Software Engineer");
-  const [inviteCompany, setInviteCompany] = useState("PT Solusi Teknologi");
+  const [inviteCandidateName, setInviteCandidateName] = useState("");
+  const [inviteJobTitle, setInviteJobTitle] = useState("");
+  const [inviteCompany, setInviteCompany] = useState("");
   const [interviewType, setInterviewType] = useState<"HR Screening" | "Technical Challenge" | "User Interview">("HR Screening");
-  const [inviteDate, setInviteDate] = useState("Senin, 14:00 WIB");
+  const [inviteDate, setInviteDate] = useState("");
   const [invitePlatform, setInvitePlatform] = useState<"Google Meet" | "Zoom" | "Office">("Google Meet");
   const [generatedInvite, setGeneratedInvite] = useState<{ emailSubject: string; emailBody: string; whatsappMessage: string } | null>(null);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedWa, setCopiedWa] = useState(false);
-
-
-  // Run initial search
-  const handleSearchTalent = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!requirementText.trim()) return;
-
-    setSearching(true);
-    try {
-      const res = await searchTalentByRequirements({
-        requirementText,
-        minExp: minExp > 0 ? minExp : undefined,
-      });
-      setCandidates(res.candidates);
-      setExtractedInfo(res.extractedRequirements);
-    } catch (err: any) {
-      alert(err.message || "Gagal mencari talent");
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  useEffect(() => {
-    handleSearchTalent();
-  }, []);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Run bulk screening
   const handleRunBulkScreen = async () => {
@@ -108,11 +62,21 @@ export function RecruiterPage() {
   };
 
   // Generate invite
-  const handleCreateInvite = async (cand: TalentCandidate) => {
-    setInviteCandidate(cand);
+  const handleCreateInvite = async (cand?: TalentCandidate) => {
+    const candidateName = cand?.name ?? inviteCandidateName.trim();
+    if (!candidateName || !inviteJobTitle.trim() || !inviteCompany.trim() || !inviteDate.trim()) {
+      setInviteError("Lengkapi nama kandidat, posisi, perusahaan, dan jadwal terlebih dahulu.");
+      return;
+    }
+    if (cand) {
+      setInviteCandidate(cand);
+      setInviteCandidateName(cand.name);
+    }
+    setInviteError(null);
+    setGeneratingInvite(true);
     try {
       const template = await generateInterviewInvitation({
-        candidateName: cand.name,
+        candidateName,
         jobTitle: inviteJobTitle,
         companyName: inviteCompany,
         interviewType,
@@ -121,7 +85,9 @@ export function RecruiterPage() {
       });
       setGeneratedInvite(template);
     } catch (err: any) {
-      alert(err.message || "Gagal membuat template undangan");
+      setInviteError(err instanceof Error ? err.message : "Gagal membuat template undangan.");
+    } finally {
+      setGeneratingInvite(false);
     }
   };
 
@@ -141,10 +107,10 @@ export function RecruiterPage() {
               </span>
             </div>
             <h1 className="mt-2 font-serif text-2xl font-bold text-ink sm:text-3xl">
-              Portal Rekruter & AI Talent Sourcing
+              Portal HR: Screening CV & Draf Undangan
             </h1>
             <p className="mt-1 max-w-2xl text-xs text-ink-soft leading-relaxed">
-              Cari kandidat berdasarkan kebutuhan teknis Anda. AI mencocokkan CV di database, menghitung persentase kecocokan kualifikasi, mendeteksi gap keahlian, dan menyiapkan undangan wawancara resmi seketika.
+              Screen CV yang kamu miliki dan siapkan draf undangan. Sourcing kandidat belum terhubung ke database kandidat, jadi aplikasi tidak menampilkan profil contoh sebagai kandidat nyata.
             </p>
           </div>
 
@@ -160,17 +126,13 @@ export function RecruiterPage() {
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 border-b border-line pb-2">
-          <button
-            onClick={() => setActiveTab("sourcing")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              activeTab === "sourcing"
-                ? "bg-forest text-white shadow-xs"
-                : "text-ink-soft hover:text-ink hover:bg-paper-raised"
-            }`}
+          <div
+            className="flex items-center gap-2 rounded-lg border border-line bg-paper-raised px-4 py-2 text-xs font-bold text-ink-soft"
+            aria-label="Talent sourcing belum tersedia"
           >
             <Search className="h-4 w-4" />
-            <span>AI Talent Sourcing (Cari CV)</span>
-          </button>
+            <span>Talent sourcing belum tersedia</span>
+          </div>
 
           <button
             onClick={() => setActiveTab("bulk")}
@@ -200,76 +162,12 @@ export function RecruiterPage() {
         {/* TAB 1: TALENT SOURCING */}
         {activeTab === "sourcing" && (
           <div className="space-y-6">
-            {/* Search Input Box */}
-            <form onSubmit={handleSearchTalent} className="rounded-2xl border border-line bg-paper-raised p-6 shadow-sm space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-ink uppercase tracking-wider mb-1.5">
-                  Spesifikasi & Kebutuhan Posisi (Job Requirements)
-                </label>
-                <textarea
-                  rows={3}
-                  value={requirementText}
-                  onChange={(e) => setRequirementText(e.target.value)}
-                  placeholder="Ketikkan kriteria kandidat yang dicari (misal: Senior Frontend Engineer dengan keahlian React, TypeScript, Next.js, dan testing)..."
-                  className="w-full rounded-xl border border-line bg-paper p-3 text-xs text-ink outline-none focus:border-forest leading-relaxed"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-line/60">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-ink-soft font-semibold flex items-center gap-1">
-                    <Filter className="h-3.5 w-3.5" /> Min Pengalaman:
-                  </span>
-                  {[0, 2, 4, 6].map((exp) => (
-                    <button
-                      key={exp}
-                      type="button"
-                      onClick={() => setMinExp(exp)}
-                      className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
-                        minExp === exp
-                          ? "bg-forest-tint text-forest font-bold border border-forest/40"
-                          : "border border-line bg-paper text-ink-soft hover:text-ink"
-                      }`}
-                    >
-                      {exp === 0 ? "Semua" : `${exp}+ Thn`}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={searching}
-                  className="flex items-center gap-2 rounded-xl bg-forest px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-forest-dark transition-all disabled:opacity-60 cursor-pointer"
-                >
-                  {searching ? (
-                    <>
-                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-r-transparent" />
-                      <span>Mencocokkan Database CV...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      <span>Cari & Cocokkan Talent</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-
-            {/* Extracted Skills Bar */}
-            {extractedInfo && (
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-paper p-3 text-xs">
-                <span className="font-bold text-ink">Keahlian yang Diprioritaskan HR:</span>
-                {extractedInfo.skills.map((sk, i) => (
-                  <span key={i} className="rounded bg-forest-tint px-2 py-0.5 text-[11px] font-bold text-forest border border-forest/30">
-                    {sk}
-                  </span>
-                ))}
-              </div>
-            )}
+            <p id="sourcing-unavailable" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs leading-relaxed text-amber-950" role="status">
+              Sourcing kandidat belum aktif karena aplikasi belum memiliki database kandidat yang terhubung. Tidak ada profil contoh atau data kandidat rekaan yang ditampilkan. Untuk screening, gunakan tab <strong>Bulk CV Screener</strong> dengan CV yang kamu miliki.
+            </p>
 
             {/* Candidate List */}
-            <div className="space-y-4">
+            {candidates.length > 0 && <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-ink-soft">
                   Ditemukan <span className="text-ink font-bold">{candidates.length}</span> kandidat yang cocok
@@ -305,9 +203,6 @@ export function RecruiterPage() {
                         <div className="text-right shrink-0">
                           <span className="rounded-lg bg-forest-tint px-2.5 py-1 text-sm font-bold text-forest">
                             {cand.matchScore}% Match
-                          </span>
-                          <span className="block text-[10px] text-ink-soft mt-1">
-                            Prob: <b>{cand.hireProbability}%</b>
                           </span>
                         </div>
                       </div>
@@ -366,7 +261,7 @@ export function RecruiterPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
           </div>
         )}
 
@@ -379,7 +274,7 @@ export function RecruiterPage() {
                   Screening Massal CV Pelamar (Bulk AI Screener)
                 </h3>
                 <p className="text-xs text-ink-soft mt-1">
-                  Masukkan deskripsi pekerjaan dan tempelkan teks dari beberapa CV pelamar (pisahkan dengan <code className="bg-paper px-1 rounded">---</code>). AI akan meranking dan merekomendasikan kandidat terbaik seketika.
+                  Masukkan deskripsi pekerjaan dan tempelkan teks dari beberapa CV pelamar (pisahkan dengan <code className="bg-paper px-1 rounded">---</code>).                   AI membantu membandingkan isi CV dengan kriteria posisi. Tinjau setiap hasil secara manual; hasil AI bukan keputusan perekrutan.
                 </p>
               </div>
 
@@ -391,6 +286,7 @@ export function RecruiterPage() {
                   type="text"
                   value={bulkRequirement}
                   onChange={(e) => setBulkRequirement(e.target.value)}
+                  placeholder="Contoh: Frontend Engineer dengan React dan TypeScript"
                   className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink outline-none focus:border-forest"
                 />
               </div>
@@ -403,6 +299,7 @@ export function RecruiterPage() {
                   rows={6}
                   value={bulkInputCvs}
                   onChange={(e) => setBulkInputCvs(e.target.value)}
+                  placeholder={"Nama kandidat dan isi CV. Pisahkan setiap CV dengan satu baris ---\n\nContoh:\nNadia - Frontend Developer\nPengalaman React, TypeScript, dan aksesibilitas web."}
                   className="w-full rounded-lg border border-line bg-paper p-3 text-xs text-ink outline-none focus:border-forest font-mono leading-relaxed"
                 />
               </div>
@@ -492,8 +389,9 @@ export function RecruiterPage() {
                 <label className="block text-xs font-bold text-ink uppercase mb-1">Nama Kandidat</label>
                 <input
                   type="text"
-                  value={inviteCandidate?.name || "Rian Pratama"}
-                  onChange={(e) => setInviteCandidate((prev) => prev ? { ...prev, name: e.target.value } : null)}
+                  value={inviteCandidateName}
+                  onChange={(e) => setInviteCandidateName(e.target.value)}
+                  placeholder="Nama kandidat"
                   className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink"
                 />
               </div>
@@ -504,6 +402,7 @@ export function RecruiterPage() {
                   type="text"
                   value={inviteJobTitle}
                   onChange={(e) => setInviteJobTitle(e.target.value)}
+                  placeholder="Contoh: Software Engineer"
                   className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink"
                 />
               </div>
@@ -514,6 +413,7 @@ export function RecruiterPage() {
                   type="text"
                   value={inviteCompany}
                   onChange={(e) => setInviteCompany(e.target.value)}
+                  placeholder="Nama perusahaan"
                   className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink"
                 />
               </div>
@@ -537,6 +437,7 @@ export function RecruiterPage() {
                   type="text"
                   value={inviteDate}
                   onChange={(e) => setInviteDate(e.target.value)}
+                  placeholder="Contoh: 14 Oktober, pukul 14.00 WIB"
                   className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink"
                 />
               </div>
@@ -556,13 +457,15 @@ export function RecruiterPage() {
             </div>
 
             <div className="flex justify-end pt-2 border-t border-line">
+              {inviteError && <p className="text-xs text-rust" role="alert">{inviteError}</p>}
               <button
                 type="button"
-                onClick={() => handleCreateInvite(inviteCandidate || { id: "1", name: "Rian Pratama", headline: "", location: "", yearsOfExperience: 3, skills: [], summary: "", matchScore: 90, hireProbability: 90, matchingSkills: [], missingSkills: [], aiFitSummary: "", isOpenToWork: true })}
+                disabled={generatingInvite}
+                onClick={() => void handleCreateInvite()}
                 className="flex items-center gap-2 rounded-xl bg-forest px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-forest-dark cursor-pointer"
               >
                 <Sparkles className="h-4 w-4" />
-                <span>Buat Template Undangan</span>
+                <span>{generatingInvite ? "Membuat draf..." : "Buat Draf Undangan"}</span>
               </button>
             </div>
 

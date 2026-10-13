@@ -13,27 +13,36 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "./Button";
-import { generateCoverLetter } from "../lib/api";
+import { downloadCoverLetterPdf, generateCoverLetter } from "../lib/api";
 import type { CoverLetterResult, StructuredCv } from "../types/cv";
 
 interface CoverLetterSectionProps {
   cvData: StructuredCv;
   jobDescription: string;
+  onUsageChanged?: () => Promise<void>;
 }
 
 export function CoverLetterSection({
   cvData,
   jobDescription,
+  onUsageChanged,
 }: CoverLetterSectionProps) {
+  const inferredTarget = inferTargetFromJobDescription(jobDescription);
   const [language, setLanguage] = useState<"id" | "en">("id");
   const [tone, setTone] = useState<"professional" | "modern">("professional");
+  const [companyName, setCompanyName] = useState(inferredTarget.companyName);
+  const [targetRole, setTargetRole] = useState(inferredTarget.targetRole);
+  const [hiringManager, setHiringManager] = useState("");
+  const [motivation, setMotivation] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [coverLetter, setCoverLetter] = useState<CoverLetterResult | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Editable fields
   const [editableContent, setEditableContent] = useState("");
   const [editableSubject, setEditableSubject] = useState("");
+  const [editableRecipient, setEditableRecipient] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
   // Feedback states
@@ -46,10 +55,16 @@ export function CoverLetterSection({
       const res = await generateCoverLetter(cvData, jobDescription, {
         language,
         tone,
+        companyName,
+        targetRole,
+        hiringManager,
+        motivation,
       });
+      await onUsageChanged?.();
       setCoverLetter(res.coverLetter);
       setEditableSubject(res.coverLetter.subject);
       setEditableContent(res.coverLetter.content);
+      setEditableRecipient(hiringManager.trim() || res.coverLetter.recipient);
       setIsEditing(false);
     } catch (err) {
       setError(
@@ -64,7 +79,7 @@ export function CoverLetterSection({
 
   const handleCopy = async () => {
     const textToCopy = `Subject: ${editableSubject}\n\nKepada: ${
-      coverLetter?.recipient || "Hiring Team"
+      editableRecipient || "Hiring Team"
     }\n\n${editableContent}`;
 
     try {
@@ -76,21 +91,32 @@ export function CoverLetterSection({
     }
   };
 
-  const handleDownloadTxt = () => {
-    const textToDownload = `Subject: ${editableSubject}\nKepada: ${
-      coverLetter?.recipient || "Hiring Team"
-    }\n\n${editableContent}\n\n---\nDibuat dengan CV Optimizer AI`;
-
-    const blob = new Blob([textToDownload], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    const applicantName = cvData.personalInfo?.name || "Kandidat";
-    link.download = `Cover_Letter_${applicantName.replace(/\s+/g, "_")}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    setError(null);
+    try {
+      const applicantName = cvData.personalInfo?.name || "Kandidat";
+      const blob = await downloadCoverLetterPdf({
+        subject: editableSubject,
+        recipient: editableRecipient || "Hiring Team",
+        content: editableContent,
+        applicantName,
+        email: cvData.personalInfo?.email,
+        phone: cvData.personalInfo?.phone,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Cover_Letter_${applicantName.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "_") || "Kandidat"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengunduh PDF. Silakan coba lagi.");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   return (
@@ -148,18 +174,62 @@ export function CoverLetterSection({
             </Button>
             <Button
               variant="secondary"
-              onClick={handleDownloadTxt}
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
               className="px-3 py-1.5 gap-1.5 text-xs"
             >
               <Download className="h-3.5 w-3.5" />
-              Download .txt
+              {downloadingPdf ? "Menyiapkan PDF..." : "Download PDF"}
             </Button>
           </div>
         )}
       </div>
 
-      {/* Control Bar: Language & Tone */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-paper p-4 border border-line/70">
+      {/* Control Bar: Company context, language & tone */}
+      <div className="mt-6 space-y-4 rounded-xl border border-line/70 bg-paper p-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-semibold text-ink-soft">
+            Perusahaan
+            <input
+              value={companyName}
+              onChange={(event) => setCompanyName(event.target.value)}
+              placeholder="Contoh: PT Nusantara Teknologi"
+              maxLength={160}
+              className="mt-1 w-full rounded-lg border border-line bg-paper-raised px-3 py-2 text-sm font-normal text-ink focus:border-forest focus:outline-hidden"
+            />
+          </label>
+          <label className="text-xs font-semibold text-ink-soft">
+            Posisi yang dilamar
+            <input
+              value={targetRole}
+              onChange={(event) => setTargetRole(event.target.value)}
+              placeholder="Contoh: Product Designer"
+              maxLength={160}
+              className="mt-1 w-full rounded-lg border border-line bg-paper-raised px-3 py-2 text-sm font-normal text-ink focus:border-forest focus:outline-hidden"
+            />
+          </label>
+          <label className="text-xs font-semibold text-ink-soft">
+            Nama recruiter / hiring manager (opsional)
+            <input
+              value={hiringManager}
+              onChange={(event) => setHiringManager(event.target.value)}
+              placeholder="Jika diketahui"
+              maxLength={160}
+              className="mt-1 w-full rounded-lg border border-line bg-paper-raised px-3 py-2 text-sm font-normal text-ink focus:border-forest focus:outline-hidden"
+            />
+          </label>
+          <label className="text-xs font-semibold text-ink-soft">
+            Kenapa tertarik ke perusahaan ini? (opsional)
+            <input
+              value={motivation}
+              onChange={(event) => setMotivation(event.target.value)}
+              placeholder="Mis. produk, misi, atau tim yang menarik"
+              maxLength={2000}
+              className="mt-1 w-full rounded-lg border border-line bg-paper-raised px-3 py-2 text-sm font-normal text-ink focus:border-forest focus:outline-hidden"
+            />
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4 text-xs">
           {/* Language Selector */}
           <div className="flex items-center gap-2">
@@ -244,6 +314,7 @@ export function CoverLetterSection({
             </>
           )}
         </Button>
+        </div>
       </div>
 
       {error && (
@@ -320,9 +391,20 @@ export function CoverLetterSection({
 
             {/* Recipient */}
             <div className="mb-4">
-              <p className="text-xs text-ink-soft">
-                {coverLetter.recipient || "Yth. Tim Rekrutmen"}
-              </p>
+              {isEditing ? (
+                <label className="block text-[11px] font-semibold text-ink-soft">
+                  Penerima surat
+                  <input
+                    value={editableRecipient}
+                    onChange={(event) => setEditableRecipient(event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-line bg-paper-raised px-3 py-1.5 text-sm text-ink focus:border-forest focus:outline-hidden"
+                  />
+                </label>
+              ) : (
+                <p className="text-xs text-ink-soft">
+                  {editableRecipient || "Yth. Tim Rekrutmen"}
+                </p>
+              )}
             </div>
 
             {/* Letter Body */}
@@ -358,4 +440,15 @@ export function CoverLetterSection({
       )}
     </div>
   );
+}
+
+function inferTargetFromJobDescription(jobDescription: string): {
+  companyName: string;
+  targetRole: string;
+} {
+  const firstLine = jobDescription.split(/\r?\n/, 1)[0]?.trim() ?? "";
+  const match = firstLine.match(/^(.+?)\s+at\s+(.+)$/i);
+  return match
+    ? { targetRole: match[1].trim(), companyName: match[2].trim() }
+    : { targetRole: "", companyName: "" };
 }

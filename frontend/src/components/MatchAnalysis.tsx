@@ -177,6 +177,7 @@ export function MatchAnalysis({
 }: MatchAnalysisProps) {
   const [filterCategory, setFilterCategory] = useState<"all" | "technical" | "behavioral">("all");
   const [copiedQuestionIndex, setCopiedQuestionIndex] = useState<number | null>(null);
+  const [customSkillInput, setCustomSkillInput] = useState("");
 
   const matched = analysis?.matchedSkills || [];
   const partial = analysis?.partialMatches || [];
@@ -185,6 +186,8 @@ export function MatchAnalysis({
   const interviewQuestions: InterviewQuestion[] = analysis?.interviewQuestions || [];
 
   const displayScore = score ?? analysis?.matchScore ?? 0;
+  const initialScore = analysis?.matchScore ?? 0;
+  const scoreBoost = Math.max(0, displayScore - initialScore);
 
   const isClaimed = (skillName: string) =>
     claimedSkills.some((c) => c.toLowerCase() === skillName.toLowerCase());
@@ -210,14 +213,14 @@ export function MatchAnalysis({
       <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
         <ScoreRing score={displayScore} />
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">
               Job Match Score
             </p>
             {claimedSkills.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                <Sparkles className="h-2.5 w-2.5" />
-                Simulasi Aktif (+{claimedSkills.length} skill)
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 shadow-xs">
+                <Sparkles className="h-3 w-3 text-emerald-600" />
+                Simulasi Aktif (+{claimedSkills.length} skill{scoreBoost > 0 ? ` · Skor +${scoreBoost}%` : ""})
               </span>
             )}
           </div>
@@ -231,19 +234,21 @@ export function MatchAnalysis({
       </div>
 
       {/* Interactive Guidance Tip */}
-      <div className="mt-6 rounded-xl border border-forest/30 bg-forest-tint/60 p-3.5 text-xs text-ink flex items-start gap-2.5">
+      <div className="mt-6 rounded-xl border border-forest/30 bg-forest-tint/60 p-4 text-xs text-ink flex items-start gap-3">
         <Sparkles className="h-4 w-4 text-forest shrink-0 mt-0.5" />
-        <div>
+        <div className="flex-1">
           <p className="font-semibold text-forest-dark">
-            Klaim Skill yang Sebenarnya Kamu Kuasai!
+            Tambahkan Skill yang Memang Kamu Kuasai
           </p>
           <p className="mt-0.5 text-ink-soft text-[11px] leading-relaxed">
-            Jika ada skill di bawah yang kamu kuasai namun <strong>belum tercatat di dokumen CV kamu</strong>, cukup <strong>klik pada skill tersebut</strong> untuk menambahkannya. Skor akan otomatis meningkat secara real-time dan skill tersebut akan dioptimasi di CV Tailored kamu!
+            Klik skill di bawah yang sebenarnya kamu kuasai namun belum tercatat di CV. Skor kecocokan akan otomatis naik secara real-time, dan skill tersebut langsung disertakan saat kamu klik Generate CV!
           </p>
           {claimedSkills.length > 0 && (
-            <div className="mt-2 flex items-center gap-1.5 text-emerald-700 font-semibold text-[11px]">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>{claimedSkills.length} skill berhasil kamu tambahkan ke draft CV!</span>
+            <div className="mt-2.5 flex items-center gap-2 text-emerald-800 font-bold text-xs bg-emerald-100/70 px-3 py-1.5 rounded-lg border border-emerald-300">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>
+                {claimedSkills.length} skill ditambahkan: skor match naik dari <strong>{initialScore}%</strong> menjadi <strong>{displayScore}%</strong> (+{scoreBoost}%)!
+              </span>
             </div>
           )}
         </div>
@@ -251,15 +256,34 @@ export function MatchAnalysis({
 
       <div className="mt-8 grid gap-6 sm:grid-cols-3">
         <div>
-          <h4 className="text-sm font-semibold text-ink">Skill Cocok Sempurna</h4>
+          <h4 className="text-sm font-semibold text-ink flex items-center justify-between">
+            <span>Skill Cocok Sempurna</span>
+            {claimedSkills.length > 0 && (
+              <span className="text-[10px] text-emerald-700 font-bold">
+                +{claimedSkills.length} dari simulasi
+              </span>
+            )}
+          </h4>
           <div className="mt-3 flex flex-wrap gap-2">
             {matched.length ? (
               matched.map((s, idx) => (
                 <SkillPill key={idx} label={toSkillString(s)} tone="match" />
               ))
-            ) : (
+            ) : claimedSkills.length === 0 ? (
               <p className="text-xs text-ink-soft">Belum ada yang cocok langsung.</p>
-            )}
+            ) : null}
+            {claimedSkills.map((c, idx) => (
+              <span
+                key={`claimed-${idx}`}
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-400 bg-emerald-100/90 px-2.5 py-1 text-xs font-semibold text-emerald-900 shadow-2xs"
+              >
+                <Sparkles className="h-3 w-3 text-emerald-600" />
+                <span>{c}</span>
+                <span className="text-[9px] bg-emerald-200 px-1 rounded text-emerald-950 font-normal">
+                  +Ditambahkan
+                </span>
+              </span>
+            ))}
           </div>
         </div>
         <div>
@@ -310,7 +334,52 @@ export function MatchAnalysis({
             ) : (
               <p className="text-xs text-ink-soft">Semua skill utama terpenuhi!</p>
             )}
+            {/* Custom claimed skills that are not in missing or partial list */}
+            {claimedSkills
+              .filter(
+                (c) =>
+                  !missing.some((m) => toSkillString(m).toLowerCase() === c.toLowerCase()) &&
+                  !partial.some((p) => toSkillString(p).toLowerCase() === c.toLowerCase())
+              )
+              .map((c, idx) => (
+                <SkillPill
+                  key={`custom-${idx}`}
+                  label={c}
+                  tone="missing"
+                  onClick={onToggleSkill ? () => onToggleSkill(c) : undefined}
+                  isClaimed={true}
+                />
+              ))}
           </div>
+
+          {/* Quick Manual Add Input for any skill or keyword */}
+          {onToggleSkill && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (customSkillInput.trim()) {
+                  onToggleSkill(customSkillInput.trim());
+                  setCustomSkillInput("");
+                }
+              }}
+              className="mt-3 flex items-center gap-1.5"
+            >
+              <input
+                type="text"
+                value={customSkillInput}
+                onChange={(e) => setCustomSkillInput(e.target.value)}
+                placeholder="+ Tambah skill / kata kunci manual..."
+                className="rounded-lg border border-line bg-paper px-2.5 py-1 text-xs text-ink placeholder:text-ink-soft/60 focus:border-forest focus:outline-none flex-1"
+              />
+              <button
+                type="submit"
+                disabled={!customSkillInput.trim()}
+                className="rounded-lg bg-forest px-3 py-1 text-xs font-bold text-white hover:bg-forest-dark disabled:opacity-40 cursor-pointer shadow-xs transition-all"
+              >
+                + Tambah
+              </button>
+            </form>
+          )}
         </div>
       </div>
 

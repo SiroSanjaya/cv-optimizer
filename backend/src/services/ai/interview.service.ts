@@ -29,7 +29,7 @@ export interface InterviewEvaluation {
   strengths: string[];
   improvements: string[];
   idealAnswer: string;
-  hireProbabilityDelta: number; // e.g. +7 or -4
+  interviewerResponse?: string;
   followUpQuestion?: string;
 }
 
@@ -96,6 +96,69 @@ const FALLBACK_QUESTIONS: Record<string, MockInterviewQuestion[]> = {
   ]
 };
 
+const FALLBACK_QUESTIONS_EN: Record<string, MockInterviewQuestion[]> = {
+  technical: [
+    {
+      id: "q-tech-1",
+      question: "How would you improve a React application that freezes while rendering a list of thousands of items?",
+      category: "technical",
+      targetSkillOrTopic: "React virtualization and performance optimization",
+      context: "Users experience a frozen interface while scrolling through a large product catalog.",
+      hint: "Discuss virtualization, memoization, reducing re-renders, and lazy loading.",
+      keyConceptsExpected: ["Virtualization", "Memoization", "Re-render reduction", "Lazy loading"],
+    },
+    {
+      id: "q-tech-2",
+      question: "How would you prevent race conditions when many users try to purchase the last item at the same time?",
+      category: "technical",
+      targetSkillOrTopic: "Backend concurrency and distributed systems",
+      context: "An e-commerce checkout receives simultaneous requests for limited stock.",
+      hint: "Discuss database transactions, optimistic locking, idempotency, and atomic operations.",
+      keyConceptsExpected: ["Database transactions", "Optimistic locking", "Idempotency", "Atomic operations"],
+    },
+    {
+      id: "q-tech-3",
+      question: "How would you choose between a relational database and a document database for a new product?",
+      category: "technical",
+      targetSkillOrTopic: "Database architecture and trade-offs",
+      context: "The product has transactional workflows and flexible event data.",
+      hint: "Explain consistency, relationships, schema flexibility, query patterns, and operational trade-offs.",
+      keyConceptsExpected: ["ACID", "Data relationships", "Schema flexibility", "Query patterns"],
+    },
+  ],
+  behavioral: [
+    {
+      id: "q-beh-1",
+      question: "Tell me about a time you had to deliver under a tight deadline and discovered a critical bug just before release. What did you do?",
+      category: "behavioral",
+      targetSkillOrTopic: "Prioritization and incident management",
+      context: "Stakeholder expectations are high and the release window is limited.",
+      hint: "Describe the situation, your responsibility, the actions you took, and the outcome.",
+      keyConceptsExpected: ["STAR framework", "Risk assessment", "Communication", "Root cause analysis"],
+    },
+    {
+      id: "q-beh-2",
+      question: "Tell me about a time you disagreed with a teammate about a technical decision. How did you reach an outcome?",
+      category: "behavioral",
+      targetSkillOrTopic: "Conflict resolution and collaboration",
+      context: "The team has competing views on an architecture or library choice.",
+      hint: "Explain how you listened, used evidence, and aligned the decision with product needs.",
+      keyConceptsExpected: ["Active listening", "Evidence-based decisions", "Collaboration", "Product goals"],
+    },
+  ],
+  system_design: [
+    {
+      id: "q-sys-1",
+      question: "Design a URL-shortening service that handles 100 million redirects per day. What components would you choose and why?",
+      category: "system_design",
+      targetSkillOrTopic: "Scalable system design and caching",
+      context: "The service has far more reads than writes and must remain available during traffic spikes.",
+      hint: "Cover identifier generation, storage, caching, load balancing, and abuse prevention.",
+      keyConceptsExpected: ["Identifier generation", "Caching", "Database scaling", "Load balancing", "Rate limiting"],
+    },
+  ],
+};
+
 function getGeminiClient(): { client: GoogleGenerativeAI; modelName: string } | null {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
@@ -113,6 +176,7 @@ export async function generateInterviewSession(params: {
   role?: string;
   level?: string;
   type?: "technical" | "behavioral" | "system_design" | "mixed";
+  language?: "id" | "en";
   cvSkills?: string[];
   jobDescription?: string;
   questionCount?: number;
@@ -120,20 +184,49 @@ export async function generateInterviewSession(params: {
   const role = params.role || "Software Engineer";
   const level = params.level || "Mid-Senior";
   const type = params.type || "mixed";
+  const language = params.language || "id";
   const count = params.questionCount || 4;
+  const fallbackQuestions = language === "en" ? FALLBACK_QUESTIONS_EN : FALLBACK_QUESTIONS;
   const skills = params.cvSkills?.slice(0, 8).join(", ") || "React, Node.js, SQL, TypeScript";
 
   const ai = getGeminiClient();
   if (!ai) {
     logger.warn("gemini_not_configured_using_fallback_questions");
     return [
-      ...FALLBACK_QUESTIONS.technical,
-      ...FALLBACK_QUESTIONS.behavioral,
-      ...FALLBACK_QUESTIONS.system_design,
+      ...fallbackQuestions.technical,
+      ...fallbackQuestions.behavioral,
+      ...fallbackQuestions.system_design,
     ].slice(0, count);
   }
 
-  const prompt = `Anda adalah Principal Engineering Manager dan HR Interviewer terkemuka di tech industry Indonesia.
+  const prompt = language === "en"
+    ? `You are an experienced engineering manager and interview coach.
+Create ${count} realistic, challenging, and useful interview questions for a candidate with this profile:
+- Role: ${role} (${level})
+- Interview category: ${type}
+- Candidate skills / tech stack: ${skills}
+${params.jobDescription ? `- Job description: ${params.jobDescription.slice(0, 400)}` : ""}
+
+Requirements:
+1. Write every question and supporting field in clear, professional English.
+2. Prefer realistic engineering scenarios over trivia.
+3. Include context, a private answer hint, and key concepts to evaluate.
+
+Return ONLY valid JSON:
+{
+  "questions": [
+    {
+      "id": "q-1",
+      "question": "string",
+      "category": "technical" | "behavioral" | "system_design",
+      "targetSkillOrTopic": "string",
+      "context": "string",
+      "hint": "string",
+      "keyConceptsExpected": ["string"]
+    }
+  ]
+}`
+    : `Anda adalah Principal Engineering Manager dan HR Interviewer terkemuka di tech industry Indonesia.
 Buatkan ${count} pertanyaan wawancara kerja yang sangat realistis, tajam, dan edukatif untuk kandidat dengan profil:
 - Posisi: ${role} (${level})
 - Kategori Interview: ${type}
@@ -182,9 +275,9 @@ Kembalikan HANYA JSON valid dengan struktur:
 
   // Graceful fallback
   return [
-    ...FALLBACK_QUESTIONS.technical,
-    ...FALLBACK_QUESTIONS.behavioral,
-    ...FALLBACK_QUESTIONS.system_design,
+    ...fallbackQuestions.technical,
+    ...fallbackQuestions.behavioral,
+    ...fallbackQuestions.system_design,
   ].slice(0, count);
 }
 
@@ -197,10 +290,34 @@ export async function evaluateInterviewAnswer(params: {
   category?: string;
   targetSkillOrTopic?: string;
   role?: string;
+  language?: "id" | "en";
 }): Promise<InterviewEvaluation> {
   const { question, answer, category = "technical", targetSkillOrTopic = "Software Engineering", role = "Software Engineer" } = params;
+  const language = params.language || "id";
 
   if (!answer || answer.trim().length < 5) {
+    if (language === "en") {
+      return {
+        score: 20,
+        starRubric: {
+          situation: { present: false, note: "The context is not clear enough yet." },
+          task: { present: false, note: "The challenge or responsibility is missing." },
+          action: { present: false, note: "No concrete action has been described." },
+          result: { present: false, note: "The outcome or impact is missing." },
+        },
+        technicalAccuracy: {
+          score: 20,
+          feedback: "There is not enough detail to assess this answer fairly.",
+        },
+        matchedKeywords: [],
+        missingKeywords: ["Project context", "Concrete action", "Measurable outcome"],
+        strengths: ["You made an attempt to answer."],
+        improvements: ["Use a real example and explain the context, your role, actions, and outcome."],
+        idealAnswer: "Structure your answer around the situation, your responsibility, the actions you personally took, and the outcome.",
+        interviewerResponse: "I appreciate you giving that a try. Let's make the example a little more specific.",
+        followUpQuestion: "Could you share a specific example from your experience?",
+      };
+    }
     return {
       score: 20,
       starRubric: {
@@ -217,40 +334,55 @@ export async function evaluateInterviewAnswer(params: {
       missingKeywords: ["Konteks proyek", "Tindakan konkret", "Metrik hasil"],
       strengths: ["Sudah mencoba menjawab"],
       improvements: ["Gunakan struktur STAR (Situation, Task, Action, Result) dan sebutkan tools/metode teknis yang Anda gunakan."],
-      idealAnswer: `Dalam proyek terakhir saya di ${role}, saya menghadapi tantangan serupa di mana kami membutuhkan... Solusi yang saya terapkan adalah menggunakan pendekatan... yang menghasilkan peningkatan performa sebesar 35%.`,
-      hireProbabilityDelta: -5,
+      idealAnswer: "Susun jawaban dengan menjelaskan konteks, tanggung jawab, tindakan yang kamu ambil, dan hasil yang benar-benar terjadi.",
+      interviewerResponse: "Terima kasih. Boleh ceritakan sedikit lebih spesifik supaya saya memahami konteks pengalamanmu?",
       followUpQuestion: "Bisakah Anda memberikan contoh konkret dari pengalaman Anda saat mengimplementasikan hal tersebut?",
     };
   }
 
   const ai = getGeminiClient();
   if (!ai) {
-    // Deterministic rule-based evaluation fallback
-    const wordCount = answer.trim().split(/\s+/).length;
-    const baseScore = Math.min(88, Math.max(50, wordCount * 2));
-    return {
-      score: baseScore,
-      starRubric: {
-        situation: { present: wordCount > 20, note: wordCount > 20 ? "Konteks situasi telah disebutkan." : "Perlu penjelasan situasi lebih detail." },
-        task: { present: wordCount > 25, note: "Tanggung jawab dipaparkan." },
-        action: { present: wordCount > 35, note: "Langkah aksi telah diuraikan." },
-        result: { present: wordCount > 45, note: "Hasil telah disampaikan." },
-      },
-      technicalAccuracy: {
-        score: baseScore,
-        feedback: "Jawaban Anda sudah mencakup poin penting. Tingkatkan dengan menyertakan metrik kuantitatif dan terminologi teknis yang lebih spesifik.",
-      },
-      matchedKeywords: [targetSkillOrTopic],
-      missingKeywords: ["Benchmark", "Trade-offs", "Metrics"],
-      strengths: ["Penyampaian runtut", "Relevan dengan topik pertanyaan"],
-      improvements: ["Sertakan dampak terukur (misal: penurunan latensi X% atau efisiensi waktu)"],
-      idealAnswer: `Saat memimpin pengembangan di ${role}, saya mengidentifikasi bottleneck pada... Saya mengimplementasikan arsitektur... yang berhasil memangkas error rate hingga 40%.`,
-      hireProbabilityDelta: +4,
-      followUpQuestion: "Bagaimana cara Anda memantau dan memastikan stabilitas solusi tersebut setelah dideploy ke production?",
-    };
+    throw new Error("AI interviewer belum dikonfigurasi. Umpan balik jawaban tidak dapat dibuat saat ini.");
   }
 
-  const prompt = `Anda adalah Principal Interviewer & Lead Assessor teknis. Evaluasi jawaban wawancara kerja kandidat berikut ini secara OBJEKTIF, DATA-DRIVEN, dan MEMBANGUN.
+  const prompt = language === "en"
+    ? `You are an experienced technical interviewer and assessor. Evaluate the candidate's interview answer objectively, fairly, and constructively.
+
+Interview context:
+- Role: ${role}
+- Question category: ${category}
+- Topic / target skill: ${targetSkillOrTopic}
+- Interview question: "${question}"
+- Candidate answer: "${answer}"
+
+Instructions:
+1. Give an objective score from 0 to 100 based on relevance, clarity, and evidence.
+2. Assess STAR (Situation, Task, Action, Result) with a brief note for each.
+3. Identify matched and missing technical concepts without inventing evidence.
+4. Provide specific strengths and improvements.
+5. Write a concise example of a strong answer, clearly marked as a practice example, not the candidate's experience.
+6. Write "interviewerResponse": one short, natural spoken sentence (20 words maximum) reacting to a specific detail in the candidate's answer. Avoid generic praise or evaluation language.
+7. Write one concise, relevant "followUpQuestion" that probes the candidate's answer. Do not reveal evaluation criteria in the question.
+
+Write all natural-language feedback in professional English. Return ONLY valid JSON:
+{
+  "score": number,
+  "starRubric": {
+    "situation": { "present": boolean, "note": "string" },
+    "task": { "present": boolean, "note": "string" },
+    "action": { "present": boolean, "note": "string" },
+    "result": { "present": boolean, "note": "string" }
+  },
+  "technicalAccuracy": { "score": number, "feedback": "string" },
+  "matchedKeywords": ["string"],
+  "missingKeywords": ["string"],
+  "strengths": ["string"],
+  "improvements": ["string"],
+  "idealAnswer": "string",
+  "interviewerResponse": "string",
+  "followUpQuestion": "string"
+}`
+    : `Anda adalah Principal Interviewer & Lead Assessor teknis. Evaluasi jawaban wawancara kerja kandidat berikut ini secara OBJEKTIF, DATA-DRIVEN, dan MEMBANGUN.
 
 Konteks Evaluasi:
 - Posisi yang dilamar: ${role}
@@ -265,8 +397,8 @@ Instruksi Penilaian:
 3. Identifikasi kata kunci/konsep teknis yang berhasil disampaikan dengan baik (matchedKeywords) dan kata kunci krusial yang terlewat (missingKeywords).
 4. Berikan poin kekuatan (strengths) dan area perbaikan konkret (improvements).
 5. Tuliskan "idealAnswer" (contoh jawaban emas tingkat senior yang ringkas, berbobot, dan memikat).
-6. Tentukan estimasi dampak terhadap probabilitas diterima (hireProbabilityDelta: angka integer antara -15 sampai +15).
-7. Tuliskan satu pertanyaan lanjutan (followUpQuestion) yang relevan untuk menggali lebih dalam.
+6. Tuliskan "interviewerResponse": satu kalimat lisan yang singkat dan natural (maksimal 20 kata), menanggapi detail spesifik jawaban kandidat, bukan pujian generik atau bahasa evaluasi.
+7. Tuliskan satu "followUpQuestion" yang ringkas dan relevan untuk menggali jawaban kandidat lebih dalam, tanpa membocorkan kriteria penilaian.
 
 Kembalikan HANYA JSON valid sesuai skema:
 {
@@ -286,7 +418,7 @@ Kembalikan HANYA JSON valid sesuai skema:
   "strengths": ["string"],
   "improvements": ["string"],
   "idealAnswer": "string",
-  "hireProbabilityDelta": number,
+  "interviewerResponse": "string",
   "followUpQuestion": "string"
 }`;
 
@@ -302,25 +434,6 @@ Kembalikan HANYA JSON valid sesuai skema:
     return evaluation;
   } catch (err) {
     logger.warn("evaluate_interview_ai_failed", { message: (err as Error).message });
-    return {
-      score: 75,
-      starRubric: {
-        situation: { present: true, note: "Situasi cukup jelas." },
-        task: { present: true, note: "Tantangan telah dijelaskan." },
-        action: { present: true, note: "Tindakan telah dipaparkan." },
-        result: { present: false, note: "Sertakan hasil akhir kuantitatif." },
-      },
-      technicalAccuracy: {
-        score: 75,
-        feedback: "Jawaban terstruktur baik. Untuk hasil maksimal, sertakan trade-off teknis dan metrik keberhasilan.",
-      },
-      matchedKeywords: [targetSkillOrTopic],
-      missingKeywords: ["Trade-off analysis", "Quantitative metrics"],
-      strengths: ["Komunikasi jelas", "Menyentuh inti persoalan"],
-      improvements: ["Sertakan angka/metrik konkret untuk memperkuat kredibilitas hasil."],
-      idealAnswer: `Dalam pengalaman saya menangani ${targetSkillOrTopic}, pendekatan yang paling efektif adalah membagi masalah menjadi komponen terisolasi, menerapkan solusi... dan memonitor dampaknya melalui observability tools.`,
-      hireProbabilityDelta: +3,
-      followUpQuestion: "Jika solusi tersebut mengalami kendala saat traffic melonjak 10x lipat, mitigasi apa yang akan Anda siapkan?",
-    };
+    throw new Error("AI interviewer gagal memproses jawaban. Silakan coba lagi.");
   }
 }

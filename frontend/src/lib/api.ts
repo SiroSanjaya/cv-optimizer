@@ -1,4 +1,5 @@
 import axios from "axios";
+import { clearSessionCvSkills, clearSessionProfile } from "./sessionProfile";
 import type {
   CvAnalysis,
   StructuredCv,
@@ -33,6 +34,16 @@ export interface User {
   usedCredits?: number;
 }
 
+export type ApplicationStatus =
+  | "applied"
+  | "hr_interview"
+  | "user_interview"
+  | "technical_test"
+  | "offer"
+  | "rejected"
+  | "ghosted"
+  | "withdrawn";
+
 export interface ApplicationItem {
   id: string;
   userId?: string;
@@ -42,7 +53,7 @@ export interface ApplicationItem {
   jobUrl?: string | null;
   matchScore?: number | null;
   hireProb?: number | null;
-  status: "applied" | "hr_interview" | "user_interview" | "technical_test" | "offer" | "rejected" | "ghosted" | "withdrawn";
+  status: ApplicationStatus;
   appliedAt: string;
   notes?: string | null;
   createdAt: string;
@@ -54,7 +65,7 @@ export interface ApplicationMetrics {
   interviewing: number;
   offers: number;
   rejected: number;
-  avgMatchScore: number;
+  avgMatchScore: number | null;
   byStatus: Record<string, number>;
 }
 
@@ -65,7 +76,7 @@ export interface RecommendedJob {
   location: string;
   salary?: string;
   type?: string;
-  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Verified Tech" | "Indeed" | "Curated" | "Glints";
+  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Jooble" | "RemoteOK" | "Himalayas" | "Indeed" | "Curated" | "Glints";
   url: string;
   description: string;
   skills: string[];
@@ -73,8 +84,8 @@ export interface RecommendedJob {
   logo?: string;
   remote?: boolean;
   responseRate?: number;
+  visaSponsorship?: "available" | "unavailable" | "not_mentioned";
   matchScore?: number;
-  hireProbability?: number;
   matchingSkills?: string[];
   missingSkills?: string[];
 }
@@ -91,9 +102,56 @@ export interface GenerateResponse {
   cv: StructuredCv;
 }
 
+interface AiJobSubmission {
+  success: true;
+  jobId: string;
+  status: "waiting";
+}
+
+interface AiJobStatusResponse {
+  success: true;
+  jobId: string;
+  status: "waiting" | "active" | "delayed" | "completed" | "failed";
+  result?: unknown;
+  error?: string;
+}
+
 interface ApiErrorBody {
   success: false;
   error: string;
+}
+
+async function waitForAiJob<T>(
+  submission: Promise<{ data: AiJobSubmission }>,
+  timeoutMs = 5 * 60_000
+): Promise<T> {
+  const { data: job } = await submission;
+  const deadline = Date.now() + timeoutMs;
+  let intervalMs = 1_000;
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, Math.min(intervalMs, deadline - Date.now()))
+    );
+    const { data: status } = await api.get<AiJobStatusResponse>(
+      `/api/ai/jobs/${encodeURIComponent(job.jobId)}`,
+      { timeout: 15_000 }
+    );
+
+    if (status.status === "completed") {
+      if (status.result === undefined) {
+        throw new Error("The AI task completed without returning a result.");
+      }
+      return status.result as T;
+    }
+    if (status.status === "failed") {
+      throw new Error(status.error || "The AI task could not be completed.");
+    }
+
+    intervalMs = Math.min(Math.round(intervalMs * 1.5), 5_000);
+  }
+
+  throw new Error("The AI task is taking longer than expected. Please try again later.");
 }
 
 export function extractErrorMessage(err: unknown, fallback: string): string {
@@ -117,18 +175,16 @@ export async function analyzeCv(
       formData.append("cv", cvSource);
       formData.append("jobDescription", jobDescription);
 
-      const { data } = await api.post<AnalyzeResponse>("/api/cv/analyze", formData, {
+      return await waitForAiJob<AnalyzeResponse>(api.post<AiJobSubmission>("/api/cv/analyze", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 60_000,
-      });
-      return data;
+      }));
     } else {
-      const { data } = await api.post<AnalyzeResponse>(
+      return await waitForAiJob<AnalyzeResponse>(api.post<AiJobSubmission>(
         "/api/cv/analyze",
         { cvData: cvSource, jobDescription },
         { timeout: 60_000 }
-      );
-      return data;
+      ));
     }
   } catch (err) {
     throw new Error(extractErrorMessage(err, "We couldn't analyze your CV. Please try again."));
@@ -141,12 +197,11 @@ export async function generateTailoredCv(
   analysis: CvAnalysis
 ): Promise<GenerateResponse> {
   try {
-    const { data } = await api.post<GenerateResponse>(
+    return await waitForAiJob<GenerateResponse>(api.post<AiJobSubmission>(
       "/api/cv/generate",
       { cvData, jobDescription, analysis },
       { timeout: 90_000 }
-    );
-    return data;
+    ));
   } catch (err) {
     throw new Error(extractErrorMessage(err, "We couldn't generate your tailored CV. Please try again."));
   }
@@ -155,20 +210,30 @@ export async function generateTailoredCv(
 export async function generateCoverLetter(
   cvData: StructuredCv,
   jobDescription: string,
-  options?: { language?: "id" | "en"; tone?: "professional" | "modern" }
+  options?: {
+    language?: "id" | "en";
+    tone?: "professional" | "modern";
+    companyName?: string;
+    targetRole?: string;
+    hiringManager?: string;
+    motivation?: string;
+  }
 ): Promise<{ success: true; coverLetter: CoverLetterResult }> {
   try {
-    const { data } = await api.post<{ success: true; coverLetter: CoverLetterResult }>(
+    return await waitForAiJob<{ success: true; coverLetter: CoverLetterResult }>(api.post<AiJobSubmission>(
       "/api/cv/cover-letter",
       {
         cvData,
         jobDescription,
         language: options?.language || "id",
         tone: options?.tone || "professional",
+        companyName: options?.companyName,
+        targetRole: options?.targetRole,
+        hiringManager: options?.hiringManager,
+        motivation: options?.motivation,
       },
       { timeout: 60_000 }
-    );
-    return data;
+    ));
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal membuat surat lamaran. Silakan coba lagi."));
   }
@@ -179,12 +244,11 @@ export async function generateInterviewPrep(
   jobDescription: string
 ): Promise<{ success: true; questions: InterviewQuestion[] }> {
   try {
-    const { data } = await api.post<{ success: true; questions: InterviewQuestion[] }>(
+    return await waitForAiJob<{ success: true; questions: InterviewQuestion[] }>(api.post<AiJobSubmission>(
       "/api/cv/interview-prep",
       { cvData, jobDescription },
       { timeout: 60_000 }
-    );
-    return data;
+    ));
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal memuat prediksi interview. Silakan coba lagi."));
   }
@@ -205,6 +269,25 @@ export async function downloadCvFile(
   }
 }
 
+export async function downloadCoverLetterPdf(input: {
+  subject: string;
+  recipient: string;
+  content: string;
+  applicantName: string;
+  email?: string;
+  phone?: string;
+}): Promise<Blob> {
+  try {
+    const { data } = await api.post("/api/cv/cover-letter/pdf", input, {
+      responseType: "blob",
+      timeout: 30_000,
+    });
+    return data;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "We couldn't prepare your cover letter PDF. Please try again."));
+  }
+}
+
 // ----------------- Profile Import APIs -----------------
 export async function importProfile(params: {
   type: "url" | "json" | "text";
@@ -213,10 +296,9 @@ export async function importProfile(params: {
   jobDescription?: string;
 }): Promise<AnalyzeResponse> {
   try {
-    const { data } = await api.post<AnalyzeResponse>("/api/profile/import", params, {
+    return await waitForAiJob<AnalyzeResponse>(api.post<AiJobSubmission>("/api/profile/import", params, {
       timeout: 45_000,
-    });
-    return data;
+    }));
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Failed to import profile."));
   }
@@ -238,6 +320,7 @@ export async function googleLogin(credentialOrToken: string): Promise<{ user: Us
       credential: credentialOrToken,
     });
     if (data.token) {
+      clearSessionCvSkills();
       localStorage.setItem("auth_token", data.token);
     }
     return data;
@@ -246,26 +329,22 @@ export async function googleLogin(credentialOrToken: string): Promise<{ user: Us
   }
 }
 
-export async function demoLogin(name?: string, email?: string): Promise<{ user: User; token: string }> {
-  try {
-    const { data } = await api.post<{ success: boolean; user: User; token: string }>("/api/auth/demo-login", {
-      name,
-      email,
-    });
-    if (data.token) {
-      localStorage.setItem("auth_token", data.token);
-    }
-    return data;
-  } catch (err) {
-    throw new Error(extractErrorMessage(err, "Demo sign in failed."));
-  }
-}
-
 export async function logoutUser(): Promise<void> {
   try {
     await api.post("/api/auth/logout");
   } finally {
     localStorage.removeItem("auth_token");
+    clearSessionProfile();
+  }
+}
+
+export async function deleteMyAccount(): Promise<void> {
+  try {
+    await api.delete("/api/profile/account");
+    localStorage.removeItem("auth_token");
+    clearSessionProfile();
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Failed to delete your account."));
   }
 }
 
@@ -300,7 +379,7 @@ export async function createApplication(app: {
   jobUrl?: string;
   matchScore?: number;
   hireProb?: number;
-  status?: string;
+  status?: ApplicationStatus;
   notes?: string;
 }): Promise<ApplicationItem> {
   try {
@@ -340,7 +419,7 @@ export async function deleteApplication(id: string): Promise<void> {
 // ----------------- Jobs Recommendations APIs -----------------
 export async function getJobRecommendations(params?: {
   keyword?: string;
-  location?: "indonesia" | "remote" | "all";
+  location?: "indonesia" | "malaysia" | "singapore" | "australia" | "remote" | "all";
   category?: string;
   skills?: string[];
 }): Promise<{ query: any; jobs: RecommendedJob[] }> {
@@ -390,7 +469,7 @@ export interface InterviewEvaluation {
   strengths: string[];
   improvements: string[];
   idealAnswer: string;
-  hireProbabilityDelta: number;
+  interviewerResponse?: string;
   followUpQuestion?: string;
 }
 
@@ -398,15 +477,16 @@ export async function startMockInterviewSession(params: {
   role?: string;
   level?: string;
   type?: "technical" | "behavioral" | "system_design" | "mixed";
+  language?: "id" | "en";
   cvSkills?: string[];
   jobDescription?: string;
   questionCount?: number;
 }): Promise<MockInterviewQuestion[]> {
   try {
-    const { data } = await api.post<{ success: boolean; questions: MockInterviewQuestion[] }>(
+    const data = await waitForAiJob<{ success: boolean; questions: MockInterviewQuestion[] }>(api.post<AiJobSubmission>(
       "/api/cv/interview/start",
       params
-    );
+    ));
     return data.questions;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal memulai sesi latihan wawancara."));
@@ -419,12 +499,13 @@ export async function evaluateMockInterviewAnswer(params: {
   category?: string;
   targetSkillOrTopic?: string;
   role?: string;
+  language?: "id" | "en";
 }): Promise<InterviewEvaluation> {
   try {
-    const { data } = await api.post<{ success: boolean; evaluation: InterviewEvaluation }>(
+    const data = await waitForAiJob<{ success: boolean; evaluation: InterviewEvaluation }>(api.post<AiJobSubmission>(
       "/api/cv/interview/evaluate",
       params
-    );
+    ));
     return data.evaluation;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal mengevaluasi jawaban wawancara."));
@@ -443,7 +524,6 @@ export interface TalentCandidate {
   skills: string[];
   summary: string;
   matchScore: number;
-  hireProbability: number;
   matchingSkills: string[];
   missingSkills: string[];
   aiFitSummary: string;
@@ -483,10 +563,10 @@ export async function bulkScreenCvs(params: {
   rawCvs: { id: string; name: string; content: string }[];
 }): Promise<BulkScreenResultItem[]> {
   try {
-    const { data } = await api.post<{ success: boolean; results: BulkScreenResultItem[] }>(
+    const data = await waitForAiJob<{ success: boolean; results: BulkScreenResultItem[] }>(api.post<AiJobSubmission>(
       "/api/jobs/talent/bulk-screen",
       params
-    );
+    ));
     return data.results;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal melakukan screening CV massal."));
@@ -539,8 +619,7 @@ export async function analyzeCustomJob(params: {
   location: string;
   salary: string;
   skills: string[];
-  matchScore: number;
-  hireProbability: number;
+  matchScore: number | null;
   matchingSkills: string[];
   missingSkills: string[];
   overview: string;
@@ -555,5 +634,3 @@ export async function analyzeCustomJob(params: {
     throw new Error(extractErrorMessage(err, "Gagal menganalisis lowongan kustom."));
   }
 }
-
-

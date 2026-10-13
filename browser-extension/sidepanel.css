@@ -1,0 +1,94 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #14251f;
+  background: #f7f8f4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  padding: 20px 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.intro {
+  margin: 5px 0 16px;
+  color: #52645d;
+  font-size: 13px;
+}
+
+.notice {
+  padding: 11px;
+  border: 1px solid #e0bd72;
+  border-radius: 8px;
+  background: #fff7e4;
+  color: #513d10;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.file-picker {
+  display: block;
+  margin-top: 18px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+input[type="file"] {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.summary {
+  margin-top: 14px;
+  padding: 11px;
+  border: 1px solid #cbd9d0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#fill-button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px;
+  border: 0;
+  border-radius: 8px;
+  background: #20705b;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#fill-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+#status {
+  min-height: 40px;
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.footnote {
+  margin-top: 16px;
+  color: #52645d;
+  font-size: 11px;
+  line-height: 1.55;
+}

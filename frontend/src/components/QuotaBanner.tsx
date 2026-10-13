@@ -17,15 +17,15 @@ export function QuotaBanner({ used, limit }: QuotaBannerProps) {
     >
       {exhausted ? (
         <span className="font-medium">
-          You've used your free CV optimizations.
+          Kuota AI kamu ({limit} penggunaan) sudah habis.
         </span>
       ) : (
         <span>
-          Free during beta — you have{" "}
+          Sisa kuota AI:{" "}
           <span className="font-semibold text-ink">
-            {remaining} of {limit}
+            {remaining} dari {limit}
           </span>{" "}
-          optimizations left.
+          penggunaan.
         </span>
       )}
     </div>

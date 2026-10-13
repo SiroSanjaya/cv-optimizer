@@ -35,31 +35,31 @@ const faqSections = [
       },
       {
         q: "Bagaimana cara menganalisis CV saya?",
-        a: "Upload file PDF/Word CV kamu di halaman Optimize, lalu paste deskripsi pekerjaan dari situs manapun (Glints, LinkedIn, Kalibrr, dll). Klik 'Analisa Kecocokan' dan AI kami akan memproses dalam 15–30 detik.",
+        a: "Upload file PDF/Word CV di halaman Optimasi, lalu tempel deskripsi pekerjaan. Waktu pemrosesan dapat berbeda tergantung layanan AI dan ukuran dokumen.",
       },
       {
         q: "Saya tidak punya file CV. Bisa tetap pakai?",
-        a: "Tentu! Ada dua opsi: (1) Klik 'Import via Link LinkedIn' dan paste URL profil kamu. (2) Gunakan fitur Demo 1-Click untuk langsung melihat cara kerja AI tanpa upload apapun.",
+        a: "Kamu bisa mencoba mengimpor URL profil publik, tetapi sebagian situs membatasi akses otomatis. Untuk hasil yang lebih dapat diandalkan, tempel teks profil secara manual.",
       },
       {
         q: "Apa itu fitur 'Klaim Skill'?",
-        a: "Setelah analisis, AI mungkin tidak menemukan skill tertentu di CV kamu meski kamu sebenarnya menguasainya. Cukup klik pill skill berwarna merah/kuning di halaman hasil — skill tersebut langsung ditambahkan ke draft CV dan skor naik otomatis secara real-time!",
+        a: "Jika kamu memang menguasai skill yang belum tertulis di CV, pilih skill itu untuk menambahkannya ke draft CV. Pastikan klaimnya akurat. Skor analisis awal tidak berubah.",
       },
     ] as FaqItem[],
   },
   {
     icon: Brain,
-    label: "Skor & Probabilitas",
+    label: "Skor Kecocokan",
     color: "bg-emerald-50 text-emerald-700 border-emerald-200",
     iconColor: "text-emerald-600",
     items: [
       {
         q: "Apa itu Job Match Score?",
-        a: "Job Match Score adalah estimasi kecocokan CV kamu dengan job description yang kamu masukkan, dihitung berdasarkan: kecocokan skill teknis, pengalaman relevan, dan kata kunci industri. Skor ≥75% artinya peluang lolos ATS sangat tinggi.",
+        a: "Job Match Score adalah estimasi relevansi informasi CV yang terbaca terhadap deskripsi pekerjaan. Skor bukan nilai dari ATS perusahaan dan tidak memprediksi peluang lolos seleksi.",
       },
       {
         q: "Kenapa skor saya rendah padahal saya berpengalaman?",
-        a: "CV yang bagus secara konten belum tentu ATS-friendly. Kemungkinan penyebabnya: (1) Keyword di CV tidak cocok dengan yang ada di job description. (2) Format CV menggunakan tabel/kolom yang sulit dibaca parser ATS. (3) Ada skill yang relevan tapi belum ditulis di CV. Gunakan fitur Generate CV Tailored untuk memperbaiki semua ini.",
+        a: "Skor rendah dapat berarti informasi yang terbaca belum banyak cocok dengan deskripsi pekerjaan, atau dokumen kurang lengkap. Periksa hasil ekstraksi, lengkapi informasi yang akurat, lalu tinjau saran tailoring.",
       },
       {
         q: "Apakah skor ini sama dengan ATS internal perusahaan?",
@@ -83,11 +83,11 @@ const faqSections = [
       },
       {
         q: "Apakah data di CV saya bisa berubah saat di-generate?",
-        a: "Tidak pernah. AI kami hanya mengubah cara penyajian (bahasa, urutan, keyword) — bukan isi faktual. Nama perusahaan, tanggal, jabatan, dan pencapaian kamu 100% terjaga. Kami memiliki sistem anti-halusinasi yang ketat.",
+        a: "AI dapat keliru atau mengubah detail. Tinjau nama, tanggal, jabatan, pencapaian, dan seluruh isi CV sebelum mengunduh atau mengirimkannya.",
       },
       {
         q: "Bagaimana cara download CV yang sudah di-generate?",
-        a: "Di halaman hasil CV Tailored, scroll ke bawah preview CV dan cari tombol Download PDF atau Download Word (.docx). File siap pakai tanpa watermark.",
+        a: "Di hasil CV Tailored, tinjau dan edit konten terlebih dahulu, lalu gunakan tombol unduh PDF atau Word jika tersedia.",
       },
     ] as FaqItem[],
   },
@@ -107,7 +107,7 @@ const faqSections = [
       },
       {
         q: "Bisakah saya menyimpan surat lamaran yang dibuat?",
-        a: "Ya! Di bagian hasil surat lamaran, ada tombol Copy ke Clipboard dan Download sebagai TXT. Kamu juga bisa langsung edit teks sebelum menyalinnya.",
+        a: "Di bagian hasil surat lamaran, kamu bisa mengedit isi terlebih dahulu, lalu menyalin atau mengunduh hasilnya sebagai PDF.",
       },
     ] as FaqItem[],
   },
@@ -119,15 +119,15 @@ const faqSections = [
     items: [
       {
         q: "Apa itu Tracker Lamaran?",
-        a: "Tracker Lamaran adalah kanban board untuk memantau semua lamaran kerjamu dalam satu tempat. Kamu bisa melacak status: Applied → HR Interview → User Interview → Technical Test → Offer. Lengkap dengan tanggal, catatan, dan skor kecocokan masing-masing lamaran.",
+        a: "Tracker Lamaran membantu mencatat perusahaan, posisi, tanggal, catatan, dan status seperti interview, offer, ditolak, belum ada respons, atau lamaran ditarik.",
       },
       {
         q: "Bagaimana cara menambah lamaran ke tracker?",
-        a: "Ada dua cara: (1) Otomatis — klik 'Simpan ke Tracker Lamaran' setelah analisis CV selesai. (2) Manual — buka halaman Tracker dan klik 'Tambah Lamaran Baru', isi form dengan detail perusahaan dan posisi.",
+        a: "Tambahkan lamaran dari halaman Tracker, atau simpan lowongan dari halaman rekomendasi jika tombol tersebut tersedia. Kamu perlu masuk untuk menyimpan data.",
       },
       {
         q: "Apakah data tracker tersimpan permanen?",
-        a: "Ya, data tersimpan di server dan bisa diakses kapanpun kamu login. Jika belum login, data disimpan sementara di browser lokal.",
+        a: "Lamaran yang kamu simpan setelah masuk disimpan di akunmu pada server. Kamu dapat meminta penghapusan akun dan data melalui Dashboard.",
       },
     ] as FaqItem[],
   },
@@ -139,7 +139,7 @@ const faqSections = [
     items: [
       {
         q: "Bagaimana cara kerja rekomendasi lowongan?",
-        a: "AI kami menganalisis skill dari CV yang sudah kamu upload/import, lalu mencari lowongan yang paling relevan dari berbagai platform (Indeed, Glints, Kalibrr, dan curated list). Setiap lowongan dilengkapi Match Score dan estimasi Hire Probability.",
+        a: "Halaman lowongan menampilkan listing dari sumber yang tersedia. Skor kecocokan hanya muncul bila ada data skill CV pada sesi pengguna; skor tersebut bukan estimasi peluang diterima. Periksa listing di situs penyedia sebelum melamar.",
       },
       {
         q: "Bisakah saya langsung apply dari sini?",
@@ -165,21 +165,21 @@ const faqSections = [
   },
   {
     icon: AlertCircle,
-    label: "Quota & Akun",
+    label: "Kuota & Akun",
     color: "bg-gray-50 text-gray-700 border-gray-200",
     iconColor: "text-gray-600",
     items: [
       {
-        q: "Berapa batas penggunaan gratis per hari?",
-        a: "Saat ini dalam masa beta, kamu mendapat 5 analisis CV gratis per hari. Batas ini direset otomatis setiap tengah malam WIB. Fitur generate CV Tailored, Cover Letter, dan Interview Prep tidak mengurangi kuota analisis.",
+        q: "Berapa batas penggunaan selama beta?",
+        a: "Kuota dapat berubah selama beta. Batas penggunaan yang berlaku ditampilkan pada aplikasi setelah kamu masuk.",
       },
       {
         q: "Apakah perlu akun/login untuk menggunakan?",
-        a: "Tidak! Kamu bisa langsung pakai tanpa login. Login dengan Google hanya diperlukan untuk: (1) Menyimpan riwayat analisis di Dashboard. (2) Menggunakan Tracker Lamaran secara persisten. (3) Mendapat kredit tambahan.",
+        a: "Login diperlukan untuk menggunakan fitur Optimasi CV, Dashboard, Tracker Lamaran, dan Latihan Wawancara. Halaman lowongan publik dapat dijelajahi tanpa akun.",
       },
       {
         q: "Data CV saya apakah aman?",
-        a: "Sangat aman. File yang kamu upload diproses di server dan langsung dihapus setelah analisis selesai — tidak disimpan permanen. Kami tidak pernah menjual atau membagikan data CV ke pihak ketiga. Komunikasi menggunakan HTTPS terenkripsi.",
+        a: "CV dan deskripsi pekerjaan dapat dikirim ke Google Gemini untuk pemrosesan AI. File sementara di server dicoba dihapus setelah permintaan selesai; data akun dan tracker tersimpan di database. Baca kebijakan privasi untuk detail dan batasan penghapusan.",
       },
     ] as FaqItem[],
   },
@@ -189,7 +189,7 @@ const quickSteps = [
   {
     icon: "📤",
     title: "Upload atau Import CV",
-    desc: "PDF, Word, atau paste link LinkedIn",
+    desc: "PDF, Word, atau tempel teks profil",
     cta: "Mulai di sini",
     link: "/optimize",
   },
@@ -203,14 +203,14 @@ const quickSteps = [
   {
     icon: "🎯",
     title: "Lihat Skor & Gap Skill",
-    desc: "Klaim skill yang kamu kuasai tapi belum tertulis",
+    desc: "Tinjau skill yang cocok dan belum terdeteksi",
     cta: null,
     link: null,
   },
   {
     icon: "✨",
     title: "Generate & Download",
-    desc: "CV Tailored ATS + Cover Letter siap pakai",
+    desc: "Buat draf CV dan surat lamaran untuk ditinjau",
     cta: null,
     link: null,
   },

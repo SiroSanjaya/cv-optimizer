@@ -54,7 +54,12 @@ export function FileUpload({ file, onChange, error }: FileUploadProps) {
           }}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
           className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
             isDragging
               ? "border-forest bg-forest-tint"
@@ -73,6 +78,7 @@ export function FileUpload({ file, onChange, error }: FileUploadProps) {
             type="file"
             accept=".pdf,.docx"
             className="hidden"
+            aria-label="Choose a PDF or DOCX CV file"
             onChange={(e) => validateAndSet(e.target.files?.[0])}
           />
         </div>
@@ -102,7 +108,7 @@ export function FileUpload({ file, onChange, error }: FileUploadProps) {
           </button>
         </div>
       )}
-      {shownError && <p className="mt-2 text-sm text-rust">{shownError}</p>}
+      {shownError && <p className="mt-2 text-sm text-rust" role="alert">{shownError}</p>}
     </div>
   );
 }

@@ -66,6 +66,15 @@ export interface CoverLetterResult {
   keyHighlights: string[];
 }
 
+export interface CoverLetterOptions {
+  language?: "id" | "en";
+  tone?: "professional" | "modern";
+  companyName?: string;
+  targetRole?: string;
+  hiringManager?: string;
+  motivation?: string;
+}
+
 export interface CvAnalysis {
   matchScore: number;
   matchedSkills: string[];

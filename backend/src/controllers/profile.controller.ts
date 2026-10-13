@@ -6,6 +6,7 @@ import {
 } from "../services/profile/profileParser";
 import { analyzeCvAgainstJob } from "../services/cv/cvService";
 import { Errors } from "../utils/AppError";
+import { prisma } from "../utils/prisma";
 
 export async function importProfile(
   req: Request,
@@ -40,6 +41,35 @@ export async function importProfile(
       cv: structuredCv,
       analysis,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteMyAccount(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const userId = req.userPayload?.userId;
+    if (!userId) {
+      throw Errors.unauthorized();
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.application.deleteMany({ where: { userId } });
+      await tx.cvVersion.deleteMany({ where: { userId } });
+      await tx.usageCredit.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    });
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

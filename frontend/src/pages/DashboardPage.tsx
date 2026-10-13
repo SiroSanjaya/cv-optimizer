@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "../components/Header";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContextValue";
+import { getSessionCvSkills } from "../lib/sessionProfile";
 import {
   getApplicationMetrics,
   getApplications,
@@ -12,7 +13,6 @@ import {
 } from "../lib/api";
 import {
   Sparkles,
-  TrendingUp,
   Briefcase,
   CheckCircle2,
   Clock,
@@ -20,9 +20,8 @@ import {
   ChevronRight,
   BrainCircuit,
   BarChart3,
-  Radar as RadarIcon,
+  TrendingUp,
   ArrowUpRight,
-  Zap,
 } from "lucide-react";
 
 import {
@@ -32,22 +31,19 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Cell,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  AreaChart,
-  Area,
 } from "recharts";
+import { Trash2 } from "lucide-react";
 
 export function DashboardPage() {
-  const { user } = useAuth();
+  const { user, deleteAccount } = useAuth();
   const [metrics, setMetrics] = useState<ApplicationMetrics | null>(null);
+  const [metricsError, setMetricsError] = useState(false);
   const [recentApps, setRecentApps] = useState<ApplicationItem[]>([]);
+  const [applicationsError, setApplicationsError] = useState(false);
   const [topJobs, setTopJobs] = useState<RecommendedJob[]>([]);
+  const [jobsError, setJobsError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -59,8 +55,11 @@ export function DashboardPage() {
         ]);
 
         if (mRes.status === "fulfilled") setMetrics(mRes.value);
+        else setMetricsError(true);
         if (aRes.status === "fulfilled") setRecentApps(aRes.value.slice(0, 5));
+        else setApplicationsError(true);
         if (jRes.status === "fulfilled") setTopJobs(jRes.value.jobs.slice(0, 4));
+        else setJobsError(true);
       } catch (err) {
         console.error(err);
       } finally {
@@ -68,47 +67,50 @@ export function DashboardPage() {
       }
     }
     loadData();
-  }, []);
+  }, [retryKey]);
 
-  // Compute conversion funnel based on user's actual applications or standard market baseline
-  const totalApps = metrics?.total || (recentApps.length > 0 ? recentApps.length : 12);
-  const interviewingCount = metrics?.interviewing || Math.max(1, Math.round(totalApps * 0.42));
-  const offersCount = metrics?.offers || Math.max(1, Math.round(totalApps * 0.15));
+  const retryDashboard = () => {
+    setLoading(true);
+    setMetricsError(false);
+    setApplicationsError(false);
+    setJobsError(false);
+    setRetryKey((key) => key + 1);
+  };
 
-  const funnelData = [
-    { stage: "Applied", count: totalApps, conversion: "100%", fill: "#164e63" },
-    { stage: "Screened", count: Math.max(1, Math.round(totalApps * 0.72)), conversion: "72%", fill: "#0891b2" },
-    { stage: "Tech Test", count: Math.max(1, Math.round(totalApps * 0.50)), conversion: "50%", fill: "#0284c7" },
-    { stage: "Interview", count: interviewingCount, conversion: `${Math.round((interviewingCount / totalApps) * 100)}%`, fill: "#6366f1" },
-    { stage: "Offer", count: offersCount, conversion: `${Math.round((offersCount / totalApps) * 100)}%`, fill: "#10b981" },
-  ];
+  const totalApps = metrics?.total ?? 0;
+  const hasAnalyzedCv = Boolean(user?.id && getSessionCvSkills(user.id) !== undefined);
+  const interviewingCount = metrics?.interviewing ?? 0;
+  const offersCount = metrics?.offers ?? 0;
+  const applicationStatusData = Object.entries(metrics?.byStatus ?? {}).map(([status, count]) => ({
+    stage: {
+      applied: "Terkirim",
+      hr_interview: "Interview HR",
+      user_interview: "Interview User",
+      technical_test: "Tes Teknis",
+      offer: "Offer",
+      rejected: "Ditolak",
+      ghosted: "Belum ada respons",
+      withdrawn: "Ditarik",
+    }[status] ?? status,
+    count,
+  }));
+  const averageMatchScore = metrics?.avgMatchScore;
 
-  // Radar chart: Competency analysis (User vs Market Target)
-  const radarData = [
-    { subject: "Core Tech Stack", candidate: 88, benchmark: 75 },
-    { subject: "System Architecture", candidate: 72, benchmark: 80 },
-    { subject: "Testing & CI/CD", candidate: 68, benchmark: 70 },
-    { subject: "Performance / Scale", candidate: 79, benchmark: 75 },
-    { subject: "STAR / Soft Skills", candidate: 85, benchmark: 80 },
-    { subject: "Impact & Metrics", candidate: 76, benchmark: 72 },
-  ];
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Hapus akun dan seluruh data tracker serta CV tersimpan? Tindakan ini tidak dapat dibatalkan.")) {
+      return;
+    }
+    if (window.prompt('Ketik "DELETE" untuk mengonfirmasi penghapusan akun.') !== "DELETE") {
+      return;
+    }
 
-  // Velocity data: monthly application trend
-  const velocityData = [
-    { month: "Mei", lamaran: 4, respons: 2 },
-    { month: "Jun", lamaran: 7, respons: 4 },
-    { month: "Jul", lamaran: 10, respons: 6 },
-    { month: "Agu", lamaran: 14, respons: 8 },
-    { month: "Sep", lamaran: totalApps, respons: interviewingCount },
-  ];
-
-  // Market High-Demand Tech Matrix with predicted probability boost
-  const skillGaps = [
-    { skill: "Docker & Kubernetes", demand: "High (82% loker)", boost: "+14%", category: "DevOps & Cloud" },
-    { skill: "PostgreSQL Indexing & Optimization", demand: "Critical (89% loker)", boost: "+12%", category: "Database" },
-    { skill: "Redis Caching & Concurrency", demand: "High (74% loker)", boost: "+9%", category: "System Architecture" },
-    { skill: "Next.js 15 & Server Components", demand: "Very High (86% loker)", boost: "+11%", category: "Frontend" },
-  ];
+    try {
+      await deleteAccount();
+      window.location.replace("/");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal menghapus akun. Silakan coba lagi.");
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -151,7 +153,7 @@ export function DashboardPage() {
                     />
                   ) : (
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-forest text-2xl font-bold text-white shadow-sm">
-                      {user?.name ? user.name[0].toUpperCase() : "E"}
+                      {user?.name ? user.name[0].toUpperCase() : "U"}
                     </div>
                   )}
                   <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-emerald-500" />
@@ -160,14 +162,14 @@ export function DashboardPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="font-serif text-2xl font-bold text-ink">
-                      Halo, {user?.name || "Software Engineer"}!
+                      {user?.name ? `Halo, ${user.name}!` : "Halo!"}
                     </h1>
                     <span className="rounded-full bg-forest px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
                       Engineer Cockpit
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-ink-soft max-w-xl">
-                    Dashboard analitik berbasis data: pantau probabilitas kelulusan screening, evaluasi skill gap terhadap pasar kerja, dan uji kesiapan teknis via AI Simulator.
+                    Pantau progres lamaran, skor kecocokan CV, dan rekomendasi lowongan dari aktivitas akunmu.
                   </p>
                 </div>
               </div>
@@ -191,35 +193,52 @@ export function DashboardPage() {
               </div>
             </div>
 
+            {!hasAnalyzedCv && totalApps === 0 && (
+              <div className="flex flex-col gap-3 rounded-xl border border-line bg-paper-raised p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-ink">Mulai dengan data kamu sendiri</h2>
+                  <p className="mt-1 max-w-2xl text-xs text-ink-soft">
+                    Belum ada CV yang dianalisis di sesi ini atau lamaran tersimpan di tracker. Nama dan foto berasal dari Google; CV tidak diimpor otomatis.
+                  </p>
+                </div>
+                <Link
+                  to="/optimize"
+                  className="inline-flex shrink-0 items-center justify-center rounded-lg bg-forest px-4 py-2 text-xs font-semibold text-white hover:bg-forest-dark"
+                >
+                  Upload atau impor CV
+                </Link>
+              </div>
+            )}
+
             {/* Objective Key Metrics Row */}
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <div className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm">
                 <div className="flex items-center justify-between text-ink-soft">
-                  <span className="text-xs font-bold uppercase tracking-wider">Total Lamaran Aktif</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Total Lamaran</span>
                   <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
                     <Briefcase className="h-4 w-4" />
                   </div>
                 </div>
                 <p className="mt-3 font-serif text-3xl font-bold text-ink">
-                  {totalApps}
+                  {metricsError ? "—" : totalApps}
                 </p>
                 <span className="mt-1 block text-[11px] text-ink-soft">
-                  Rata-rata respons: <b>4.2 hari kerja</b>
+                  Lamaran yang tercatat di tracker
                 </span>
               </div>
 
               <div className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm">
                 <div className="flex items-center justify-between text-ink-soft">
-                  <span className="text-xs font-bold uppercase tracking-wider">Probabilitas Screening</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Skor Kecocokan Rata-rata</span>
                   <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
                     <CheckCircle2 className="h-4 w-4" />
                   </div>
                 </div>
                 <p className="mt-3 font-serif text-3xl font-bold text-emerald-600">
-                  84% <span className="text-xs font-normal text-ink-soft">(Tinggi)</span>
+                  {metricsError || averageMatchScore == null ? "—" : `${averageMatchScore}%`}
                 </p>
                 <span className="mt-1 block text-[11px] text-ink-soft">
-                  Confidence interval: <b>78% - 90%</b>
+                  Kecocokan CV dengan lowongan; bukan peluang diterima.
                 </span>
               </div>
 
@@ -231,214 +250,74 @@ export function DashboardPage() {
                   </div>
                 </div>
                 <p className="mt-3 font-serif text-3xl font-bold text-indigo-600">
-                  {interviewingCount}
+                  {metricsError ? "—" : interviewingCount}
                 </p>
                 <span className="mt-1 block text-[11px] text-ink-soft">
-                  HR, Tech Challenge & User
+                  Berdasarkan status tracker
                 </span>
               </div>
 
               <div className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm">
                 <div className="flex items-center justify-between text-ink-soft">
-                  <span className="text-xs font-bold uppercase tracking-wider">Proyeksi Tawaran (Offer)</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">Total Offer</span>
                   <div className="rounded-lg bg-amber-50 p-2 text-amber-600">
                     <TrendingUp className="h-4 w-4" />
                   </div>
                 </div>
                 <p className="mt-3 font-serif text-3xl font-bold text-ink">
-                  {offersCount > 0 ? offersCount : "1 - 2"}
+                  {metricsError ? "—" : offersCount}
                 </p>
                 <span className="mt-1 block text-[11px] text-ink-soft">
-                  Estimasi konversi final: <b>21.4%</b>
+                  Offer yang tercatat di tracker
                 </span>
               </div>
             </div>
 
-            {/* ENGINEER VISUALIZATION SUITE (RECHARTS) */}
+            {metricsError && (
+              <div className="rounded-md border border-rust/30 bg-rust-tint px-4 py-3 text-xs text-rust" role="alert">
+                Metrik lamaran tidak dapat dimuat.{" "}
+                <button type="button" className="font-semibold underline" onClick={retryDashboard}>Coba lagi</button>
+              </div>
+            )}
+
             <div className="grid gap-6 lg:grid-cols-12">
-              {/* Chart 1: Conversion Funnel (Col 7) */}
-              <div className="lg:col-span-7 rounded-2xl border border-line bg-paper-raised p-6 shadow-sm flex flex-col justify-between">
+              <div className="lg:col-span-12 rounded-2xl border border-line bg-paper-raised p-6 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-4 w-4 text-forest" />
                       <h2 className="font-serif text-base font-bold text-ink">
-                        Application Conversion Funnel (Probabilitas per Tahap)
+                        Lamaran berdasarkan status
                       </h2>
                     </div>
-                    <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                      Tolok Ukur Industri
-                    </span>
                   </div>
                   <p className="text-xs text-ink-soft mt-1">
-                    Visualisasi tingkat retensi lamaran Anda dari pengiriman hingga penawaran kerja (Offer).
+                    Distribusi aktual dari lamaran yang kamu simpan di tracker.
                   </p>
                 </div>
 
                 <div className="h-64 w-full mt-6">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={funnelData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="stage" type="category" axisLine={false} tickLine={false} tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }} width={70} />
-                      <Tooltip
-                        formatter={(val: any, _name: any, item: any) => [`${val} Lamaran (${item.payload.conversion})`, "Volume"]}
-                        contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
-                      />
-
-                      <Bar dataKey="count" radius={[0, 8, 8, 0]}>
-                        {funnelData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="pt-4 border-t border-line flex items-center justify-between text-xs text-ink-soft">
-                  <span>Drop-off terbesar rata-rata terjadi di tahap: <b>Technical Assessment (30%)</b></span>
-                  <Link to="/interview" className="font-semibold text-forest hover:underline">
-                    Perkuat via Latihan Wawancara →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Chart 2: Candidate Competency Radar (Col 5) */}
-              <div className="lg:col-span-5 rounded-2xl border border-line bg-paper-raised p-6 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <RadarIcon className="h-4 w-4 text-forest" />
-                      <h2 className="font-serif text-base font-bold text-ink">
-                        Radar Kompetensi Profil
-                      </h2>
+                  {metricsError ? (
+                    <div className="flex h-full items-center justify-center text-center text-sm text-ink-soft">
+                      Data status lamaran belum tersedia.
                     </div>
-                    <span className="text-[10px] text-ink-soft">CV vs Benchmark</span>
-                  </div>
-                  <p className="text-xs text-ink-soft mt-1">
-                    Evaluasi 6 pilar kesiapan teknis & soft-skill Anda.
-                  </p>
-                </div>
-
-                <div className="h-64 w-full mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                      <PolarGrid stroke="#e2e8f0" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fill: "#64748b", fontSize: 10, fontWeight: 600 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                      <Radar name="Profil Anda" dataKey="candidate" stroke="#1b4332" fill="#1b4332" fillOpacity={0.4} />
-                      <Radar name="Target Pasar" dataKey="benchmark" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.15} />
-                      <Tooltip contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="pt-2 border-t border-line flex items-center justify-between text-[11px] text-ink-soft">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-forest" />
-                    <span>Profil CV Anda</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-                    <span>Benchmark Pasar</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Velocity Trend & Market High-Demand Matrix */}
-            <div className="grid gap-6 lg:grid-cols-12">
-              {/* Velocity Chart (Col 6) */}
-              <div className="lg:col-span-6 rounded-2xl border border-line bg-paper-raised p-6 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-serif text-base font-bold text-ink">
-                      Tren Aktivitas & Respons Mingguan
-                    </h2>
-                    <span className="text-[11px] font-semibold text-ink-soft">Velocity Lamaran</span>
-                  </div>
-                  <p className="text-xs text-ink-soft mt-1">
-                    Volume lamaran terkirim berbanding respons wawancara yang didapatkan.
-                  </p>
-                </div>
-
-                <div className="h-56 w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={velocityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorLamaran" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#1b4332" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#1b4332" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorRespons" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 11 }} />
-                      <Tooltip contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
-                      <Area type="monotone" dataKey="lamaran" stroke="#1b4332" fillOpacity={1} fill="url(#colorLamaran)" name="Lamaran Terkirim" />
-                      <Area type="monotone" dataKey="respons" stroke="#6366f1" fillOpacity={1} fill="url(#colorRespons)" name="Wawancara Didapat" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="pt-3 border-t border-line text-xs text-ink-soft flex items-center justify-between">
-                  <span>Rasio respons lamaran Anda: <b className="text-emerald-700">~42% (Di atas rata-rata)</b></span>
-                  <Link to="/tracker" className="text-forest font-semibold hover:underline">
-                    Buka Pipeline Tracker →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Skill Gap & Probability Gain Matrix (Col 6) */}
-              <div className="lg:col-span-6 rounded-2xl border border-line bg-paper-raised p-6 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-amber-500" />
-                      <h2 className="font-serif text-base font-bold text-ink">
-                        Matriks Kebutuhan Skill & Dampak Probabilitas
-                      </h2>
+                  ) : applicationStatusData.length === 0 ? (
+                    <div className="flex h-full items-center justify-center text-center text-sm text-ink-soft">
+                      Belum ada data. Simpan lamaran di tracker untuk melihat distribusinya.
                     </div>
-                    <span className="text-[11px] font-bold text-forest bg-forest-tint px-2 py-0.5 rounded">
-                      +Probabilitas
-                    </span>
-                  </div>
-                  <p className="text-xs text-ink-soft mt-1">
-                    Skill yang paling dicari recruiter saat ini dan potensi kenaikan skor lolos jika dicantumkan di CV.
-                  </p>
-                </div>
-
-                <div className="mt-4 space-y-2.5">
-                  {skillGaps.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between rounded-xl border border-line/70 bg-paper p-3 hover:border-forest/40 transition-colors">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-ink">{item.skill}</span>
-                          <span className="rounded bg-paper-raised px-1.5 py-0.2 text-[10px] text-ink-soft border border-line">
-                            {item.category}
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-ink-soft mt-0.5 block">
-                          Permintaan pasar: {item.demand}
-                        </span>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
-                          {item.boost} Lolos
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="pt-3 border-t border-line flex items-center justify-between text-xs text-ink-soft">
-                  <span>Perbarui bullet points pengalaman Anda untuk mengklaim kenaikan skor.</span>
-                  <Link to="/optimize" className="font-semibold text-forest hover:underline">
-                    Edit CV Sekarang →
-                  </Link>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={applicationStatusData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <XAxis type="number" allowDecimals={false} />
+                        <YAxis dataKey="stage" type="category" axisLine={false} tickLine={false} tick={{ fill: "#475569", fontSize: 12, fontWeight: 600 }} width={130} />
+                        <Tooltip
+                          formatter={(value) => [`${value ?? 0} lamaran`, "Jumlah"]}
+                          contentStyle={{ backgroundColor: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }}
+                        />
+                        <Bar dataKey="count" fill="#164e63" radius={[0, 8, 8, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
             </div>
@@ -466,7 +345,13 @@ export function DashboardPage() {
                 </div>
 
                 <div className="rounded-xl border border-line bg-paper-raised shadow-sm divide-y divide-line overflow-hidden">
-                  {recentApps.length === 0 ? (
+                  {applicationsError ? (
+                    <div className="p-8 text-center" role="alert">
+                      <p className="text-sm font-semibold text-rust">Lamaran tidak dapat dimuat</p>
+                      <p className="mt-1 text-xs text-ink-soft">Data belum bisa ditampilkan. Coba lagi sebentar.</p>
+                      <button type="button" className="mt-3 text-xs font-semibold text-forest underline" onClick={retryDashboard}>Coba lagi</button>
+                    </div>
+                  ) : recentApps.length === 0 ? (
                     <div className="p-8 text-center">
                       <Briefcase className="mx-auto h-8 w-8 text-ink-soft/40" />
                       <p className="mt-2 text-sm font-semibold text-ink">Belum ada lamaran tersimpan</p>
@@ -477,7 +362,7 @@ export function DashboardPage() {
                         to="/jobs"
                         className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-forest px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-forest-dark"
                       >
-                        Buka Loker Terverifikasi
+                        Cari lowongan
                       </Link>
                     </div>
                   ) : (
@@ -491,7 +376,7 @@ export function DashboardPage() {
                             <h3 className="text-sm font-semibold text-ink truncate">
                               {app.position || "Posisi"}
                             </h3>
-                            {app.matchScore && (
+                            {app.matchScore != null && (
                               <span className="rounded bg-forest-tint px-1.5 py-0.5 text-[10px] font-bold text-forest">
                                 {app.matchScore}% Match
                               </span>
@@ -521,10 +406,10 @@ export function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="font-serif text-lg font-bold text-ink">
-                      Lowongan Terverifikasi Cocok
+                      Lowongan untuk Dieksplorasi
                     </h2>
                     <p className="text-xs text-ink-soft">
-                      Data aktual Kalibrr & Remotive
+                      Listing dari sumber lowongan; belum tentu sesuai profilmu
                     </p>
                   </div>
                   <Link
@@ -537,9 +422,13 @@ export function DashboardPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {topJobs.length === 0 ? (
+                  {jobsError ? (
+                    <div className="rounded-xl border border-line bg-paper-raised p-6 text-center text-xs text-ink-soft" role="status">
+                      Lowongan tidak dapat dimuat saat ini. Coba kunjungi halaman lowongan lagi nanti.
+                    </div>
+                  ) : topJobs.length === 0 ? (
                     <div className="rounded-xl border border-line bg-paper-raised p-6 text-center text-xs text-ink-soft">
-                      Memuat lowongan live...
+                      Belum ada listing untuk ditampilkan.
                     </div>
                   ) : (
                     topJobs.map((job) => (
@@ -563,16 +452,11 @@ export function DashboardPage() {
                             <p className="text-[11px] text-ink-soft mt-0.5 truncate">{job.company} • {job.location}</p>
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <span className="rounded bg-forest-tint px-2 py-0.5 text-xs font-bold text-forest">
-                              {job.hireProbability || 80}% Prob
-                            </span>
-                          </div>
                         </div>
 
                         <div className="pt-2 border-t border-line/60 flex items-center justify-between text-xs">
                           <span className="text-[11px] text-emerald-700 font-semibold truncate max-w-[150px]">
-                            {job.salary || "Kompensasi Kompetitif"}
+                            {job.salary || "Gaji tidak dicantumkan"}
                           </span>
                           <Link
                             to="/interview"
@@ -592,6 +476,24 @@ export function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {user && (
+              <section className="rounded-xl border border-red-200 bg-red-50 p-5">
+                <h2 className="font-semibold text-red-900">Hapus akun dan data</h2>
+                <p className="mt-1 text-sm text-red-800">
+                  Menghapus akun akan menghapus data profil, CV tersimpan, kredit, dan tracker lamaran dari aplikasi.
+                  Penghapusan ini tidak dapat dibatalkan.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-800 hover:bg-red-100"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Hapus akun saya
+                </button>
+              </section>
+            )}
           </>
         )}
       </main>

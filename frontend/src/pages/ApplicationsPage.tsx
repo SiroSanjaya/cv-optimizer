@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Header } from "../components/Header";
 import { Button } from "../components/Button";
 import {
@@ -6,6 +6,7 @@ import {
   createApplication,
   updateApplication,
   deleteApplication,
+  type ApplicationStatus,
   type ApplicationItem,
 } from "../lib/api";
 import {
@@ -19,18 +20,16 @@ import {
   X,
 } from "lucide-react";
 
-type StageKey = "applied" | "hr_interview" | "user_interview" | "technical_test" | "offer" | "rejected";
-
 interface StageConfig {
-  key: StageKey;
+  key: ApplicationStatus;
   label: string;
   badge: string;
-  count: number;
 }
 
 export function ApplicationsPage() {
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -38,25 +37,42 @@ export function ApplicationsPage() {
   const [company, setCompany] = useState("");
   const [position, setPosition] = useState("");
   const [jobUrl, setJobUrl] = useState("");
-  const [status, setStatus] = useState<string>("applied");
+  const [status, setStatus] = useState<ApplicationStatus>("applied");
   const [notes, setNotes] = useState("");
-  const [matchScore] = useState<number>(85);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load applications
-  const loadApps = async () => {
+  const loadApps = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       const data = await getApplications();
       setApplications(data);
     } catch (err) {
-      console.error(err);
+      setLoadError(err instanceof Error ? err.message : "Gagal memuat tracker lamaran.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadApps();
+    let isMounted = true;
+    getApplications()
+      .then((data) => {
+        if (isMounted) setApplications(data);
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setLoadError(err instanceof Error ? err.message : "Gagal memuat tracker lamaran.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -70,8 +86,6 @@ export function ApplicationsPage() {
         jobUrl,
         status,
         notes,
-        matchScore: Number(matchScore) || 80,
-        hireProb: Math.round((Number(matchScore) || 80) * 0.95),
       });
       setIsModalOpen(false);
       // Reset form
@@ -81,20 +95,20 @@ export function ApplicationsPage() {
       setNotes("");
       await loadApps();
     } catch (err) {
-      alert("Gagal menambahkan lamaran");
+      alert(err instanceof Error ? err.message : "Gagal menambahkan lamaran");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  const handleStatusChange = async (id: string, newStatus: ApplicationStatus) => {
     try {
-      await updateApplication(id, { status: newStatus as any });
+      const updatedApplication = await updateApplication(id, { status: newStatus });
       setApplications((prev) =>
-        prev.map((app) => (app.id === id ? { ...app, status: newStatus as any } : app))
+        prev.map((app) => app.id === id ? updatedApplication : app)
       );
     } catch (err) {
-      alert("Gagal memperbarui status");
+      alert(err instanceof Error ? err.message : "Gagal memperbarui status");
     }
   };
 
@@ -104,7 +118,7 @@ export function ApplicationsPage() {
       await deleteApplication(id);
       setApplications((prev) => prev.filter((app) => app.id !== id));
     } catch (err) {
-      alert("Gagal menghapus lamaran");
+      alert(err instanceof Error ? err.message : "Gagal menghapus lamaran");
     }
   };
 
@@ -113,37 +127,41 @@ export function ApplicationsPage() {
       key: "applied",
       label: "Lamaran Terkirim",
       badge: "bg-gray-100 text-gray-800 border-gray-200",
-      count: applications.filter((a) => a.status === "applied").length,
     },
     {
       key: "hr_interview",
       label: "Interview HR",
       badge: "bg-blue-100 text-blue-800 border-blue-200",
-      count: applications.filter((a) => a.status === "hr_interview").length,
     },
     {
       key: "user_interview",
       label: "Interview User",
       badge: "bg-indigo-100 text-indigo-800 border-indigo-200",
-      count: applications.filter((a) => a.status === "user_interview").length,
     },
     {
       key: "technical_test",
       label: "Tes Teknis",
       badge: "bg-purple-100 text-purple-800 border-purple-200",
-      count: applications.filter((a) => a.status === "technical_test").length,
     },
     {
       key: "offer",
       label: "Diterima / Offer 🎉",
       badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
-      count: applications.filter((a) => a.status === "offer").length,
     },
     {
       key: "rejected",
       label: "Belum Berhasil",
       badge: "bg-rose-100 text-rose-800 border-rose-200",
-      count: applications.filter((a) => a.status === "rejected" || a.status === "ghosted").length,
+    },
+    {
+      key: "ghosted",
+      label: "Belum Ada Respons",
+      badge: "bg-amber-100 text-amber-800 border-amber-200",
+    },
+    {
+      key: "withdrawn",
+      label: "Ditarik",
+      badge: "bg-slate-100 text-slate-700 border-slate-200",
     },
   ];
 
@@ -205,108 +223,116 @@ export function ApplicationsPage() {
             <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-forest border-r-transparent mb-2" />
             <p>Memuat pipeline lamaran...</p>
           </div>
+        ) : loadError ? (
+          <div className="mt-8 rounded-xl border border-rust/30 bg-rust-tint p-6 text-center" role="alert">
+            <p className="text-sm font-semibold text-rust">Tracker gagal dimuat</p>
+            <p className="mt-1 text-xs text-rust">{loadError}</p>
+            <Button variant="secondary" onClick={() => void loadApps()} className="mt-4">
+              Coba lagi
+            </Button>
+          </div>
         ) : viewMode === "kanban" ? (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start">
-            {stages.map((stage) => {
-              const items = applications.filter((a) => {
-                if (stage.key === "rejected") return a.status === "rejected" || a.status === "ghosted";
-                return a.status === stage.key;
-              });
+          <div className="mt-8 overflow-x-auto pb-3">
+            <div className="grid min-w-[1760px] grid-cols-8 gap-4 items-start">
+              {stages.map((stage) => {
+                const items = applications.filter((a) => a.status === stage.key);
 
-              return (
-                <div
-                  key={stage.key}
-                  className="rounded-xl border border-line bg-paper-raised/80 p-3 shadow-sm min-h-[420px] flex flex-col"
-                >
-                  <div className="flex items-center justify-between border-b border-line pb-2.5 mb-3">
-                    <span className="font-serif text-xs font-bold text-ink">
-                      {stage.label}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${stage.badge}`}
-                    >
-                      {items.length}
-                    </span>
-                  </div>
+                return (
+                  <div
+                    key={stage.key}
+                    className="rounded-xl border border-line bg-paper-raised/80 p-3 shadow-sm min-h-[420px] flex flex-col"
+                  >
+                    <div className="flex items-center justify-between border-b border-line pb-2.5 mb-3">
+                      <span className="font-serif text-xs font-bold text-ink">
+                        {stage.label}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${stage.badge}`}
+                      >
+                        {items.length}
+                      </span>
+                    </div>
 
-                  <div className="space-y-2.5 flex-1 overflow-y-auto">
-                    {items.length === 0 ? (
-                      <div className="py-8 text-center text-[11px] text-ink-soft/50 italic">
-                        Kosong
-                      </div>
-                    ) : (
-                      items.map((app) => (
-                        <div
-                          key={app.id}
-                          className="rounded-lg border border-line bg-paper p-3 shadow-xs hover:border-forest/60 transition-all group"
-                        >
-                          <div className="flex items-start justify-between gap-1">
-                            <h4 className="text-xs font-bold text-ink line-clamp-1">
-                              {app.position}
-                            </h4>
-                            <button
-                              onClick={() => handleDelete(app.id)}
-                              className="opacity-0 group-hover:opacity-100 text-ink-soft hover:text-rose-600 transition-opacity p-0.5"
-                              title="Hapus"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-
-                          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-soft">
-                            <Building2 className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{app.company}</span>
-                          </div>
-
-                          {app.matchScore && (
-                            <div className="mt-2 flex items-center gap-1">
-                              <span className="rounded bg-forest-tint px-1.5 py-0.5 text-[9px] font-bold text-forest">
-                                {app.matchScore}% Match
-                              </span>
-                              {app.jobUrl && (
-                                <a
-                                  href={app.jobUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[10px] text-forest hover:underline flex items-center gap-0.5 ml-auto"
-                                >
-                                  Link <ExternalLink className="h-2.5 w-2.5" />
-                                </a>
-                              )}
-                            </div>
-                          )}
-
-                          {app.notes && (
-                            <p className="mt-2 rounded bg-paper-raised p-1.5 text-[10px] text-ink-soft line-clamp-2 border border-line/40">
-                              💬 {app.notes}
-                            </p>
-                          )}
-
-                          {/* Quick stage selector */}
-                          <div className="mt-3 pt-2 border-t border-line/60">
-                            <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-1">
-                              Pindah Tahap:
-                            </label>
-                            <select
-                              value={app.status}
-                              onChange={(e) => handleStatusChange(app.id, e.target.value)}
-                              className="w-full rounded border border-line bg-paper-raised px-1.5 py-1 text-[10px] text-ink focus:border-forest focus:outline-none"
-                            >
-                              <option value="applied">Lamaran Terkirim</option>
-                              <option value="hr_interview">Interview HR</option>
-                              <option value="user_interview">Interview User</option>
-                              <option value="technical_test">Tes Teknis</option>
-                              <option value="offer">Offer Diterima 🎉</option>
-                              <option value="rejected">Belum Berhasil</option>
-                            </select>
-                          </div>
+                    <div className="space-y-2.5 flex-1 overflow-y-auto">
+                      {items.length === 0 ? (
+                        <div className="py-8 text-center text-[11px] text-ink-soft/50 italic">
+                          Kosong
                         </div>
-                      ))
-                    )}
+                      ) : (
+                        items.map((app) => (
+                          <div
+                            key={app.id}
+                            className="rounded-lg border border-line bg-paper p-3 shadow-xs hover:border-forest/60 transition-all group"
+                          >
+                            <div className="flex items-start justify-between gap-1">
+                              <h4 className="text-xs font-bold text-ink line-clamp-1">
+                                {app.position}
+                              </h4>
+                              <button
+                                onClick={() => handleDelete(app.id)}
+                                className="opacity-0 group-hover:opacity-100 text-ink-soft hover:text-rose-600 transition-opacity p-0.5"
+                                title="Hapus"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+
+                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-soft">
+                              <Building2 className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{app.company}</span>
+                            </div>
+
+                            {app.matchScore != null && (
+                              <div className="mt-2 flex items-center gap-1">
+                                <span className="rounded bg-forest-tint px-1.5 py-0.5 text-[9px] font-bold text-forest">
+                                  {app.matchScore}% Match
+                                </span>
+                                {app.jobUrl && (
+                                  <a
+                                    href={app.jobUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[10px] text-forest hover:underline flex items-center gap-0.5 ml-auto"
+                                  >
+                                    Link <ExternalLink className="h-2.5 w-2.5" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
+
+                            {app.notes && (
+                              <p className="mt-2 rounded bg-paper-raised p-1.5 text-[10px] text-ink-soft line-clamp-2 border border-line/40">
+                                💬 {app.notes}
+                              </p>
+                            )}
+
+                            <div className="mt-3 pt-2 border-t border-line/60">
+                              <label className="block text-[9px] font-semibold text-ink-soft uppercase mb-1">
+                                Pindah Tahap:
+                              </label>
+                              <select
+                                value={app.status}
+                                onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
+                                className="w-full rounded border border-line bg-paper-raised px-1.5 py-1 text-[10px] text-ink focus:border-forest focus:outline-none"
+                              >
+                                <option value="applied">Lamaran Terkirim</option>
+                                <option value="hr_interview">Interview HR</option>
+                                <option value="user_interview">Interview User</option>
+                                <option value="technical_test">Tes Teknis</option>
+                                <option value="offer">Offer Diterima 🎉</option>
+                                <option value="rejected">Belum Berhasil</option>
+                                <option value="ghosted">Belum Ada Respons</option>
+                                <option value="withdrawn">Ditarik</option>
+                              </select>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : (
           /* Table View */
@@ -316,7 +342,7 @@ export function ApplicationsPage() {
                 <tr>
                   <th className="px-4 py-3 font-semibold">Posisi & Perusahaan</th>
                   <th className="px-4 py-3 font-semibold">Tahap Saat Ini</th>
-                  <th className="px-4 py-3 font-semibold">Kecocokan (Match)</th>
+                  <th className="px-4 py-3 font-semibold">Skor kecocokan CV</th>
                   <th className="px-4 py-3 font-semibold">Catatan / Link</th>
                   <th className="px-4 py-3 font-semibold">Tanggal Lamar</th>
                   <th className="px-4 py-3 font-semibold text-right">Aksi</th>
@@ -339,7 +365,7 @@ export function ApplicationsPage() {
                       <td className="px-4 py-3">
                         <select
                           value={app.status}
-                          onChange={(e) => handleStatusChange(app.id, e.target.value)}
+                          onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
                           className="rounded border border-line bg-paper px-2 py-1 text-xs font-semibold text-ink focus:border-forest"
                         >
                           <option value="applied">Lamaran Terkirim</option>
@@ -348,11 +374,13 @@ export function ApplicationsPage() {
                           <option value="technical_test">Tes Teknis</option>
                           <option value="offer">Offer Diterima 🎉</option>
                           <option value="rejected">Belum Berhasil</option>
+                          <option value="ghosted">Belum Ada Respons</option>
+                          <option value="withdrawn">Ditarik</option>
                         </select>
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-forest-tint px-2.5 py-0.5 text-[11px] font-bold text-forest">
-                          {app.matchScore || 85}%
+                          {app.matchScore == null ? "—" : `${app.matchScore}%`}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-ink-soft">
@@ -444,7 +472,7 @@ export function ApplicationsPage() {
                   </label>
                   <select
                     value={status}
-                    onChange={(e) => setStatus(e.target.value)}
+                    onChange={(e) => setStatus(e.target.value as ApplicationStatus)}
                     className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink focus:border-forest focus:outline-none"
                   >
                     <option value="applied">Lamaran Terkirim (Screening)</option>
@@ -452,6 +480,9 @@ export function ApplicationsPage() {
                     <option value="user_interview">Interview User</option>
                     <option value="technical_test">Tes Teknis</option>
                     <option value="offer">Offer Diterima</option>
+                    <option value="rejected">Belum Berhasil</option>
+                    <option value="ghosted">Belum Ada Respons</option>
+                    <option value="withdrawn">Ditarik</option>
                   </select>
                 </div>
 

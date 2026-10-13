@@ -145,7 +145,7 @@ export const ProfileImportModal: React.FC<ProfileImportModalProps> = ({
                 />
               </div>
               <div className="rounded-md bg-paper p-3 text-[11px] text-ink-soft leading-relaxed border border-line/50">
-                <span className="font-semibold text-ink">Catatan:</span> Beberapa profil privat LinkedIn dapat membatasi bot web. Jika URL tidak dapat diakses secara publik, gunakan tab <strong>"Paste Teks"</strong> untuk hasil 100% instan!
+                <span className="font-semibold text-ink">Catatan:</span> Beberapa situs membatasi akses otomatis. Jika URL tidak dapat diakses, gunakan tab <strong>"Paste Teks"</strong> agar kamu bisa memasukkan informasi profil secara langsung.
               </div>
             </div>
           )}
