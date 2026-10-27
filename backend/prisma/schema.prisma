@@ -34,6 +34,10 @@ model User {
   experienceVault ExperienceVaultItem[]
   usageCredit  UsageCredit?
   aiJobReservations AiJobReservation[]
+  creditLedger CreditLedgerEntry[]
+  paymentTransactions PaymentTransaction[]
+  aiCostLogs AiCostLog[]
+  funnelEvents FunnelEvent[]
 }
 
 model ExperienceVaultItem {
@@ -123,3 +127,88 @@ model AiJobReservation {
 
   @@index([userId, periodStart])
 }
+
+enum LedgerEntryType {
+  GRANT
+  USAGE
+  REFUND
+  PURCHASE
+  EXPIRY
+}
+
+model CreditLedgerEntry {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Int             // positive for additions, negative for deductions
+  balanceAfter Int
+  type         LedgerEntryType
+  reason       String
+  jobId        String?
+  referenceId  String?         // paymentTransactionId, promoId, etc.
+  createdAt    DateTime        @default(now())
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model PaymentTransaction {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey  String        @unique
+  orderId         String        @unique
+  gateway         String        @default("midtrans") // midtrans, stripe, xendit
+  amount          Int           // e.g. 9900 IDR, 39000 IDR
+  currency        String        @default("IDR")
+  creditsGranted  Int
+  status          PaymentStatus @default(PENDING)
+  paymentMethod   String?
+  rawPayload      Json?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model AiCostLog {
+  id               String   @id @default(cuid())
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  jobId            String?
+  taskType         String   // analyze, tailor, cover_letter, interview
+  model            String   @default("gemini-3.5-flash-lite")
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  estimatedCostUsd Float    @default(0)
+  latencyMs        Int      @default(0)
+  retryCount       Int      @default(0)
+  status           String   @default("success") // success, failed
+  error            String?
+  createdAt        DateTime @default(now())
+
+  @@index([taskType])
+  @@index([createdAt])
+}
+
+model FunnelEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId String?
+  eventName String   // landing_viewed, upload_started, analysis_completed, export_completed, checkout_started, payment_success, repeat_optimization
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([eventName, createdAt])
+}
+
