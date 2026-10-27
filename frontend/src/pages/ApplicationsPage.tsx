@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Header } from "../components/Header";
 import { Button } from "../components/Button";
+import { CareerOutcomeInsights } from "../components/CareerOutcomeInsights";
+import { JobImporterModal } from "../components/JobImporterModal";
 import {
   getApplications,
   createApplication,
@@ -8,6 +11,7 @@ import {
   deleteApplication,
   type ApplicationStatus,
   type ApplicationItem,
+  type ImportedJob,
 } from "../lib/api";
 import {
   Briefcase,
@@ -18,6 +22,8 @@ import {
   Table as TableIcon,
   LayoutGrid,
   X,
+  Link2,
+  TrendingUp,
 } from "lucide-react";
 
 interface StageConfig {
@@ -27,11 +33,14 @@ interface StageConfig {
 }
 
 export function ApplicationsPage() {
+  const navigate = useNavigate();
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+  const [jobImporterOpen, setJobImporterOpen] = useState(false);
 
   // Form states
   const [company, setCompany] = useState("");
@@ -100,6 +109,31 @@ export function ApplicationsPage() {
       setIsSubmitting(false);
     }
   };
+
+  const handleSaveImportedJob = useCallback(async (job: ImportedJob) => {
+    try {
+      await createApplication({
+        company: job.company,
+        position: job.position,
+        jobDescription: job.jobDescription,
+        jobUrl: job.sourceUrl || undefined,
+      });
+      await loadApps();
+    } catch {
+      // silent fail
+    }
+  }, [loadApps]);
+
+  const handleImportedOptimize = useCallback((job: ImportedJob) => {
+    sessionStorage.setItem("imported_job", JSON.stringify({
+      company: job.company,
+      position: job.position,
+      jobDescription: job.jobDescription,
+      sourceUrl: job.sourceUrl,
+      skills: job.skills,
+    }));
+    navigate("/optimize?from=importer");
+  }, [navigate]);
 
   const handleStatusChange = async (id: string, newStatus: ApplicationStatus) => {
     try {
@@ -210,12 +244,41 @@ export function ApplicationsPage() {
               </button>
             </div>
 
+            <button
+              id="open-job-importer-tracker"
+              onClick={() => setJobImporterOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-paper-raised px-3 py-2 text-xs font-medium text-ink transition-colors hover:border-forest/40 hover:bg-forest-tint"
+            >
+              <Link2 className="h-3.5 w-3.5 text-forest" />
+              Impor Lowongan
+            </button>
+
+            <button
+              id="toggle-career-insights"
+              onClick={() => setShowInsights((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                showInsights
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-line bg-paper-raised text-ink hover:border-amber-200 hover:bg-amber-50"
+              }`}
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              Career Intelligence
+            </button>
+
             <Button onClick={() => setIsModalOpen(true)} className="gap-1.5 text-xs py-2 px-3.5">
               <Plus className="h-4 w-4" />
               Tambah Lamaran
             </Button>
           </div>
         </div>
+
+        {/* Career Outcome Intelligence Panel */}
+        {showInsights && (
+          <div className="mt-6">
+            <CareerOutcomeInsights />
+          </div>
+        )}
 
         {/* View Content */}
         {loading ? (
@@ -236,6 +299,7 @@ export function ApplicationsPage() {
             <div className="grid min-w-[1760px] grid-cols-8 gap-4 items-start">
               {stages.map((stage) => {
                 const items = applications.filter((a) => a.status === stage.key);
+
 
                 return (
                   <div
@@ -533,6 +597,14 @@ export function ApplicationsPage() {
       <footer className="border-t border-line py-6 text-center text-xs text-ink-soft">
         CV Optimizer Application Tracker — Bantu kamu organize lamaran hingga tanda tangan kontrak.
       </footer>
+
+      {/* Job Importer Modal */}
+      <JobImporterModal
+        isOpen={jobImporterOpen}
+        onClose={() => setJobImporterOpen(false)}
+        onOptimize={handleImportedOptimize}
+        onSaveToTracker={handleSaveImportedJob}
+      />
     </div>
   );
 }

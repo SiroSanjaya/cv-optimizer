@@ -780,3 +780,85 @@ export async function matchVaultStoriesForJob(
     throw new Error(extractErrorMessage(err, "Gagal mencocokkan STAR stories dengan lowongan."));
   }
 }
+
+// ─── Job Importer ─────────────────────────────────────────────────────────────
+
+export interface ImportedJob {
+  company: string;
+  position: string;
+  location: string;
+  jobType: string;
+  salaryRange: string;
+  jobDescription: string;
+  skills: string[];
+  requirements: string[];
+  sourceUrl: string;
+  sourcePlatform: string;
+  importedAt: string;
+}
+
+export async function importJobFromUrl(url: string): Promise<ImportedJob> {
+  try {
+    const { data } = await api.post<{ success: boolean; job: ImportedJob }>("/api/jobs/import-url", { url });
+    return data.job;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal mengimpor lowongan dari URL. Coba salin teks JD secara manual."));
+  }
+}
+
+export async function importJobFromText(text: string, sourceUrl?: string): Promise<ImportedJob> {
+  try {
+    const { data } = await api.post<{ success: boolean; job: ImportedJob }>("/api/jobs/import-text", {
+      text,
+      sourceUrl,
+    });
+    return data.job;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memproses teks job description."));
+  }
+}
+
+// ─── Career Outcome Intelligence ──────────────────────────────────────────────
+
+export interface OutcomeMetrics {
+  total: number;
+  responseRate: number;
+  interviewRate: number;
+  offerRate: number;
+  avgMatchScore: number | null;
+  byStatus: Record<string, number>;
+  topPerformingPositions: Array<{
+    position: string;
+    count: number;
+    interviewCount: number;
+    responseRate: number;
+  }>;
+  topPerformingSkills: Array<{
+    skill: string;
+    appearances: number;
+    interviewsGenerated: number;
+  }>;
+  recentTrend: Array<{
+    month: string;
+    applied: number;
+    interviewed: number;
+    offered: number;
+  }>;
+  cvVersionPerformance: Array<{
+    cvVersionId: string;
+    label: string;
+    applications: number;
+    interviewCount: number;
+    interviewRate: number;
+  }>;
+  insights: string[];
+}
+
+export async function getOutcomeMetrics(): Promise<OutcomeMetrics> {
+  try {
+    const { data } = await api.get<{ success: boolean; metrics: OutcomeMetrics }>("/api/jobs/outcome-metrics");
+    return data.metrics;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memuat career outcome metrics."));
+  }
+}

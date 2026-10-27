@@ -251,12 +251,34 @@ export function OptimizePage() {
     }
   }, [user?.id, structuredCv]);
 
-  // Check if job description was passed from Jobs recommendation page
+  // Check if job description was passed from Jobs recommendation page or Job Importer
   useEffect(() => {
+    // 1. Standard JD handoff from Jobs page
     const savedDesc = sessionStorage.getItem("target_job_description");
     if (savedDesc) {
       setValue("jobDescription", savedDesc);
       sessionStorage.removeItem("target_job_description");
+      return;
+    }
+
+    // 2. Rich handoff from Job Importer Modal (URL / paste)
+    const importedRaw = sessionStorage.getItem("imported_job");
+    if (importedRaw) {
+      try {
+        const imported = JSON.parse(importedRaw) as {
+          company: string;
+          position: string;
+          jobDescription: string;
+          sourceUrl?: string;
+          skills?: string[];
+        };
+        if (imported.jobDescription) {
+          setValue("jobDescription", imported.jobDescription);
+        }
+        sessionStorage.removeItem("imported_job");
+      } catch {
+        sessionStorage.removeItem("imported_job");
+      }
     }
   }, [setValue]);
 

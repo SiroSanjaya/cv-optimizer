@@ -7,6 +7,8 @@ import {
   generateCandidateOutreachPitch,
   analyzeCustomJobText,
 } from "../services/jobs/talentSearch.service";
+import { importJobFromUrl, importJobFromText } from "../services/jobs/jobImporter.service";
+import { getOutcomeMetrics } from "../services/jobs/outcomeAnalytics.service";
 import { prisma } from "../utils/prisma";
 
 export async function getRecommendedJobs(
@@ -191,6 +193,72 @@ export async function analyzeCustomJobController(
     });
 
     res.json({ success: true, job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Job Importer: Parse a job from a public URL (LinkedIn, Glints, JobStreet, etc.)
+ */
+export async function importJobFromUrlController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== "string" || !url.startsWith("http")) {
+      res.status(400).json({ success: false, error: "URL lowongan tidak valid. Pastikan dimulai dengan https://" });
+      return;
+    }
+
+    const job = await importJobFromUrl(url.trim());
+    res.json({ success: true, job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Job Importer: Parse a job from raw pasted text (fallback)
+ */
+export async function importJobFromTextController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { text, sourceUrl } = req.body;
+    if (!text || typeof text !== "string" || text.trim().length < 30) {
+      res.status(400).json({ success: false, error: "Teks job description minimal 30 karakter." });
+      return;
+    }
+
+    const job = await importJobFromText(text.trim(), sourceUrl?.trim());
+    res.json({ success: true, job });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Career Intelligence: Get aggregated outcome metrics for user's applications
+ */
+export async function getOutcomeMetricsController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const userId = req.userPayload?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: "Unauthorized" });
+      return;
+    }
+
+    const metrics = await getOutcomeMetrics(userId);
+    res.json({ success: true, metrics });
   } catch (err) {
     next(err);
   }

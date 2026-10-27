@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContextValue";
 import {
@@ -10,6 +10,7 @@ import {
 import { Header } from "../components/Header";
 import { Button } from "../components/Button";
 import { SalaryBenchmarkModal } from "../components/SalaryBenchmarkModal";
+import { JobImporterModal } from "../components/JobImporterModal";
 import {
   getJobRecommendations,
   createApplication,
@@ -17,6 +18,7 @@ import {
   generateRecruiterPitch,
   analyzeCv,
   type RecommendedJob,
+  type ImportedJob,
 } from "../lib/api";
 import {
   Search,
@@ -44,6 +46,7 @@ import {
   Rocket,
   ChevronDown,
   ChevronUp,
+  Link2,
 } from "lucide-react";
 
 export function JobsPage() {
@@ -81,7 +84,7 @@ export function JobsPage() {
   const [newSkillInput, setNewSkillInput] = useState("");
   const [scoreBoostToast, setScoreBoostToast] = useState<string | null>(null);
 
-  // Custom Job Import Modal state
+  // Custom Job Import Modal state (original panel)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [analyzingImport, setAnalyzingImport] = useState(false);
@@ -96,6 +99,35 @@ export function JobsPage() {
 
   // Salary Benchmark Modal state
   const [salaryModalOpen, setSalaryModalOpen] = useState(false);
+
+  // ── Job Importer Modal ─────────────────────────────────────────────────────
+  const [jobImporterOpen, setJobImporterOpen] = useState(false);
+
+  const handleJobImported = useCallback((job: ImportedJob) => {
+    // Navigate to /optimize with the imported JD pre-filled via session storage
+    sessionStorage.setItem("imported_job", JSON.stringify({
+      company: job.company,
+      position: job.position,
+      jobDescription: job.jobDescription,
+      sourceUrl: job.sourceUrl,
+      skills: job.skills,
+    }));
+    navigate("/optimize?from=importer");
+  }, [navigate]);
+
+  const handleSaveImportedToTracker = useCallback(async (job: ImportedJob) => {
+    try {
+      await createApplication({
+        company: job.company,
+        position: job.position,
+        jobDescription: job.jobDescription,
+        jobUrl: job.sourceUrl || undefined,
+      });
+    } catch {
+      // Silent fail — tracker save is optional
+    }
+  }, []);
+
 
   useEffect(() => {
     let isMounted = true;
@@ -614,13 +646,23 @@ export function JobsPage() {
               </button>
 
               <button
-                onClick={() => setIsImportModalOpen(true)}
+                id="job-importer-open"
+                onClick={() => setJobImporterOpen(true)}
                 className="flex items-center gap-1.5 rounded-full bg-forest px-3.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-forest-dark transition-all cursor-pointer"
               >
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span>+ Impor Loker dari Google / LinkedIn</span>
+                <Link2 className="h-3.5 w-3.5" />
+                <span>Impor dari URL / Paste</span>
+              </button>
+
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink border border-line hover:border-forest/50 transition-all cursor-pointer"
+              >
+                <PlusCircle className="h-3.5 w-3.5 text-forest" />
+                <span>Analisis JD</span>
               </button>
             </div>
+
           </div>
 
           <h1 className="mt-2 font-serif text-2xl font-bold text-ink sm:text-3xl">
@@ -1290,6 +1332,14 @@ export function JobsPage() {
       <SalaryBenchmarkModal
         isOpen={salaryModalOpen}
         onClose={() => setSalaryModalOpen(false)}
+      />
+
+      {/* Job Importer Modal */}
+      <JobImporterModal
+        isOpen={jobImporterOpen}
+        onClose={() => setJobImporterOpen(false)}
+        onOptimize={handleJobImported}
+        onSaveToTracker={handleSaveImportedToTracker}
       />
     </div>
   );
