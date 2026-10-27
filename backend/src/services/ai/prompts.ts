@@ -45,6 +45,12 @@ RULES:
 - matchScore is your honest estimate (0-100) of overall relevance between the CV and the job description. It is NOT a real ATS system score — do not imply otherwise in your summary.
 - recommendations should be concrete and actionable, and must never suggest the candidate claim skills/experience they don't have. Recommendations may suggest how to better phrase or surface EXISTING experience, or suggest the candidate genuinely acquire a missing skill before applying — never suggest fabricating it.
 - interviewQuestions: Predict 3 to 4 high-probability interview questions (technical and behavioral) based on the target job requirements and candidate profile. Provide actionable answer tips using the STAR method (Situation, Task, Action, Result) in Bahasa Indonesia.
+- jobMatchAnalysis: Extract 5 to 10 key technical and role requirements from the Job Description. For each requirement, classify status as:
+  * "Supported" (evidence explicitly present in candidate's experience or projects)
+  * "Partial" (related technology or adjacent experience, but optimization or scale unproven)
+  * "Gap" (no evidence found in CV)
+  Include concise evidence explaining where it was found or why it is a gap.
+- suggestedRevisions: For 3 to 5 candidate experience bullet points, provide high-impact X-Y-Z rewrites. Explain the exact reasoning (e.g. 'Menonjolkan aktivitas teknis dan arsitektur tanpa menambahkan angka fiktif') and provide a prompt for candidate to insert their real metric.
 - Respond with ONLY valid JSON matching the schema. No markdown fences, no commentary.`;
 
 export function buildAnalysisPrompt(
@@ -62,6 +68,26 @@ JSON schema:
   "keywords": [],
   "recommendations": [],
   "experienceRelevance": [{"role":"","company":"","relevance":"High|Medium|Low","explanation":""}],
+  "jobMatchAnalysis": [
+    {
+      "requirement": "e.g. RESTful API Development",
+      "evidence": "e.g. Ditemukan pada project backend di CV: Express & Node.js",
+      "status": "Supported|Partial|Gap",
+      "category": "technical|architecture|leadership"
+    }
+  ],
+  "suggestedRevisions": [
+    {
+      "company": "Company Name",
+      "role": "Role Title",
+      "originalBullet": "Original bullet from CV",
+      "suggestedBullet": "Action-verb led XYZ rewrite",
+      "reasoning": "Menonjolkan aktivitas teknis dan konteks tanpa menambahkan angka pencapaian fiktif",
+      "actionVerb": "Architected",
+      "hasQuantifiableMetric": false,
+      "metricPrompt": "Punya metrik konkret (misal: 'latency turun 40%', 'melayani 10k pengguna')? Tambahkan di sini."
+    }
+  ],
   "summary": "",
   "interviewQuestions": [
     {

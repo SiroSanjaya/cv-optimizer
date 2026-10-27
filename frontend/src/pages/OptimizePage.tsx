@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +14,8 @@ import { HireProbabilityGauge } from "../components/HireProbabilityGauge";
 import { ProfileImportModal } from "../components/ProfileImportModal";
 import { CoverLetterSection } from "../components/CoverLetterSection";
 import { ShareableScoreModal } from "../components/ShareableScoreModal";
+import { InteractiveRewriteDiff } from "../components/InteractiveRewriteDiff";
+import { ResumeQualityAssurance } from "../components/ResumeQualityAssurance";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContextValue";
 import { fireConfetti } from "../lib/confetti";
@@ -25,7 +27,12 @@ import {
   downloadCvFile,
   createApplication,
 } from "../lib/api";
-import type { CoverLetterResult, CvAnalysis, StructuredCv } from "../types/cv";
+import type {
+  CoverLetterResult,
+  CvAnalysis,
+  StructuredCv,
+  BulletRevision,
+} from "../types/cv";
 import {
   saveSessionCvSkills,
   getSessionStructuredCv,
@@ -168,7 +175,54 @@ export function OptimizePage() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [savedToTracker, setSavedToTracker] = useState(false);
   const [claimedSkills, setClaimedSkills] = useState<string[]>([]);
-  const [tailoredTab, setTailoredTab] = useState<"cv" | "cover_letter">("cv");
+  const [tailoredTab, setTailoredTab] = useState<"cv" | "diff" | "cover_letter">("cv");
+
+  const activeRevisions: BulletRevision[] = useMemo(() => {
+    if (analysis?.suggestedRevisions && analysis.suggestedRevisions.length > 0) {
+      return analysis.suggestedRevisions;
+    }
+    if (!structuredCv || !tailoredCv) return [];
+    const list: BulletRevision[] = [];
+    tailoredCv.experience.forEach((tailoredExp, expIdx) => {
+      const origExp = structuredCv.experience[expIdx];
+      tailoredExp.bullets.forEach((bullet, bIdx) => {
+        const origBullet = origExp?.bullets[bIdx] || "";
+        if (origBullet && origBullet !== bullet) {
+          list.push({
+            id: `rev-${expIdx}-${bIdx}`,
+            company: tailoredExp.company,
+            role: tailoredExp.position,
+            originalBullet: origBullet,
+            suggestedBullet: bullet,
+            reasoning: "Menonjolkan aktivitas teknis dan action verb terarah (X-Y-Z formula) selaras dengan persyaratan lowongan.",
+            hasQuantifiableMetric: /\d+%|\$\d+|\b\d+\s*(users|ms|x|k|m)\b/i.test(bullet),
+            status: "accepted",
+          });
+        }
+      });
+    });
+    return list;
+  }, [analysis?.suggestedRevisions, structuredCv, tailoredCv]);
+
+  const handleApplyRevisions = (acceptedRevisions: BulletRevision[]) => {
+    if (!tailoredCv) return;
+    const updatedExp = tailoredCv.experience.map((exp) => {
+      const matchedRev = acceptedRevisions.filter(
+        (r) => r.company === exp.company && r.role === exp.position
+      );
+      if (matchedRev.length === 0) return exp;
+      const newBullets = exp.bullets.map((b) => {
+        const rev = matchedRev.find(
+          (r) => r.suggestedBullet === b || r.originalBullet === b
+        );
+        if (!rev) return b;
+        return rev.status === "rejected" ? rev.originalBullet : rev.suggestedBullet;
+      });
+      return { ...exp, bullets: newBullets };
+    });
+    setTailoredCv({ ...tailoredCv, experience: updatedExp });
+    setTailoredTab("cv");
+  };
 
   const {
     control,
@@ -1200,8 +1254,22 @@ export function OptimizePage() {
                   }`}
                 >
                   <FileText className="h-4 w-4" />
-                  <span>📄 CV Tailored (ATS Standard)</span>
+                  <span>📄 CV Tailored</span>
                 </button>
+                {activeRevisions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTailoredTab("diff")}
+                    className={`flex items-center gap-2 rounded-lg px-4 py-2 font-semibold transition-all ${
+                      tailoredTab === "diff"
+                        ? "bg-forest text-white shadow-xs"
+                        : "text-ink-soft hover:text-ink hover:bg-paper"
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4 text-amber-400" />
+                    <span>🔍 Tinjau Perubahan ({activeRevisions.length})</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setTailoredTab("cover_letter")}
@@ -1212,7 +1280,7 @@ export function OptimizePage() {
                   }`}
                 >
                   <Mail className="h-4 w-4" />
-                  <span>✉️ Surat Lamaran AI (Cover Letter)</span>
+                  <span>✉️ Surat Lamaran AI</span>
                 </button>
               </div>
 
@@ -1232,11 +1300,22 @@ export function OptimizePage() {
             </div>
 
             {tailoredTab === "cv" ? (
-              tailoredCv ? (
-                <CvPreview cv={tailoredCv} onChange={setTailoredCv} />
-              ) : (
-                structuredCv && <CvPreview cv={structuredCv} onChange={setTailoredCv} />
-              )
+              <div className="space-y-6">
+                <ResumeQualityAssurance
+                  originalCv={structuredCv}
+                  tailoredCv={tailoredCv || structuredCv!}
+                />
+                {tailoredCv ? (
+                  <CvPreview cv={tailoredCv} onChange={setTailoredCv} />
+                ) : (
+                  structuredCv && <CvPreview cv={structuredCv} onChange={setTailoredCv} />
+                )}
+              </div>
+            ) : tailoredTab === "diff" ? (
+              <InteractiveRewriteDiff
+                revisions={activeRevisions}
+                onApplyRevisions={handleApplyRevisions}
+              />
             ) : (
               <CoverLetterSection
                 cvData={tailoredCv || structuredCv!}

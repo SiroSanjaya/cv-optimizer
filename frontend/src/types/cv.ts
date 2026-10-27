@@ -61,6 +61,26 @@ export interface CoverLetterResult {
   keyHighlights: string[];
 }
 
+export interface JobRequirementMatch {
+  requirement: string;
+  evidence: string;
+  status: "Supported" | "Partial" | "Gap";
+  category?: string;
+}
+
+export interface BulletRevision {
+  id?: string;
+  company: string;
+  role: string;
+  originalBullet: string;
+  suggestedBullet: string;
+  reasoning: string;
+  actionVerb?: string;
+  hasQuantifiableMetric?: boolean;
+  metricPrompt?: string;
+  status?: "pending" | "accepted" | "rejected";
+}
+
 export interface CvAnalysis {
   matchScore: number;
   matchedSkills: string[];
@@ -71,4 +91,6 @@ export interface CvAnalysis {
   experienceRelevance: ExperienceRelevanceEntry[];
   summary: string;
   interviewQuestions?: InterviewQuestion[];
+  jobMatchAnalysis?: JobRequirementMatch[];
+  suggestedRevisions?: BulletRevision[];
 }

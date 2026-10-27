@@ -11,6 +11,7 @@ import {
   Lightbulb,
 } from "lucide-react";
 import type { CvAnalysis, InterviewQuestion } from "../types/cv";
+import { EvidenceMatchTable } from "./EvidenceMatchTable";
 
 interface MatchAnalysisProps {
   analysis: CvAnalysis;
@@ -252,6 +253,18 @@ export function MatchAnalysis({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Evidence-Based Job Match Breakdown (Anti-Hallucination) */}
+      <div className="mt-8">
+        <EvidenceMatchTable
+          requirements={analysis?.jobMatchAnalysis}
+          matchedSkills={matched.map(toSkillString)}
+          partialMatches={partial}
+          missingSkills={missing}
+          onClaimSkill={onToggleSkill}
+          claimedSkills={claimedSkills}
+        />
       </div>
 
       <div className="mt-8 grid gap-6 sm:grid-cols-3">

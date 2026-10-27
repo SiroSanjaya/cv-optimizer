@@ -122,6 +122,36 @@ export const interviewQuestionSchema = z.object({
   answerTip: nullableString(),
 });
 
+export const jobRequirementMatchSchema = z.object({
+  requirement: nullableString(),
+  evidence: nullableString(),
+  status: z
+    .preprocess((val) => {
+      const s = String(val || "").toLowerCase();
+      if (s.includes("support") || s.includes("match") || s.includes("ada") || s.includes("sesuai")) {
+        return "Supported";
+      }
+      if (s.includes("part") || s.includes("sebagian")) {
+        return "Partial";
+      }
+      return "Gap";
+    }, z.enum(["Supported", "Partial", "Gap"]))
+    .default("Gap"),
+  category: nullableString(),
+});
+
+export const bulletRevisionSchema = z.object({
+  id: nullableString().optional(),
+  company: nullableString(),
+  role: nullableString(),
+  originalBullet: nullableString(),
+  suggestedBullet: nullableString(),
+  reasoning: nullableString(),
+  actionVerb: nullableString().optional(),
+  hasQuantifiableMetric: z.preprocess((val) => Boolean(val), z.boolean()).default(false),
+  metricPrompt: nullableString().optional(),
+});
+
 export const cvAnalysisSchema = z.object({
   matchScore: z.preprocess((val) => {
     if (val === null || val === undefined) return 0;
@@ -137,6 +167,8 @@ export const cvAnalysisSchema = z.object({
   experienceRelevance: safeArray(experienceRelevanceEntrySchema),
   summary: nullableString(),
   interviewQuestions: safeArray(interviewQuestionSchema).optional(),
+  jobMatchAnalysis: safeArray(jobRequirementMatchSchema).optional(),
+  suggestedRevisions: safeArray(bulletRevisionSchema).optional(),
 });
 
 export const generateRequestSchema = z.object({
