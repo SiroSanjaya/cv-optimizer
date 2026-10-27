@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.routes";
 import applicationsRoutes from "./routes/applications.routes";
 import jobsRoutes from "./routes/jobs.routes";
 import profileRoutes from "./routes/profile.routes";
+import vaultRoutes from "./routes/vault.routes";
 import aiJobsRoutes from "./routes/aiJobs.routes";
 import { apiRateLimiter } from "./middleware/rateLimiter";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
@@ -61,6 +62,7 @@ export function createApp() {
   app.use("/api/applications", applicationsRoutes);
   app.use("/api/jobs", jobsRoutes);
   app.use("/api/profile", profileRoutes);
+  app.use("/api/vault", vaultRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

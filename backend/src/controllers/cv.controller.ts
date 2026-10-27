@@ -138,7 +138,10 @@ export async function downloadCvPdf(req: Request, res: Response, next: NextFunct
       throw Errors.validation("Invalid CV data for PDF generation.");
     }
 
-    const stream = generateCvPdf(parsed.data.cv);
+    const stream = generateCvPdf(parsed.data.cv, {
+      template: parsed.data.template,
+      density: parsed.data.density,
+    });
     const filename = safeFileName(parsed.data.cv.personalInfo.name);
 
     res.setHeader("Content-Type", "application/pdf");

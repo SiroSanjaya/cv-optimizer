@@ -29,8 +29,8 @@ materials while keeping the candidate in control of the final content.
 - Select several listings and prepare separate tailored CVs plus cover letters
   in one sequential batch, capped by the account's remaining AI task quota.
 - Use the optional local Chrome/Edge helper for supported Greenhouse and Lever
-  forms to fill recognizable contact and cover-letter fields; review and submit
-  each application yourself.
+  forms to fill recognizable contact and cover-letter fields and attach the
+  tailored CV; review and submit each application yourself.
 
 Some capabilities depend on an authenticated account and a configured AI
 provider. Recruiter sourcing does not currently provide a real candidate
@@ -146,8 +146,8 @@ npm run check
   to eligible worldwide remote listings. Job-board coverage is not exhaustive,
   visa sponsorship flags are text hints rather than employer verification, and
   applications are not automatically submitted. The optional browser helper
-  supports only a small set of Greenhouse/Lever fields and does not upload CV
-  files, answer screening questions, or bypass CAPTCHA. See
+  supports only a small set of Greenhouse/Lever fields, may attach the tailored
+  CV PDF, and does not answer screening questions or bypass CAPTCHA. See
   [browser-extension/README.md](browser-extension/README.md) for local
   installation.
 - Recruiter candidate sourcing is not connected to a consent-based candidate

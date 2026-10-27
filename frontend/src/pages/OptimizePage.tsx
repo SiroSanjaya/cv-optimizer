@@ -517,6 +517,23 @@ export function OptimizePage() {
     }
   };
 
+  const isSupportedBrowserAssistantUrl = (value: string) => {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:") return false;
+      if (
+        url.hostname === "boards.greenhouse.io" ||
+        url.hostname === "job-boards.greenhouse.io"
+      ) {
+        return /^\/[^/]+\/jobs\/\d+(?:\/apply)?\/?$/i.test(url.pathname);
+      }
+      return url.hostname === "jobs.lever.co" &&
+        /^\/[^/]+\/[a-f0-9-]+(?:\/apply)?\/?$/i.test(url.pathname);
+    } catch {
+      return false;
+    }
+  };
+
   const createBrowserAssistantPackage = async (item: PreparedBatchItem) => {
     const resume = await downloadCvFile(item.cv, "pdf");
     const bytes = new Uint8Array(await resume.arrayBuffer());
@@ -557,7 +574,13 @@ export function OptimizePage() {
     setBatchActionError(null);
     try {
       const applications = [];
-      for (const item of items) {
+      const supportedItems = items.filter((item) =>
+        isSupportedBrowserAssistantUrl(item.target.url)
+      );
+      if (supportedItems.length === 0) {
+        throw new Error("Paket browser hanya mendukung lowongan Greenhouse atau Lever.");
+      }
+      for (const item of supportedItems) {
         applications.push(await createBrowserAssistantPackage(item));
       }
       const packageData = {
@@ -566,7 +589,11 @@ export function OptimizePage() {
         exportedAt: new Date().toISOString(),
         applications,
       };
-      const blob = new Blob([JSON.stringify(packageData)], {
+      const serialized = JSON.stringify(packageData);
+      if (new Blob([serialized]).size > 2 * 1024 * 1024) {
+        throw new Error("Paket batch melebihi batas 2 MB extension. Unduh paket per lowongan.");
+      }
+      const blob = new Blob([serialized], {
         type: "application/json",
       });
       const objectUrl = URL.createObjectURL(blob);
@@ -577,6 +604,11 @@ export function OptimizePage() {
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      if (supportedItems.length < items.length) {
+        setBatchActionError(
+          `Paket dibuat untuk ${supportedItems.length} lowongan Greenhouse/Lever. ${items.length - supportedItems.length} lowongan lainnya perlu dilamar manual dari situs resminya.`
+        );
+      }
     } catch (error) {
       setBatchActionError(
         error instanceof Error
@@ -590,25 +622,20 @@ export function OptimizePage() {
 
   const downloadBrowserAssistantPackage = async (item: PreparedBatchItem) => {
     try {
-      const packageData = {
-        format: "cv-optimizer-application-batch",
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        applications: [await createBrowserAssistantPackage(item)],
-      };
+      const packageData = await createBrowserAssistantPackage(item);
       const blob = new Blob([JSON.stringify(packageData)], { type: "application/json" });
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const filename = `${item.target.company}_${item.target.title}`
-      .replace(/[^a-zA-Z0-9-_ ]/g, "")
-      .trim()
-      .replace(/\s+/g, "_") || "Application";
-    link.href = objectUrl;
-    link.download = `CV_Optimizer_${filename}.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const filename = `${item.target.company}_${item.target.title}`
+        .replace(/[^a-zA-Z0-9-_ ]/g, "")
+        .trim()
+        .replace(/\s+/g, "_") || "Application";
+      link.href = objectUrl;
+      link.download = `CV_Optimizer_${filename}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (error) {
       setBatchActionError(
         error instanceof Error ? error.message : "Paket browser gagal dibuat."
@@ -998,8 +1025,11 @@ export function OptimizePage() {
                         <button
                           type="button"
                           onClick={() => downloadBrowserAssistantPackage(item)}
+                          disabled={!isSupportedBrowserAssistantUrl(item.target.url)}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-paper-raised px-3 py-2 text-xs font-semibold text-ink hover:border-forest"
-                          title="Paket berisi data CV dan surat lamaran. Simpan dengan aman."
+                          title={isSupportedBrowserAssistantUrl(item.target.url)
+                            ? "Paket berisi data CV dan surat lamaran. Simpan dengan aman."
+                            : "Paket browser hanya mendukung lowongan Greenhouse dan Lever."}
                         >
                           <Download className="h-3.5 w-3.5" />
                           Paket browser
@@ -1037,6 +1067,9 @@ export function OptimizePage() {
                       />
                     </label>
                     <p className="mt-3 text-xs text-ink-soft">{item.coverLetter.recipient}</p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
+                      Di halaman ATS yang cocok, extension bisa mengisi field yang dikenali dan melampirkan CV dari paket ini. Periksa semuanya dan kirim sendiri.
+                    </p>
                     <textarea
                       value={item.coverLetter.content}
                       onChange={(event) =>

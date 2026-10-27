@@ -53,7 +53,11 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
     setDownloading(format);
     setError(null);
     try {
-      const blob = await downloadCvFile(cv, format);
+      const blob = await downloadCvFile(
+        cv,
+        format,
+        format === "pdf" ? { template, density } : undefined
+      );
       const name = (cv.personalInfo.name || "CV").replace(/\s+/g, "_");
       triggerBrowserDownload(blob, `${name}_Optimized.${format}`);
     } catch (err) {

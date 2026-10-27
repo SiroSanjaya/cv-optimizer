@@ -256,10 +256,15 @@ export async function generateInterviewPrep(
 
 export async function downloadCvFile(
   cv: StructuredCv,
-  format: "pdf" | "docx"
+  format: "pdf" | "docx",
+  pdfOptions?: {
+    template: "executive" | "classic" | "tech";
+    density: "spacious" | "compact";
+  }
 ): Promise<Blob> {
   try {
-    const { data } = await api.post(`/api/cv/${format}`, { cv }, {
+    const body = format === "pdf" ? { cv, ...pdfOptions } : { cv };
+    const { data } = await api.post(`/api/cv/${format}`, body, {
       responseType: "blob",
       timeout: 30_000,
     });
@@ -632,5 +637,146 @@ export async function analyzeCustomJob(params: {
     return data.job;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal menganalisis lowongan kustom."));
+  }
+}
+
+// ==========================================
+// STAR Story Vault (Master Experience Bank)
+// ==========================================
+
+export type StarCategory =
+  | "technical"
+  | "leadership"
+  | "architecture"
+  | "process_improvement"
+  | "crisis_handling"
+  | "other";
+
+export interface VaultStoryItem {
+  id: string;
+  userId: string;
+  company: string;
+  role: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  category: StarCategory;
+  skillsUsed: string[];
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  polishedBullet?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateVaultStoryInput {
+  company: string;
+  role: string;
+  periodStart?: string;
+  periodEnd?: string;
+  category: StarCategory;
+  skillsUsed: string[];
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  polishedBullet?: string;
+}
+
+export async function getVaultStories(params?: {
+  category?: string;
+  search?: string;
+}): Promise<VaultStoryItem[]> {
+  try {
+    const { data } = await api.get<{
+      success: boolean;
+      count: number;
+      stories: VaultStoryItem[];
+    }>("/api/vault", { params });
+    return data.stories;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memuat STAR Story Vault."));
+  }
+}
+
+export async function createVaultStory(
+  input: CreateVaultStoryInput
+): Promise<VaultStoryItem> {
+  try {
+    const { data } = await api.post<{
+      success: boolean;
+      story: VaultStoryItem;
+    }>("/api/vault", input);
+    return data.story;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal menambahkan STAR story."));
+  }
+}
+
+export async function updateVaultStory(
+  id: string,
+  input: Partial<CreateVaultStoryInput>
+): Promise<VaultStoryItem> {
+  try {
+    const { data } = await api.put<{
+      success: boolean;
+      story: VaultStoryItem;
+    }>(`/api/vault/${id}`, input);
+    return data.story;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memperbarui STAR story."));
+  }
+}
+
+export async function deleteVaultStory(id: string): Promise<void> {
+  try {
+    await api.delete(`/api/vault/${id}`);
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal menghapus STAR story."));
+  }
+}
+
+export async function extractVaultStoriesFromCv(
+  cvContent: string
+): Promise<CreateVaultStoryInput[]> {
+  try {
+    const { data } = await api.post<{
+      success: boolean;
+      count: number;
+      extracted: CreateVaultStoryInput[];
+    }>("/api/vault/extract-from-cv", { cvContent });
+    return data.extracted;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal mengekstrak STAR stories dari CV."));
+  }
+}
+
+export async function matchVaultStoriesForJob(
+  jobDescription: string
+): Promise<{
+  matchedStories: Array<{
+    story: VaultStoryItem;
+    relevanceScore: number;
+    matchedSkills: string[];
+  }>;
+  totalVaultStories: number;
+}> {
+  try {
+    const { data } = await api.post<{
+      success: boolean;
+      matchedStories: Array<{
+        story: VaultStoryItem;
+        relevanceScore: number;
+        matchedSkills: string[];
+      }>;
+      totalVaultStories: number;
+    }>("/api/vault/match-for-job", { jobDescription });
+    return {
+      matchedStories: data.matchedStories,
+      totalVaultStories: data.totalVaultStories,
+    };
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal mencocokkan STAR stories dengan lowongan."));
   }
 }

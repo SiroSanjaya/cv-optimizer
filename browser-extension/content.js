@@ -68,29 +68,20 @@
     return true;
   };
 
-  const hasCaptcha = () => Array.from(document.querySelectorAll(
-    'iframe, [class*="captcha" i], [id*="captcha" i], [name*="captcha" i], [class*="recaptcha" i]'
-  )).some((element) => {
-    const value = `${element.getAttribute("src") ?? ""} ${element.getAttribute("class") ?? ""} ${element.id}`;
-    return /captcha|recaptcha|hcaptcha|turnstile/i.test(value);
-  });
-
-  const waitForSubmissionConfirmation = async (form) => {
-    const confirmation = /\b(thank you for applying|thanks for applying|application submitted|application received|your application has been submitted)\b/i;
-    const deadline = Date.now() + 15_000;
-    while (Date.now() < deadline) {
-      const text = document.body?.innerText ?? "";
-      if (confirmation.test(text) && !form.isConnected) return true;
-      if (confirmation.test(text)) {
-        const formText = form.innerText ?? "";
-        if (!confirmation.test(formText)) return true;
-      }
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-    }
-    return false;
-  };
-
   const fillApplication = (data) => {
+    const targetUrl = new URL(data.job.url);
+    const normalizePath = (pathname) =>
+      pathname.replace(/\/apply\/?$/i, "").replace(/\/+$/, "") || "/";
+    if (
+      targetUrl.origin !== window.location.origin ||
+      normalizePath(targetUrl.pathname) !== normalizePath(window.location.pathname)
+    ) {
+      return {
+        filled: [],
+        reason: "Paket ini untuk lowongan lain. Buka halaman ATS yang sesuai.",
+      };
+    }
+
     const personal = data.cv.personalInfo;
     const allFields = fields();
     const filled = [];
@@ -134,46 +125,12 @@
     const form = (email ?? phone ?? first ?? last ?? coverLetter)?.form ??
       document.querySelector("form");
     if (!form) {
-      return { submitted: false, filled, reason: "Form lamaran tidak ditemukan." };
-    }
-    if (hasCaptcha()) {
-      return { submitted: false, filled, reason: "CAPTCHA terdeteksi; perlu diselesaikan manual." };
+      return { filled, reason: "Form lamaran tidak ditemukan." };
     }
 
     const resumeUploaded = setResumeFile(data, form);
     if (resumeUploaded) filled.push("Resume PDF");
-
-    const requiredControls = Array.from(form.querySelectorAll("input, select, textarea"))
-      .filter((element) =>
-        (element.required || element.getAttribute("aria-required") === "true") &&
-        visible(element) &&
-        !["submit", "button", "reset", "hidden"].includes(
-          element instanceof HTMLInputElement ? element.type : ""
-        )
-      );
-    const unknownRequired = requiredControls.filter((element) => {
-      if (element instanceof HTMLInputElement && ["checkbox", "radio"].includes(element.type)) return true;
-      if (element instanceof HTMLSelectElement) return true;
-      return !element.checkValidity();
-    });
-    if (unknownRequired.length > 0 || !form.checkValidity()) {
-      return {
-        submitted: false,
-        filled,
-        reason: `${unknownRequired.length || 1} field wajib belum lengkap atau tidak didukung; tidak dikirim.`,
-      };
-    }
-
-    const submitButton = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'))
-      .find((element) => {
-        if (element.disabled || !visible(element)) return false;
-        const label = element instanceof HTMLInputElement ? element.value : element.innerText;
-        return /\b(apply|submit|send application|lamar)\b/i.test(label);
-      });
-    if (!submitButton) {
-      return { submitted: false, filled, reason: "Tombol submit yang jelas tidak ditemukan." };
-    }
-    return { submitted: true, filled, form, submitButton };
+    return { filled };
   };
 
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
@@ -191,22 +148,13 @@
 
     try {
       const result = fillApplication(message.data);
-      if (!result.submitted) {
-        respond({ ok: true, ...result });
-        return false;
-      }
-      result.submitButton.click();
-      void waitForSubmissionConfirmation(result.form).then((confirmed) => {
-        respond({
-          ok: true,
-          submitted: confirmed,
-          filled: result.filled,
-          reason: confirmed
-            ? "ATS menampilkan konfirmasi pengiriman."
-            : "Klik submit dilakukan, tetapi konfirmasi ATS tidak terdeteksi. Periksa status secara manual sebelum mencoba lagi.",
-        });
+      respond({
+        ok: true,
+        filled: result.filled,
+        reason: result.filled.length
+          ? "Field dikenali sudah diisi. Periksa semua data dan kirim lamaran sendiri."
+          : result.reason || "Tidak ada field yang dikenali. Isi form secara manual.",
       });
-      return true;
     } catch {
       respond({ ok: false, error: "Form gagal diisi. Coba refresh halaman dan isi field secara manual." });
     }

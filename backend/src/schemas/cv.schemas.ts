@@ -163,6 +163,8 @@ export const interviewPrepRequestSchema = z.object({
 
 export const pdfRequestSchema = z.object({
   cv: structuredCvSchema,
+  template: z.enum(["executive", "classic", "tech"]).default("executive"),
+  density: z.enum(["spacious", "compact"]).default("spacious"),
 });
 
 export const coverLetterPdfRequestSchema = z.object({

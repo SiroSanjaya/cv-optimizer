@@ -31,8 +31,35 @@ model User {
 
   cvVersions   CvVersion[]
   applications Application[]
+  experienceVault ExperienceVaultItem[]
   usageCredit  UsageCredit?
   aiJobReservations AiJobReservation[]
+}
+
+model ExperienceVaultItem {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  company        String
+  role           String
+  periodStart    String?
+  periodEnd      String?
+  category       String   @default("technical")
+  skillsUsed     String[]
+
+  situation      String   @db.Text
+  task           String   @db.Text
+  action         String   @db.Text
+  result         String   @db.Text
+
+  polishedBullet String?  @db.Text
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, category])
 }
 
 model CvVersion {

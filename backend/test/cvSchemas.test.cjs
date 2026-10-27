@@ -4,6 +4,7 @@ const {
   analyzeRequestSchema,
   coverLetterPdfRequestSchema,
   coverLetterRequestSchema,
+  pdfRequestSchema,
   structuredCvSchema,
 } = require("../dist/schemas/cv.schemas");
 
@@ -25,6 +26,23 @@ test("structured CV schema normalizes nullable and missing fields", () => {
   assert.deepEqual(cv.skills, ["TypeScript", "React"]);
   assert.deepEqual(cv.experience, []);
   assert.deepEqual(cv.education, []);
+});
+
+test("PDF request schema validates template and density with compatible defaults", () => {
+  const defaults = pdfRequestSchema.parse({ cv: {} });
+  assert.equal(defaults.template, "executive");
+  assert.equal(defaults.density, "spacious");
+
+  const customized = pdfRequestSchema.safeParse({
+    cv: {},
+    template: "tech",
+    density: "compact",
+  });
+  assert.equal(customized.success, true);
+  assert.equal(
+    pdfRequestSchema.safeParse({ cv: {}, template: "unknown" }).success,
+    false
+  );
 });
 
 test("cover letter schema accepts company-specific context and limits personalization text", () => {

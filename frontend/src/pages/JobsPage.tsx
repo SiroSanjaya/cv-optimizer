@@ -44,7 +44,6 @@ import {
   Rocket,
   ChevronDown,
   ChevronUp,
-  ShieldCheck,
 } from "lucide-react";
 
 export function JobsPage() {
@@ -78,11 +77,9 @@ export function JobsPage() {
     return getSessionCvSkills(user?.id || "guest") || [];
   });
   const [autoApplyMinScore, setAutoApplyMinScore] = useState(50);
-  const [autoApplyDone, setAutoApplyDone] = useState(false);
   const [cvPanelOpen, setCvPanelOpen] = useState(true);
   const [newSkillInput, setNewSkillInput] = useState("");
   const [scoreBoostToast, setScoreBoostToast] = useState<string | null>(null);
-  const [safeAutoApplyModalOpen, setSafeAutoApplyModalOpen] = useState(false);
 
   // Custom Job Import Modal state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -163,11 +160,28 @@ export function JobsPage() {
     navigate("/optimize");
   };
 
+  const isSupportedApplicationUrl = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:") return false;
+      if (
+        (parsed.hostname === "boards.greenhouse.io" ||
+          parsed.hostname === "job-boards.greenhouse.io") &&
+        /^\/[^/]+\/jobs\/\d+(?:\/apply)?\/?$/i.test(parsed.pathname)
+      ) {
+        return true;
+      }
+      return parsed.hostname === "jobs.lever.co" &&
+        /^\/[^/]+\/[a-f0-9-]+(?:\/apply)?\/?$/i.test(parsed.pathname);
+    } catch {
+      return false;
+    }
+  };
+
   // ─── Smart Auto-Apply & Interactive Skills Handlers ────────────────────────
   const handleCvUpload = async (file: File) => {
     setCvFile(file);
     setParsing(true);
-    setAutoApplyDone(false);
     try {
       // Use a generic job description to parse the CV structure & extract skills
       const result = await analyzeCv(file, "Software Engineer / Developer");
@@ -252,24 +266,6 @@ export function JobsPage() {
     setTimeout(() => setScoreBoostToast(null), 3500);
   };
 
-  const eligibleJobs = jobs.filter((j) => (j.matchScore ?? 0) >= autoApplyMinScore);
-
-  const handleOpenSafeAutoApply = () => {
-    if (eligibleJobs.length === 0) return;
-    setSafeAutoApplyModalOpen(true);
-  };
-
-  const handleExecuteSafeAutoApply = async () => {
-    setSafeAutoApplyModalOpen(false);
-    setAutoApplyDone(true);
-    // Open each job URL safely with delay to prevent pop-up blockers and rate-limits
-    eligibleJobs.forEach((job, i) => {
-      setTimeout(() => {
-        window.open(job.url, "_blank", "noopener,noreferrer");
-      }, i * 600);
-    });
-  };
-
   const handleToggleBatchJob = (job: RecommendedJob) => {
     const remainingCredits = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
     const maxBatchSize = Math.min(100, Math.floor(remainingCredits / 3));
@@ -282,37 +278,24 @@ export function JobsPage() {
     });
   };
 
-  const isSupportedApplicationUrl = (url: string) => {
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== "https:") return false;
-      if (
-        (parsed.hostname === "boards.greenhouse.io" ||
-          parsed.hostname === "job-boards.greenhouse.io") &&
-        /^\/[^/]+\/jobs\/\d+/.test(parsed.pathname)
-      ) {
-        return true;
-      }
-      return parsed.hostname === "jobs.lever.co" &&
-        /^\/[^/]+\/[a-f0-9-]+(?:\/apply)?\/?$/i.test(parsed.pathname);
-    } catch {
-      return false;
-    }
-  };
+  const eligibleJobs = jobs.filter(
+    (job) =>
+      (job.matchScore ?? 0) >= autoApplyMinScore &&
+      isSupportedApplicationUrl(job.url)
+  );
 
   const handleSelectAutoApplyJobs = () => {
     const remainingCredits = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
     const packageLimit = Math.min(100, Math.floor(remainingCredits / 3));
-    const eligibleJobs = jobs
-      .filter((job) => (job.matchScore ?? 0) >= 70 && isSupportedApplicationUrl(job.url))
+    const selectedJobs = eligibleJobs
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
       .slice(0, packageLimit);
-    setSelectedBatchJobs(eligibleJobs);
+    setSelectedBatchJobs(selectedJobs);
   };
 
-  const handlePrepareBatch = () => {
-    if (selectedBatchJobs.length === 0) return;
-    const targets = selectedBatchJobs.map((job) => ({
+  const handlePrepareBatch = (jobsToPrepare: RecommendedJob[] = selectedBatchJobs) => {
+    if (jobsToPrepare.length === 0) return;
+    const targets = jobsToPrepare.map((job) => ({
       id: job.id,
       title: job.title,
       company: job.company,
@@ -324,6 +307,18 @@ export function JobsPage() {
     sessionStorage.setItem("job_application_batch", JSON.stringify(targets));
     sessionStorage.setItem("target_job_description", targets[0].jobDescription);
     navigate("/optimize");
+  };
+
+  const handlePrepareAutoApplyBatch = () => {
+    const remainingCredits = user
+      ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0))
+      : 15;
+    const packageLimit = Math.min(100, Math.floor(remainingCredits / 3));
+    const selectedJobs = eligibleJobs
+      .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+      .slice(0, packageLimit);
+    setSelectedBatchJobs(selectedJobs);
+    handlePrepareBatch(selectedJobs);
   };
 
   const handleStartInterviewForJob = (job: RecommendedJob) => {
@@ -399,10 +394,7 @@ export function JobsPage() {
 
   const categories = ["All", "Frontend", "Backend", "Full Stack", "Data", "DevOps", "Mobile"];
   const remainingBatchTasks = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
-  const availableBatchPackages = Math.max(1, Math.floor(remainingBatchTasks / 3));
-  const autoApplyEligibleCount = jobs.filter(
-    (job) => (job.matchScore ?? 0) >= 70 && isSupportedApplicationUrl(job.url)
-  ).length;
+  const availableBatchPackages = Math.min(100, Math.floor(remainingBatchTasks / 3));
 
   return (
     <div className="min-h-screen bg-paper flex flex-col justify-between">
@@ -425,23 +417,27 @@ export function JobsPage() {
                 <p className="font-bold text-sm text-ink">
                   {parsedSkills.length > 0
                     ? `CV Terdeteksi · ${parsedSkills.length} skill · ${eligibleJobs.length} loker cocok`
-                    : "Smart Auto-Apply — Upload CV, Langsung Lamar Semua"}
+                    : "Asisten Apply — Siapkan Lamaran ATS"}
                 </p>
                 <p className="text-[11px] text-ink-soft">
                   {parsedSkills.length > 0
-                    ? `Siap melamar ${eligibleJobs.length} loker dengan match ≥${autoApplyMinScore}%`
-                    : "AI baca CV kamu, pilih loker terbaik, buka semua link lamaran sekaligus"}
+                    ? `${eligibleJobs.length} lowongan Greenhouse/Lever dengan match ≥${autoApplyMinScore}%`
+                    : "Upload CV untuk mencari lowongan ATS yang didukung dan menyiapkan CV tailored"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {parsedSkills.length > 0 && eligibleJobs.length > 0 && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleOpenSafeAutoApply(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrepareAutoApplyBatch();
+                  }}
+                  disabled={availableBatchPackages === 0}
                   className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-xs font-bold text-white shadow hover:bg-forest-dark transition-all cursor-pointer"
                 >
                   <Zap className="h-3.5 w-3.5" />
-                  Lamar Semua ({eligibleJobs.length})
+                  Siapkan Apply ({Math.min(eligibleJobs.length, availableBatchPackages)})
                 </button>
               )}
               {cvPanelOpen ? <ChevronUp className="h-4 w-4 text-ink-soft" /> : <ChevronDown className="h-4 w-4 text-ink-soft" />}
@@ -579,27 +575,20 @@ export function JobsPage() {
                   </div>
 
                   <button
-                    onClick={handleOpenSafeAutoApply}
-                    disabled={eligibleJobs.length === 0}
+                    onClick={handlePrepareAutoApplyBatch}
+                    disabled={eligibleJobs.length === 0 || availableBatchPackages === 0}
                     className="flex items-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-forest-dark disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
                   >
                     <Zap className="h-4 w-4" />
-                    Lamar {eligibleJobs.length} Loker Sekaligus (Aman)
+                    Siapkan {Math.min(eligibleJobs.length, availableBatchPackages)} Lamaran ATS
                   </button>
                 </div>
               )}
 
-              {autoApplyDone && (
-                <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-3 text-xs text-emerald-800">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>
-                    <strong>Berhasil!</strong> {eligibleJobs.length} portal lamaran resmi dibuka dengan jeda aman.
-                    Untuk peluang interview lebih tinggi, buat CV tailored khusus per loker di{" "}
-                    <button onClick={() => navigate("/optimize")} className="underline font-bold">
-                      halaman Optimize
-                    </button>.
-                  </span>
-                </div>
+              {parsedSkills.length > 0 && eligibleJobs.length === 0 && (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  Belum ada lowongan Greenhouse/Lever dengan skor ini. Lowongan dari situs lain tetap bisa dibuka dan dilamar manual.
+                </p>
               )}
             </div>
           )}
@@ -771,7 +760,7 @@ export function JobsPage() {
                   <p className="mt-1 text-xs text-ink-soft">
                     {user
                       ? `Sisa ${remainingBatchTasks} task AI, cukup untuk ${availableBatchPackages} paket. Satu paket memakai 3 task (analisis CV, CV tailored, cover letter).${availableBatchPackages === 0 ? " Kuota perlu minimal 3 task untuk memilih lowongan." : ""}`
-                      : `Mode Tamu (Guest): Kamu bisa memilih hingga ${availableBatchPackages} lowongan untuk langsung disiapkan paket lamarannya di halaman Optimize.`}
+                      : `Mode Tamu (Guest): Kamu bisa memilih hingga ${availableBatchPackages} lowongan untuk disiapkan paket lamarannya di halaman Optimize.`}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -790,16 +779,16 @@ export function JobsPage() {
                     disabled={
                       !isPersonalized ||
                       availableBatchPackages === 0 ||
-                      autoApplyEligibleCount === 0
+                      eligibleJobs.length === 0
                     }
                     className="rounded-lg border border-forest px-4 py-2 text-xs font-bold text-forest hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Pilih lowongan dengan skill match minimal 70% pada Greenhouse atau Lever"
+                    title={`Pilih lowongan Greenhouse/Lever dengan skill match minimal ${autoApplyMinScore}%`}
                   >
-                    Pilih auto-apply 70%+ ({Math.min(autoApplyEligibleCount, availableBatchPackages)})
+                    Pilih ATS ≥{autoApplyMinScore}% ({Math.min(eligibleJobs.length, availableBatchPackages)})
                   </button>
                   <button
                     type="button"
-                    onClick={handlePrepareBatch}
+                    onClick={() => handlePrepareBatch()}
                     disabled={selectedBatchJobs.length === 0}
                     className="rounded-lg bg-forest px-4 py-2 text-xs font-bold text-white hover:bg-forest-dark disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -807,7 +796,7 @@ export function JobsPage() {
                   </button>
                 </div>
                 <p className="basis-full text-[11px] leading-relaxed text-ink-soft">
-                  Auto-apply hanya memilih lowongan Greenhouse/Lever yang link-nya langsung ke form dan match skill minimal 70%. Ini skor kecocokan, bukan prediksi peluang diterima. Soal wajib, CAPTCHA, dan form yang tidak dikenali akan dilewati.
+                  Asisten hanya menyiapkan materi untuk lowongan Greenhouse/Lever. Extension dapat mengisi field yang dikenali dan melampirkan CV; kamu tetap harus meninjau, melengkapi pertanyaan/CAPTCHA, lalu menekan submit sendiri. Skor match bukan prediksi diterima.
                 </p>
               </div>
             )}
@@ -1291,81 +1280,6 @@ export function JobsPage() {
                 className="rounded-xl bg-forest px-5 py-2 text-xs font-bold text-white hover:bg-forest-dark cursor-pointer"
               >
                 Selesai
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Safe Auto-Apply Confirmation Modal */}
-      {safeAutoApplyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="relative w-full max-w-lg rounded-2xl border border-line bg-paper-raised p-6 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest text-white shadow-xs">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-serif text-lg font-bold text-ink">
-                    Auto-Apply Aman & Terverifikasi
-                  </h3>
-                  <p className="text-xs text-ink-soft">
-                    {eligibleJobs.length} loker terpilih dengan match &ge;{autoApplyMinScore}%
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSafeAutoApplyModalOpen(false)}
-                className="rounded-lg p-1.5 text-ink-soft hover:bg-paper hover:text-ink cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 rounded-xl bg-forest-tint/50 border border-forest/20 p-4 text-xs text-ink leading-relaxed">
-              <p className="font-bold text-forest-dark flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-forest" />
-                Mengapa Auto-Apply ini 100% Aman?
-              </p>
-              <ul className="space-y-2 text-ink-soft pl-1">
-                <li className="flex items-start gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-forest mt-1.5 shrink-0" />
-                  <span>
-                    <strong>Anti-Spam & Jeda Terkontrol:</strong> Dibuka bertahap dengan jeda 600ms antar link agar tidak memicu pop-up blocker browser atau rate-limit dari server rekruter.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-forest mt-1.5 shrink-0" />
-                  <span>
-                    <strong>Hanya Portal Resmi Perusahaan:</strong> Link langsung mengarah ke halaman rekrutmen resmi (Greenhouse, Lever, Kalibrr, Remotive), bukan form pihak ketiga yang mencurigakan.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-forest mt-1.5 shrink-0" />
-                  <span>
-                    <strong>Kandidat Memegang Kendali (Human-in-the-Loop):</strong> Form lamaran akan dibuka untuk Anda review sebelum submit final, sehingga Anda terhindar dari salah kirim atau blacklist otomatis oleh ATS.
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-line">
-              <button
-                type="button"
-                onClick={() => setSafeAutoApplyModalOpen(false)}
-                className="rounded-xl border border-line bg-paper px-4 py-2 text-xs font-semibold text-ink-soft hover:text-ink cursor-pointer"
-              >
-                Batal
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExecuteSafeAutoApply}
-                className="flex items-center gap-1.5 rounded-xl bg-forest px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-forest-dark transition-all cursor-pointer"
-              >
-                <Zap className="h-4 w-4" />
-                <span>Buka {eligibleJobs.length} Portal Lamaran Sekarang</span>
               </button>
             </div>
           </div>

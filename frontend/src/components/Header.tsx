@@ -22,6 +22,7 @@ import {
 const primaryNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: Layers },
   { to: "/optimize", label: "Optimasi CV", icon: FileText },
+  { to: "/vault", label: "Story Vault", icon: Sparkles },
   { to: "/tracker", label: "Tracker", icon: Briefcase },
   { to: "/jobs", label: "Lowongan", icon: Search },
 ];

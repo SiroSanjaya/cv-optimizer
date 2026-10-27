@@ -11,22 +11,25 @@
       <h1>CV Optimizer</h1>
       <p class="intro">Asisten apply lokal untuk Greenhouse dan Lever.</p>
       <div class="notice">
-        Setelah batch disetujui, extension mengisi kontak, cover letter, dan CV
-        PDF, lalu submit hanya jika semua field wajib lolos pemeriksaan.
-        Pertanyaan tak dikenal dan CAPTCHA dilewati.
+        Extension mengisi field yang dikenali dan dapat melampirkan CV PDF.
+        Periksa data, lengkapi pertanyaan yang belum didukung, lalu tekan tombol
+        submit di situs ATS sendiri.
       </div>
       <label class="file-picker">
-        Import batch lamaran (.json)
+        Import paket lamaran (.json)
         <input id="package-file" type="file" accept="application/json,.json">
       </label>
       <section id="package-summary" class="summary" hidden></section>
-      <button id="fill-button" type="button" disabled>Setujui & kirim batch</button>
-      <button id="receipt-button" type="button" hidden>Unduh receipt submit</button>
-      <p id="status" role="status" aria-live="polite">Belum ada batch lamaran.</p>
+      <label id="job-picker-label" class="job-picker" hidden>
+        Pilih lowongan dalam paket
+        <select id="job-picker"></select>
+      </label>
+      <button id="fill-button" type="button" disabled>Isi field yang dikenali</button>
+      <p id="status" role="status" aria-live="polite">Belum ada paket lamaran.</p>
       <p class="footnote">
-        Hanya lowongan dengan skor kecocokan minimal 70% yang diterima. Tidak
-        mengisi jawaban screening, izin kerja, data EEO, atau CAPTCHA. Hasil tak
-        terkonfirmasi perlu dicek manual. Paket berisi data pribadi—jangan
+        Hanya mengisi informasi kontak, cover letter, dan lampiran CV yang
+        dikenali. Tidak mengirim formulir, menjawab screening, memilih izin
+        kerja/EEO, atau melewati CAPTCHA. Paket berisi data pribadi—jangan
         bagikan file JSON ke orang lain.
       </p>
     </main>
