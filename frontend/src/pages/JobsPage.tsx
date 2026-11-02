@@ -29,12 +29,10 @@ import {
   ExternalLink,
   DollarSign,
   CheckCircle2,
-  AlertCircle,
   FileText,
   PlusCircle,
   Filter,
   Globe,
-  Radio,
   BrainCircuit,
   Clock,
   Send,
@@ -79,7 +77,6 @@ export function JobsPage() {
   >("indonesia");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isPersonalized, setIsPersonalized] = useState<boolean>(false);
-  const [skillsCount, setSkillsCount] = useState<number>(0);
   const [selectedBatchJobs, setSelectedBatchJobs] = useState<RecommendedJob[]>([]);
 
   // Job preparation and CV persistence
@@ -166,7 +163,6 @@ export function JobsPage() {
           setJobs(res.jobs);
           setJobSources(res.sources ?? []);
           setIsPersonalized(Boolean(res.query?.isPersonalized));
-          setSkillsCount(res.query?.skillsCount || 0);
         }
       })
       .catch((err) => {
@@ -330,7 +326,6 @@ export function JobsPage() {
     );
 
     setIsPersonalized(true);
-    setSkillsCount(newSkills.length);
     setScoreBoostToast(
       `Skill "${trimmed}" ditambahkan! Persentase kesesuaian pada lowongan langsung bertambah.`
     );
@@ -500,7 +495,7 @@ export function JobsPage() {
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:px-6 sm:py-8">
 
         {/* ── JOB-APPLICATION ASSISTANT ──────────────────────────────────── */}
-        <div className="order-2 mb-5 overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-sm">
+        <div className="order-2 mb-3 overflow-hidden rounded-xl border border-line bg-paper-raised shadow-sm">
           {/* Header row */}
           <div className="flex items-center justify-between gap-2 px-2 py-2 sm:px-3">
             <button
@@ -518,12 +513,12 @@ export function JobsPage() {
                   <span className="block text-sm font-bold text-ink">
                     {parsedSkills.length > 0
                       ? `CV Terdeteksi · ${parsedSkills.length} skill · ${eligibleJobs.length} loker cocok`
-                      : "Opsional · Tambahkan CV untuk skor kecocokan"}
+                      : "CV opsional · aktifkan skor kecocokan"}
                   </span>
                   <span className="mt-0.5 block text-[11px] text-ink-soft">
                     {parsedSkills.length > 0
                       ? `${eligibleJobs.length} lowongan Greenhouse/Lever dengan match ≥${autoApplyMinScore}%`
-                      : "Lowongan bisa dicari dulu tanpa upload CV"}
+                      : "Cari lowongan dulu, tambah CV kapan saja"}
                   </span>
                 </span>
               </span>
@@ -695,182 +690,166 @@ export function JobsPage() {
         </div>
 
         {/* Banner Hero */}
-        <div className="order-1 flex flex-col rounded-2xl border border-line bg-paper-raised p-4 shadow-sm sm:p-6">
-        <div className="order-5 grid gap-3 border-t border-line pt-4 sm:flex sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-forest">
-              <Sparkles className="h-5 w-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                Pencarian Lowongan
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-              <button
-                onClick={() => setSalaryModalOpen(true)}
-                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink transition-all hover:border-forest/50 sm:min-h-0 sm:rounded-full sm:py-1"
-              >
-                <Calculator className="h-3.5 w-3.5 text-forest" />
-                <span>Kalkulator Gaji Tech</span>
-              </button>
-
-              <button
-                id="job-importer-open"
-                onClick={() => setJobImporterOpen(true)}
-                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-forest px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-forest-dark sm:min-h-0 sm:rounded-full sm:py-1"
-              >
-                <Link2 className="h-3.5 w-3.5" />
-                <span>Impor dari URL / Paste</span>
-              </button>
-
-              <button
-                onClick={() => setIsImportModalOpen(true)}
-                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink transition-all hover:border-forest/50 sm:min-h-0 sm:rounded-full sm:py-1"
-              >
-                <PlusCircle className="h-3.5 w-3.5 text-forest" />
-                <span>Analisis JD</span>
-              </button>
-            </div>
-
+        <section className="order-1 flex flex-col overflow-hidden rounded-2xl border border-forest/20 bg-gradient-to-br from-forest-tint/60 via-paper-raised to-paper-raised p-4 shadow-sm sm:p-6">
+          <div className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-forest/20 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-forest">
+            <Sparkles className="h-3.5 w-3.5" />
+            Satsetin cari kerja
           </div>
-
-          <h1 className="order-1 font-serif text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            Lowongan Kerja dari Berbagai Sumber
+          <h1 className="font-serif text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl">
+            Cari kerja yang cocok, bukan sekadar banyak.
           </h1>
-          <p className="order-2 mt-1 max-w-2xl text-xs leading-relaxed text-ink-soft">
-            Cari dan bandingkan hingga 100 lowongan. Tambahkan CV secara opsional untuk melihat kecocokan skill; indikasi sponsorship hanya berdasarkan teks deskripsi.
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-soft">
+            Pilih peran dan lokasi. CV opsional untuk melihat kecocokan skill.
           </p>
 
           {/* Search Form */}
-          <form onSubmit={handleSearch} className="order-3 mt-4 grid gap-2 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto]">
+          <form
+            role="search"
+            aria-label="Cari lowongan kerja"
+            onSubmit={handleSearch}
+            className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_190px_auto]"
+          >
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-3 h-4 w-4 text-ink-soft" />
               <input
                 type="text"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Cari profesi atau keahlian, mis. engineer"
+                placeholder="Contoh: admin, perawat, software engineer"
+                aria-label="Profesi atau keahlian"
                 className="min-h-11 w-full rounded-xl border border-line bg-paper pl-10 pr-4 py-2.5 text-sm text-ink shadow-xs placeholder:text-ink-soft/60 focus:border-forest focus:outline-none"
               />
             </div>
+            <label className="sr-only" htmlFor="job-location-filter">Filter lokasi lowongan</label>
+            <select
+              id="job-location-filter"
+              value={locationFilter}
+              onChange={(event) => {
+                const nextLocation = event.target.value as typeof locationFilter;
+                setLoading(true);
+                setLoadError(null);
+                setJobSources([]);
+                setLocationFilter(nextLocation);
+              }}
+              className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-sm font-medium text-ink focus:border-forest focus:outline-none"
+            >
+              <option value="all">Semua lokasi</option>
+              <option value="indonesia">Indonesia</option>
+              <option value="malaysia">Malaysia</option>
+              <option value="singapore">Singapura</option>
+              <option value="australia">Australia</option>
+              <option value="remote">Remote</option>
+            </select>
             <Button type="submit" className="gap-2 text-xs py-2.5 px-5">
               <Search className="h-3.5 w-3.5" />
               Cari Lowongan
             </Button>
+          </form>
 
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-ink-soft">
+              <Filter className="h-3 w-3" /> Coba:
+            </span>
+            {suggestedRoles.slice(0, 5).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setLoadError(null);
+                  setJobSources([]);
+                  setSearchKeyword(role);
+                  setSubmittedKeyword(role);
+                  if (role === submittedKeyword) {
+                    setRetryKey((key) => key + 1);
+                  }
+                }}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                  submittedKeyword.toLowerCase() === role.toLowerCase()
+                    ? "border-forest/40 bg-forest text-white"
+                    : "border-line bg-paper-raised text-ink-soft hover:border-forest/40 hover:text-ink"
+                }`}
+              >
+                {role}
+              </button>
+            ))}
             <button
               type="button"
               onClick={handleOpenGoogleJobs}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2.5 text-xs font-bold text-ink transition-all hover:border-forest/50 hover:bg-paper sm:col-span-2 lg:col-span-1"
-              title="Buka pencarian live di Google Jobs engine"
+              className="ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-forest hover:bg-white/70"
+              title="Buka pencarian live di Google Jobs"
             >
-              <Globe className="h-4 w-4 text-blue-700" />
-              <span>Jelajahi di Google Jobs ↗</span>
+              <Globe className="h-3.5 w-3.5" />
+              Google Jobs ↗
             </button>
-          </form>
+          </div>
 
-          {/* Location & Category Filters */}
-          <div className="order-4 mt-4 flex flex-col justify-between gap-4 border-t border-line pt-4 sm:flex-row sm:items-center">
-            {/* Location Selector */}
-            <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-line bg-paper p-1 sm:flex sm:flex-wrap">
-              {[
-                { id: "all", label: "Semua Target", icon: Globe },
-                { id: "indonesia", label: "Indonesia", icon: MapPin },
-                { id: "malaysia", label: "Malaysia", icon: MapPin },
-                { id: "singapore", label: "Singapura", icon: MapPin },
-                { id: "australia", label: "Australia", icon: MapPin },
-                { id: "remote", label: "Remote", icon: Radio },
-              ].map((loc) => {
-                const Icon = loc.icon;
-                return (
+          <details className="mt-3 border-t border-line/70 pt-2.5 text-xs">
+            <summary className="w-fit cursor-pointer font-semibold text-forest hover:text-forest-dark">
+              Profesi lain & alat tambahan
+            </summary>
+            <div className="mt-3 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {suggestedRoles.slice(5).map((role) => (
                   <button
-                    key={loc.id}
+                    key={role}
                     type="button"
                     onClick={() => {
                       setLoading(true);
                       setLoadError(null);
                       setJobSources([]);
-                      setLocationFilter(loc.id as typeof locationFilter);
-                      if (loc.id === locationFilter) {
+                      setSearchKeyword(role);
+                      setSubmittedKeyword(role);
+                      if (role === submittedKeyword) {
                         setRetryKey((key) => key + 1);
                       }
                     }}
-                    className={`flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2 text-xs font-semibold transition-all cursor-pointer sm:px-3 ${
-                      locationFilter === loc.id
-                        ? "bg-forest text-white shadow-xs"
-                        : "text-ink-soft hover:text-ink"
+                    className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ${
+                      submittedKeyword.toLowerCase() === role.toLowerCase()
+                        ? "border-forest/40 bg-forest text-white"
+                        : "border-line bg-paper-raised text-ink-soft hover:border-forest/40 hover:text-ink"
                     }`}
                   >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{loc.label}</span>
+                    {role}
                   </button>
-                );
-              })}
-            </div>
-
-            {/* Profession quick searches */}
-            <div className="flex flex-wrap items-center gap-1.5 py-1 text-xs">
-              <span className="basis-full text-ink-soft text-[11px] font-medium flex items-center gap-1">
-                <Filter className="h-3 w-3" /> Coba profesi:
-              </span>
-              {suggestedRoles.map((role, index) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => {
-                    setLoading(true);
-                    setLoadError(null);
-                    setJobSources([]);
-                    setSearchKeyword(role);
-                    setSubmittedKeyword(role);
-                    if (role === submittedKeyword) {
-                      setRetryKey((key) => key + 1);
-                    }
-                  }}
-                  className={`${index >= 6 ? "hidden sm:inline-flex" : "inline-flex"} whitespace-nowrap rounded-full px-3 py-2 text-[11px] transition-all cursor-pointer ${
-                    submittedKeyword.toLowerCase() === role.toLowerCase()
-                      ? "bg-forest-tint text-forest font-bold border border-forest/40 shadow-xs"
-                      : "border border-line bg-paper-raised text-ink-soft hover:text-ink hover:border-forest/40"
-                  }`}
-                >
-                  {role}
-                </button>
-              ))}
-            </div>
-            <p className="basis-full text-[11px] leading-relaxed text-ink-soft">
-              Lowongan negara: Indonesia memakai Kalibrr; Malaysia, Singapura, dan Australia perlu Jooble API key opsional. Status visa dibaca dari teks lowongan—“belum disebut” bukan berarti sponsorship tersedia.
-            </p>
-          </div>
-        </div>
-
-        {/* Status / Personalization Banner */}
-        <div className="order-3 mt-4">
-          {isPersonalized ? (
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-900 shadow-xs">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>
-                <strong>Perbandingan skill aktif:</strong> Skor menunjukkan proporsi skill pada deskripsi lowongan yang cocok dengan <strong>{skillsCount} keahlian</strong> yang terdeteksi dari CV Anda. Ini bukan probabilitas diterima.
-              </span>
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-300/80 bg-amber-50/70 px-4 py-3 text-xs text-amber-950 shadow-xs">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                <span>
-                  <strong>Belum dipersonalisasi:</strong> Lowongan ditampilkan tanpa skor kecocokan sampai kamu menganalisis CV.
-                </span>
+                ))}
               </div>
-              <button
-                onClick={() => navigate("/optimize")}
-                className="whitespace-nowrap font-bold text-forest hover:underline"
-              >
-                Upload CV untuk Skor Personal →
-              </button>
+              <div className="flex flex-wrap gap-2 border-t border-line/70 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setSalaryModalOpen(true)}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-forest/50"
+                >
+                  <Calculator className="h-3.5 w-3.5 text-forest" />
+                  Kalkulator gaji tech
+                </button>
+                <button
+                  id="job-importer-open"
+                  type="button"
+                  onClick={() => setJobImporterOpen(true)}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-forest/50"
+                >
+                  <Link2 className="h-3.5 w-3.5 text-forest" />
+                  Impor lowongan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-forest/50"
+                >
+                  <PlusCircle className="h-3.5 w-3.5 text-forest" />
+                  Analisis deskripsi
+                </button>
+              </div>
+              <p className="text-[11px] leading-relaxed text-ink-soft">
+                Indonesia memakai Kalibrr; Malaysia, Singapura, dan Australia memerlukan Jooble API key opsional. Informasi visa hanya berdasarkan teks lowongan—“belum disebut” bukan berarti sponsorship tersedia.
+              </p>
             </div>
-          )}
-        </div>
+          </details>
+        </section>
 
         {/* Jobs Grid */}
-        <div className="order-4 mt-6">
+        <div className="order-3 mt-4">
             {jobs.length > 0 && (
               <div className="mb-5 flex flex-col gap-3 rounded-xl border border-forest/20 bg-forest-tint/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -925,7 +904,9 @@ export function JobsPage() {
               Menampilkan <span className="text-ink font-bold">{jobs.length}</span> dari maksimal 100 lowongan
             </p>
             <span className="text-[11px] text-ink-soft">
-              {isPersonalized ? "Diurutkan berdasarkan skill CV, lalu indikasi sponsorship" : "Upload CV untuk personalisasi; sponsorship hanya berdasarkan teks"}
+              {isPersonalized
+                ? "Urut berdasarkan skill CV · status visa dari teks"
+                : "CV opsional untuk skor skill · status visa dari teks"}
             </span>
           </div>
           {jobSources.length > 0 && (
