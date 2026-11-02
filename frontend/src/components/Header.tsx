@@ -64,13 +64,11 @@ export function Header() {
   const mobilePrimaryItems = user
     ? [
       { to: "/jobs", label: "Lowongan", icon: Search },
-      { to: "/optimize", label: "Siapkan CV", icon: FileText },
       { to: "/tracker", label: "Tracker", icon: Briefcase },
       { to: "/interview", label: "Latihan", icon: Sparkles },
     ]
     : [
       { to: "/jobs", label: "Lowongan", icon: Search },
-      { to: "/optimize", label: "Siapkan CV", icon: FileText },
       { to: "/login", label: "Masuk", icon: LogIn },
     ];
 
@@ -297,6 +295,16 @@ export function Header() {
                 </Link>
               </div>
             )}
+
+            <Link
+              to="/optimize"
+              onClick={closeMenus}
+              aria-label="Siapkan CV untuk lowongan"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-forest px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-forest-dark sm:px-4 sm:text-sm xl:hidden"
+            >
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="hidden min-[360px]:inline">Siapkan CV</span>
+            </Link>
 
             <button
               type="button"
