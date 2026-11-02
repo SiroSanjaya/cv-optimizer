@@ -51,7 +51,7 @@ export function DashboardPage() {
         const [mRes, aRes, jRes] = await Promise.allSettled([
           getApplicationMetrics(),
           getApplications(),
-          getJobRecommendations({ keyword: "software", location: "all" }),
+          getJobRecommendations({ keyword: "", location: "all" }),
         ]);
 
         if (mRes.status === "fulfilled") setMetrics(mRes.value);

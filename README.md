@@ -22,10 +22,12 @@ materials while keeping the candidate in control of the final content.
   questions, microphone answers, conversational AI follow-ups, and feedback.
 - Track applications through stages such as applied, interview, offer,
   rejected, no response, and withdrawn.
-- Browse up to 100 skill-ranked job listings for Indonesia, Malaysia,
-  Singapore, Australia, and eligible remote roles. Visa sponsorship is flagged
-  only when the listing text explicitly mentions it; review tailored materials
-  and submit each application through the employer's official site.
+- Search up to 100 job listings by profession or skill across available
+  sources for Indonesia, Malaysia, Singapore, Australia, and eligible remote
+  roles. Coverage depends on each source and is not exhaustive. Visa
+  sponsorship is flagged only when the listing text explicitly mentions it;
+  review tailored materials and submit each application through the employer's
+  official site.
 - Select several listings and prepare separate tailored CVs plus cover letters
   in one sequential batch, capped by the account's remaining AI task quota.
 - Use the optional local Chrome/Edge helper for supported Greenhouse and Lever

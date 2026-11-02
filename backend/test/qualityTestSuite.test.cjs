@@ -1,5 +1,6 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
+const pdfParse = require("pdf-parse");
 
 // Schemas & Types
 const {
@@ -11,6 +12,7 @@ const {
 
 // Document generator
 const { generateCvPdf } = require("../dist/services/document/pdfGenerator.js");
+const { buildCoverLetterPrompt } = require("../dist/services/ai/prompts.js");
 
 // Monetization Cost Estimator
 const { estimateCostUsd } = require("../dist/services/monetization/creditLedger.service.js");
@@ -227,6 +229,14 @@ describe("Quality Test Suite: Evidence-Based Job Matching", () => {
 });
 
 describe("Quality Test Suite: AI Rewriting Truthfulness & Anti-Hallucination", () => {
+  it("does not require or fabricate metrics in cover letters", () => {
+    const prompt = buildCoverLetterPrompt("{}", "Customer service role");
+
+    assert.match(prompt, /only when they are explicitly stated in the CV/i);
+    assert.match(prompt, /describe supported contributions qualitatively/i);
+    assert.match(prompt, /never require or fabricate them/i);
+  });
+
   it("validates X-Y-Z bullet revision schema with mandatory reasoning", () => {
     const revision = {
       company: "Unicorn Tech Nusantara",
@@ -247,13 +257,21 @@ describe("Quality Test Suite: AI Rewriting Truthfulness & Anti-Hallucination", (
 });
 
 describe("Quality Test Suite: PDF & Layout Document Integrity", () => {
-  it("renders production PDF buffer without overflow or text corruption", async () => {
+  it("renders a valid production PDF stream with readable CV content", async () => {
     const candidate = BENCHMARK_CVS[0].raw;
-    const pdfBuffer = await generateCvPdf(candidate, { template: "tech", density: "compact" });
+    const pdfStream = generateCvPdf(candidate, { template: "tech", density: "compact" });
+    const chunks = [];
+    for await (const chunk of pdfStream) {
+      chunks.push(chunk);
+    }
+    const pdfBuffer = Buffer.concat(chunks);
+    const parsedPdf = await pdfParse(pdfBuffer);
 
     assert.ok(Buffer.isBuffer(pdfBuffer));
-    assert.ok(pdfBuffer.length > 5000, "Generated PDF must contain valid binary content");
     assert.equal(pdfBuffer.subarray(0, 4).toString(), "%PDF", "Must be a valid PDF header");
+    assert.ok(pdfBuffer.includes(Buffer.from("%%EOF")), "PDF must be complete");
+    assert.match(parsedPdf.text, /Budi Santoso/);
+    assert.match(parsedPdf.text, /500k daily transactions/);
   });
 });
 

@@ -253,11 +253,14 @@ oleh fitur tersebut.
 
 Rekomendasi lowongan mengurutkan hingga 100 listing dengan kecocokan skill
 CV, kemudian memprioritaskan listing yang secara eksplisit menyebut visa
-sponsorship. Sumber lokal Indonesia mencakup Kalibrr; pencarian negara
-Malaysia, Singapura, dan Australia menggunakan `JOOBLE_API_KEY` opsional;
-sumber remote global memiliki pembatasan negara masing-masing. Status visa
-adalah deteksi teks sederhana: “belum disebut” tidak berarti sponsorship
-tersedia, dan kandidat tetap harus memverifikasi syarat dengan perusahaan.
+sponsorship. Pencarian menerima kata kunci profesi atau keahlian lintas bidang;
+feed remote tidak lagi dibatasi ke pekerjaan software. Sumber lokal Indonesia
+mencakup Kalibrr; pencarian negara Malaysia, Singapura, dan Australia
+menggunakan `JOOBLE_API_KEY` opsional. Cakupan dan jumlah hasil tetap
+bergantung pada sumber yang tersedia dan bukan katalog lengkap semua pekerjaan.
+Status visa adalah deteksi teks sederhana: “belum disebut” tidak berarti
+sponsorship tersedia, dan kandidat tetap harus memverifikasi syarat dengan
+perusahaan.
 Pengguna dapat memilih beberapa listing untuk menyiapkan CV tailored dan cover
 letter secara berurutan. Satu paket memakai tiga AI task per listing
 (analisis CV, CV tailored, dan cover letter), sehingga jumlahnya dibatasi oleh

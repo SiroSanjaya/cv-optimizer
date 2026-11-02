@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   Check,
   Download,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { EducationEntry, StructuredCv } from "../types/cv";
 import { downloadCvFile } from "../lib/api";
+import { createGmailComposeUrl } from "../lib/gmail";
 import { Button } from "./Button";
 
 interface CvPreviewProps {
@@ -48,6 +49,34 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
   const [template, setTemplate] = useState<TemplateStyle>("executive");
   const [density, setDensity] = useState<Density>("spacious");
   const [copiedPlainText, setCopiedPlainText] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
+
+  const handleOpenGmail = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = cv.personalInfo.name || "Kandidat";
+    const body = [
+      "Yth. Tim Rekrutmen,",
+      "",
+      "Dengan hormat,",
+      `Saya ingin mengajukan lamaran kerja. Bersama email ini saya sertakan CV atas nama ${name}.`,
+      "",
+      "Terima kasih atas perhatian Anda.",
+      "",
+      "Hormat saya,",
+      name,
+      [cv.personalInfo.email, cv.personalInfo.phone].filter(Boolean).join("\n"),
+    ].join("\n");
+
+    window.open(
+      createGmailComposeUrl({
+        to: recipientEmail.trim(),
+        subject: `Lamaran Kerja - ${name}`,
+        body,
+      }),
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
 
   const handleDownload = async (format: "pdf" | "docx") => {
     setDownloading(format);
@@ -205,6 +234,31 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
           </Button>
         </div>
       </div>
+
+      <form
+        onSubmit={handleOpenGmail}
+        className="mt-4 flex flex-col gap-3 rounded-xl border border-line bg-paper p-4 sm:flex-row sm:items-end"
+      >
+        <label className="flex-1 text-xs font-semibold text-ink-soft">
+          Email HR / penerima
+          <input
+            type="email"
+            required
+            value={recipientEmail}
+            onChange={(event) => setRecipientEmail(event.target.value)}
+            placeholder="hr@perusahaan.com"
+            className="mt-1 w-full rounded-lg border border-line bg-paper-raised px-3 py-2 text-sm font-normal text-ink focus:border-forest focus:outline-hidden"
+          />
+        </label>
+        <Button type="submit" className="px-4 py-2 text-xs">
+          <Mail className="h-3.5 w-3.5" />
+          Siapkan Email di Gmail
+        </Button>
+        <p className="text-[11px] text-ink-soft sm:max-w-48">
+          Draft terbuka di Gmail. Unduh PDF CV dan lampirkan sendiri sebelum
+          mengirim.
+        </p>
+      </form>
 
       {error && <p className="mt-3 text-xs text-rust font-medium">{error}</p>}
 

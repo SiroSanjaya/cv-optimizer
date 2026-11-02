@@ -1,6 +1,7 @@
 import { prisma } from "../../utils/prisma";
 import { Errors } from "../../utils/AppError";
 import { logger } from "../../utils/logger";
+import type { Prisma } from "@prisma/client";
 import { LedgerEntryType, PaymentStatus } from "@prisma/client";
 
 // Gemini 3.5 Flash cost benchmark (approx $0.075 per 1M input tokens, $0.30 per 1M output tokens)
@@ -203,7 +204,7 @@ export async function trackFunnelEvent(
   eventName: string,
   userId?: string,
   sessionId?: string,
-  metadata?: any
+  metadata?: Prisma.InputJsonValue
 ): Promise<void> {
   try {
     await prisma.funnelEvent.create({
@@ -211,11 +212,14 @@ export async function trackFunnelEvent(
         eventName,
         userId: userId || null,
         sessionId: sessionId || null,
-        metadata: metadata || null,
+        metadata,
       },
     });
   } catch (err) {
-    logger.warn("funnel_event_track_failed", { eventName, err });
+    logger.warn("funnel_event_track_failed", {
+      eventName,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

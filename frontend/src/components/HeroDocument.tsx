@@ -1,43 +1,81 @@
+import { ArrowUpRight, BriefcaseBusiness, Check, FileText } from "lucide-react";
+
 export function HeroDocument() {
   return (
-    <div className="relative mx-auto w-full max-w-sm">
-      {/* Match score card, offset behind the CV sheet */}
-      <div className="absolute -right-4 -top-6 z-0 w-40 rotate-3 rounded-lg border border-line bg-paper-raised p-4 shadow-sm">
-        <p className="text-xs font-medium text-ink-soft">Contoh ilustrasi skor</p>
-        <p className="mt-1 font-serif text-3xl font-semibold text-forest">87%</p>
-        <div className="mt-2 h-1.5 w-full rounded-full bg-forest-tint">
-          <div className="h-1.5 w-[87%] rounded-full bg-forest" />
-        </div>
-      </div>
-
-      {/* CV sheet */}
-      <div className="relative z-10 -rotate-2 rounded-lg border border-line bg-paper-raised p-6 shadow-md">
-        <div className="h-3 w-2/3 rounded-sm bg-ink" />
-        <div className="mt-2 h-2 w-1/3 rounded-sm bg-line" />
-
-        <div className="mt-5 h-2 w-20 rounded-sm bg-forest" />
-        <div className="mt-2 space-y-1.5">
-          <div className="h-1.5 w-full rounded-sm bg-line" />
-          <div className="h-1.5 w-11/12 rounded-sm bg-line" />
-          <div className="h-1.5 w-4/5 rounded-sm bg-line" />
-        </div>
-
-        <div className="mt-4 h-2 w-24 rounded-sm bg-forest" />
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {["React", "Node.js", "SQL", "Git"].map((skill) => (
-            <span
-              key={skill}
-              className="rounded-full border border-forest/30 bg-forest-tint px-2 py-0.5 text-[10px] font-medium text-forest-dark"
-            >
-              {skill}
+    <div className="relative mx-auto w-full max-w-lg">
+      <div className="overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-xl">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-tint text-forest">
+              <BriefcaseBusiness className="h-5 w-5" aria-hidden="true" />
             </span>
-          ))}
+            <div>
+              <p className="text-sm font-bold text-ink">Ruang lamaran</p>
+              <p className="text-[11px] text-ink-soft">Contoh tampilan</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-amber-tint px-2.5 py-1 text-[10px] font-semibold text-amber">
+            Sedang disiapkan
+          </span>
         </div>
 
-        <div className="mt-4 h-2 w-28 rounded-sm bg-forest" />
-        <div className="mt-2 space-y-1.5">
-          <div className="h-1.5 w-full rounded-sm bg-line" />
-          <div className="h-1.5 w-10/12 rounded-sm bg-line" />
+        <div className="space-y-5 p-5 sm:p-6">
+          <div className="rounded-xl border border-line bg-paper p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-forest">
+                  Posisi yang dituju
+                </p>
+                <h3 className="mt-1 font-serif text-lg font-bold text-ink">
+                  Senior Product Manager
+                </h3>
+                <p className="mt-0.5 text-xs text-ink-soft">Contoh deskripsi posisi</p>
+              </div>
+              <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-ink-soft" aria-hidden="true" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-line p-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-forest" aria-hidden="true" />
+              <p className="text-xs font-bold text-ink">Tinjau CV untuk posisi ini</p>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="flex gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-tint text-forest">
+                  <Check className="h-3 w-3" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-ink">Pengalaman terkait</p>
+                  <p className="mt-0.5 text-[11px] leading-5 text-ink-soft">
+                    Periksa pengalaman mana yang mendukung persyaratan role.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-forest-tint text-forest">
+                  <Check className="h-3 w-3" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-ink">Materi lamaran</p>
+                  <p className="mt-0.5 text-[11px] leading-5 text-ink-soft">
+                    Siapkan draf CV dan cover letter untuk kamu tinjau.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {["Lowongan", "CV tailored", "Latihan interview"].map((item) => (
+              <span
+                key={item}
+                className="rounded-full border border-line bg-paper px-3 py-1.5 text-[10px] font-medium text-ink-soft"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

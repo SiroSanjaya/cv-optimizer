@@ -56,12 +56,11 @@ export function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const [searchKeyword, setSearchKeyword] = useState("Software");
-  const [submittedKeyword, setSubmittedKeyword] = useState("Software");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [submittedKeyword, setSubmittedKeyword] = useState("");
   const [locationFilter, setLocationFilter] = useState<
     "all" | "indonesia" | "malaysia" | "singapore" | "australia" | "remote"
   >("all");
-  const [activeCategory, setActiveCategory] = useState<string>("All");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isPersonalized, setIsPersonalized] = useState<boolean>(false);
   const [skillsCount, setSkillsCount] = useState<number>(0);
@@ -137,7 +136,6 @@ export function JobsPage() {
     getJobRecommendations({
       keyword: submittedKeyword,
       location: locationFilter,
-      category: activeCategory !== "All" ? activeCategory.toLowerCase() : undefined,
       skills: sessionSkills,
     })
       .then((res) => {
@@ -159,13 +157,13 @@ export function JobsPage() {
     return () => {
       isMounted = false;
     };
-  }, [submittedKeyword, locationFilter, activeCategory, user?.id, retryKey, parsedSkills]);
+  }, [submittedKeyword, locationFilter, user?.id, retryKey, parsedSkills]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setLoadError(null);
-    setSubmittedKeyword(searchKeyword.trim() || "developer");
+    setSubmittedKeyword(searchKeyword.trim());
   };
 
   const handleOpenGoogleJobs = () => {
@@ -216,7 +214,10 @@ export function JobsPage() {
     setParsing(true);
     try {
       // Use a generic job description to parse the CV structure & extract skills
-      const result = await analyzeCv(file, "Software Engineer / Developer");
+      const result = await analyzeCv(
+        file,
+        "General professional CV. Extract all relevant experience, skills, achievements, and qualifications without assuming an industry or job title."
+      );
       const skills: string[] = result.cv?.skills ?? [];
       setParsedSkills(skills);
       // Save structured CV and skills to session so optimize & jobs never ask to upload again
@@ -258,7 +259,6 @@ export function JobsPage() {
 
     // Instantly recalculate matchingSkills, missingSkills, and matchScore locally for all jobs
     const normCandidate = newSkills.map((s) => s.toLowerCase().trim());
-    let affectedJobsCount = 0;
 
     setJobs((prevJobs) =>
       prevJobs.map((job) => {
@@ -278,8 +278,6 @@ export function JobsPage() {
         const newScore = job.skills.length
           ? Math.round((matching.length / job.skills.length) * 100)
           : job.matchScore;
-
-        if (newScore !== job.matchScore) affectedJobsCount++;
 
         return {
           ...job,
@@ -424,7 +422,20 @@ export function JobsPage() {
     }
   };
 
-  const categories = ["All", "Frontend", "Backend", "Full Stack", "Data", "DevOps", "Mobile"];
+  const suggestedRoles = [
+    "Customer Service",
+    "Sales",
+    "Marketing",
+    "Akuntansi",
+    "HR",
+    "Admin",
+    "Operations",
+    "Graphic Designer",
+    "Teacher",
+    "Nurse",
+    "Product Manager",
+    "Software Engineer",
+  ];
   const remainingBatchTasks = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
   const availableBatchPackages = Math.min(100, Math.floor(remainingBatchTasks / 3));
 
@@ -432,7 +443,7 @@ export function JobsPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl px-6 py-8 flex-1">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
 
         {/* ── SMART AUTO-APPLY PANEL ─────────────────────────────────────── */}
         <div className="mb-6 rounded-2xl border-2 border-forest/30 bg-gradient-to-br from-forest/5 via-paper-raised to-emerald-50/40 shadow-lg overflow-hidden">
@@ -680,7 +691,7 @@ export function JobsPage() {
                 type="text"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Cari posisi atau keahlian (misal: React, Node.js, Python, Golang, DevOps)..."
+                placeholder="Cari profesi atau keahlian (misal: akuntan, sales, guru, perawat, designer, engineer)..."
                 className="w-full rounded-lg border border-line bg-paper-raised pl-10 pr-4 py-2.5 text-xs text-ink placeholder:text-ink-soft/50 shadow-xs focus:border-forest focus:outline-none"
               />
             </div>
@@ -703,7 +714,7 @@ export function JobsPage() {
           {/* Location & Category Filters */}
           <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-line">
             {/* Location Selector */}
-            <div className="flex flex-wrap items-center gap-1.5 bg-paper p-1 rounded-lg border border-line">
+            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto rounded-lg border border-line bg-paper p-1">
               {[
                 { id: "all", label: "Semua Target", icon: Globe },
                 { id: "indonesia", label: "Indonesia", icon: MapPin },
@@ -722,7 +733,7 @@ export function JobsPage() {
                       setLoadError(null);
                       setLocationFilter(loc.id as typeof locationFilter);
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
                       locationFilter === loc.id
                         ? "bg-forest text-white shadow-xs"
                         : "text-ink-soft hover:text-ink"
@@ -735,26 +746,28 @@ export function JobsPage() {
               })}
             </div>
 
-            {/* Category Pills */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {/* Profession quick searches */}
+            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto py-1 text-xs">
               <span className="text-ink-soft text-[11px] font-medium mr-1 flex items-center gap-1">
-                <Filter className="h-3 w-3" /> Stack:
+                <Filter className="h-3 w-3" /> Coba profesi:
               </span>
-              {categories.map((cat) => (
+              {suggestedRoles.map((role) => (
                 <button
-                  key={cat}
+                  key={role}
+                  type="button"
                   onClick={() => {
                     setLoading(true);
                     setLoadError(null);
-                    setActiveCategory(cat);
+                    setSearchKeyword(role);
+                    setSubmittedKeyword(role);
                   }}
-                  className={`rounded-full px-3 py-1 text-[11px] transition-all cursor-pointer ${
-                    activeCategory === cat
+                  className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-[11px] transition-all cursor-pointer ${
+                    submittedKeyword.toLowerCase() === role.toLowerCase()
                       ? "bg-forest-tint text-forest font-bold border border-forest/40 shadow-xs"
                       : "border border-line bg-paper-raised text-ink-soft hover:text-ink hover:border-forest/40"
                   }`}
                 >
-                  {cat}
+                  {role}
                 </button>
               ))}
             </div>
@@ -892,11 +905,11 @@ export function JobsPage() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
               {jobs.map((job) => (
                 <div
                   key={job.id}
-                  className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm transition-all hover:border-forest/60 hover:shadow flex flex-col justify-between"
+                  className="rounded-2xl border border-line bg-paper-raised p-4 shadow-sm transition-all hover:border-forest/60 hover:shadow sm:p-5"
                 >
                   <div>
                     {/* Header card */}

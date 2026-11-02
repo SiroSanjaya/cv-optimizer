@@ -71,16 +71,32 @@ const COMMON_TECH_SKILLS = [
   "Figma", "UI/UX", "Tailwind CSS", "HTML5", "CSS3", "Git", "Jest", "Cypress"
 ];
 
-function extractSkillsFromText(text: string, existingSkills: string[] = []): string[] {
+const COMMON_PROFESSIONAL_SKILLS = [
+  "Excel", "Google Sheets", "Microsoft Office",
+  "Customer Service", "Customer Support", "Sales", "Business Development",
+  "Account Management", "CRM", "Salesforce", "Marketing", "Digital Marketing",
+  "SEO", "Google Ads", "Social Media", "Content Writing", "Copywriting",
+  "Public Relations", "Graphic Design", "UX Research", "Product Management",
+  "Project Management", "Operations", "Supply Chain", "Logistics",
+  "Procurement", "Accounting", "Bookkeeping", "Financial Analysis",
+  "Payroll", "Human Resources", "Recruitment", "Talent Acquisition",
+  "Administrative Support", "Data Analysis", "Power BI", "Tableau",
+  "Communication", "Negotiation", "Leadership", "Stakeholder Management",
+  "Problem Solving", "Quality Assurance", "Compliance", "Risk Management",
+  "Teaching", "Curriculum Development", "Nursing", "Patient Care",
+  "Event Management", "Hospitality", "Research", "English",
+  "Bahasa Indonesia", "Mandarin",
+];
+
+export function extractSkillsFromText(text: string, existingSkills: string[] = []): string[] {
   const lower = text.toLowerCase();
   const found = new Set<string>(existingSkills.map((s) => s.trim()));
 
-  for (const tech of COMMON_TECH_SKILLS) {
-    // Regex word boundary matching for tech skills
-    const escaped = tech.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const skill of [...COMMON_TECH_SKILLS, ...COMMON_PROFESSIONAL_SKILLS]) {
+    const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(`\\b${escaped}\\b`, "i");
     if (regex.test(lower)) {
-      found.add(tech);
+      found.add(skill);
     }
   }
 
@@ -104,7 +120,7 @@ function formatRupiah(num: number): string {
 /**
  * Fetches actual live jobs from Kalibrr Job Board API (Indonesia)
  */
-export async function fetchKalibrrApiJobs(query: string = "engineer"): Promise<JobItem[]> {
+export async function fetchKalibrrApiJobs(query: string = ""): Promise<JobItem[]> {
   try {
     const cleanQuery = encodeURIComponent(query.trim());
     const url = `https://www.kalibrr.com/api/job_board/search?k=${cleanQuery}&limit=50&country=Indonesia`;
@@ -190,12 +206,12 @@ export async function fetchKalibrrApiJobs(query: string = "engineer"): Promise<J
 }
 
 /**
- * Fetches actual live remote tech jobs from Remotive API
+ * Fetches live remote jobs across Remotive categories.
  */
-export async function fetchRemotiveApiJobs(query: string = "developer"): Promise<JobItem[]> {
+export async function fetchRemotiveApiJobs(query: string = ""): Promise<JobItem[]> {
   try {
     const cleanQuery = encodeURIComponent(query.trim());
-    const url = `https://remotive.com/api/remote-jobs?category=software-dev&search=${cleanQuery}`;
+    const url = `https://remotive.com/api/remote-jobs?search=${cleanQuery}`;
 
     const res = await axios.get(url, {
       timeout: 7000,
@@ -250,7 +266,7 @@ export async function fetchRemotiveApiJobs(query: string = "developer"): Promise
 }
 
 /**
- * Fetches actual live tech vacancies from Arbeitnow Job Board API
+ * Fetches live vacancies from Arbeitnow across professional categories.
  */
 export async function fetchArbeitnowApiJobs(query: string = ""): Promise<JobItem[]> {
   try {
@@ -268,18 +284,10 @@ export async function fetchArbeitnowApiJobs(query: string = ""): Promise<JobItem
       const title: string = item.title || "";
       const company: string = item.company_name || "";
       const tags: string[] = Array.isArray(item.tags) ? item.tags : [];
-      const isTech =
-        tags.some((t) => ["engineering", "software", "development", "data", "it", "frontend", "backend", "full stack"].includes(t.toLowerCase())) ||
-        /developer|engineer|programmer|architect|analyst/i.test(title);
-
-      if (!isTech) continue;
-
-      // Check query filter if provided
-      if (lowerQuery && !title.toLowerCase().includes(lowerQuery) && !tags.some((t) => t.toLowerCase().includes(lowerQuery))) {
-        continue;
-      }
-
       const cleanDesc = stripHtml(item.description || "");
+      const searchableText = `${title} ${tags.join(" ")} ${cleanDesc}`.toLowerCase();
+      if (lowerQuery && !searchableText.includes(lowerQuery)) continue;
+
       const detectedSkills = extractSkillsFromText(title + " " + cleanDesc, tags);
 
       jobs.push({
@@ -317,7 +325,7 @@ export async function fetchArbeitnowApiJobs(query: string = ""): Promise<JobItem
 const JOOBLE_API_KEY = process.env.JOOBLE_API_KEY || "";
 
 export async function fetchJoobleApiJobs(
-  query: string = "developer",
+  query: string = "",
   location: string = "Indonesia"
 ): Promise<JobItem[]> {
   if (!JOOBLE_API_KEY) return [];
@@ -398,13 +406,13 @@ export async function fetchRemoteOKApiJobs(query: string = ""): Promise<JobItem[
       if (!title) continue;
 
       const tags: string[] = Array.isArray(item.tags) ? item.tags : [];
+      const cleanDesc = stripHtml(item.description || "");
 
       if (lowerQuery) {
-        const haystack = (title + " " + tags.join(" ")).toLowerCase();
+        const haystack = (title + " " + tags.join(" ") + " " + cleanDesc).toLowerCase();
         if (!haystack.includes(lowerQuery)) continue;
       }
 
-      const cleanDesc = stripHtml(item.description || "");
       const detectedSkills = extractSkillsFromText(title + " " + cleanDesc, tags);
 
       let postedAt: string | undefined;
@@ -469,13 +477,13 @@ export async function fetchHimalayasApiJobs(query: string = ""): Promise<JobItem
       if (!title) continue;
 
       const tags: string[] = Array.isArray(item.tags) ? item.tags : Array.isArray(item.skills) ? item.skills : [];
+      const cleanDesc = stripHtml(item.description || "");
 
       if (lowerQuery) {
-        const haystack = (title + " " + tags.join(" ")).toLowerCase();
+        const haystack = (title + " " + tags.join(" ") + " " + cleanDesc).toLowerCase();
         if (!haystack.includes(lowerQuery)) continue;
       }
 
-      const cleanDesc = stripHtml(item.description || "");
       const detectedSkills = extractSkillsFromText(title + " " + cleanDesc, tags);
 
       const locationLabel =
@@ -574,7 +582,7 @@ export async function getAggregatedRecommendations(
   candidateSkills: string[] = [],
   options: JobFilterOptions = {}
 ): Promise<JobItem[]> {
-  const keyword = (options.keyword || "software").trim();
+  const keyword = (options.keyword || "").trim();
   const location = options.location || "all";
   const category = options.category || "all";
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   Mail,
   Copy,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "./Button";
 import { downloadCoverLetterPdf, generateCoverLetter } from "../lib/api";
+import { createGmailComposeUrl } from "../lib/gmail";
 import type { CoverLetterResult, StructuredCv } from "../types/cv";
 
 interface CoverLetterSectionProps {
@@ -33,6 +34,7 @@ export function CoverLetterSection({
   const [companyName, setCompanyName] = useState(inferredTarget.companyName);
   const [targetRole, setTargetRole] = useState(inferredTarget.targetRole);
   const [hiringManager, setHiringManager] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [motivation, setMotivation] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,29 @@ export function CoverLetterSection({
 
   // Feedback states
   const [copied, setCopied] = useState(false);
+
+  const handleOpenGmail = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const signature = [
+      "Hormat saya,",
+      cvData.personalInfo?.name || "Nama Pelamar",
+      cvData.personalInfo?.phone,
+      cvData.personalInfo?.email,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const body = [editableContent.trim(), "", signature].join("\n");
+
+    window.open(
+      createGmailComposeUrl({
+        to: recipientEmail.trim(),
+        subject: editableSubject,
+        body,
+      }),
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -350,6 +375,31 @@ export function CoverLetterSection({
 
       {coverLetter && !loading && (
         <div className="mt-6 space-y-4">
+          <form
+            onSubmit={handleOpenGmail}
+            className="flex flex-col gap-3 rounded-xl border border-line bg-paper p-4 sm:flex-row sm:items-end"
+          >
+            <label className="flex-1 text-xs font-semibold text-ink-soft">
+              Email HR / penerima
+              <input
+                type="email"
+                required
+                value={recipientEmail}
+                onChange={(event) => setRecipientEmail(event.target.value)}
+                placeholder="hr@perusahaan.com"
+                className="mt-1 w-full rounded-lg border border-line bg-paper-raised px-3 py-2 text-sm font-normal text-ink focus:border-forest focus:outline-hidden"
+              />
+            </label>
+            <Button type="submit" className="px-4 py-2 gap-2 text-xs">
+              <Mail className="h-3.5 w-3.5" />
+              Siapkan Email di Gmail
+            </Button>
+            <p className="text-[11px] text-ink-soft sm:max-w-48">
+              Draft terbuka di Gmail. Unduh PDF dan lampirkan sendiri sebelum
+              mengirim.
+            </p>
+          </form>
+
           {/* Highlights Chips */}
           {coverLetter.keyHighlights && coverLetter.keyHighlights.length > 0 && (
             <div className="rounded-xl border border-forest/20 bg-forest-tint/40 p-4">

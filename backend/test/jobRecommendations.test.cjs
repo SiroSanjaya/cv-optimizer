@@ -3,6 +3,7 @@ const test = require("node:test");
 const {
   calculateJobMatch,
   detectVisaSponsorship,
+  extractSkillsFromText,
 } = require("../dist/services/jobs/jobAggregator");
 const {
   analyzeCustomJobText,
@@ -28,6 +29,35 @@ test("job listing without candidate CV skills has no personalized score", () => 
   assert.deepEqual(result.matchingSkills, []);
   assert.deepEqual(result.missingSkills, []);
   assert.equal("hireProbability" in result, false);
+});
+
+test("job skill extraction recognizes non-technical professional skills", () => {
+  const skills = extractSkillsFromText(
+    "Manage payroll and monthly accounting reports using Excel. Provide customer service."
+  );
+
+  assert.deepEqual(skills, ["Excel", "Customer Service", "Accounting", "Payroll"]);
+});
+
+test("professional job skills can be matched against a candidate CV", () => {
+  const job = {
+    id: "listing-accounting",
+    title: "Accounting Specialist",
+    company: "Example Co",
+    location: "Jakarta",
+    source: "Kalibrr",
+    url: "https://example.com/jobs/accounting",
+    description: "Manage monthly accounting reports and payroll using Excel.",
+    skills: extractSkillsFromText(
+      "Manage monthly accounting reports and payroll using Excel."
+    ),
+  };
+
+  const result = calculateJobMatch(["Accounting", "Excel"], job);
+
+  assert.equal(result.matchScore, 67);
+  assert.deepEqual(result.matchingSkills, ["Excel", "Accounting"]);
+  assert.deepEqual(result.missingSkills, ["Payroll"]);
 });
 
 test("visa sponsorship status requires explicit evidence from the listing", () => {

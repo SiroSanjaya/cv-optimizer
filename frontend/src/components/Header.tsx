@@ -61,6 +61,18 @@ export function Header() {
     : [
         { to: "/jobs", label: "Cari Lowongan", icon: Search },
       ];
+  const mobilePrimaryItems = user
+    ? [
+      { to: "/jobs", label: "Lowongan", icon: Search },
+      { to: "/optimize", label: "Siapkan CV", icon: FileText },
+      { to: "/tracker", label: "Tracker", icon: Briefcase },
+      { to: "/interview", label: "Latihan", icon: Sparkles },
+    ]
+    : [
+      { to: "/jobs", label: "Lowongan", icon: Search },
+      { to: "/optimize", label: "Siapkan CV", icon: FileText },
+      { to: "/login", label: "Masuk", icon: LogIn },
+    ];
 
   return (
     <>
@@ -401,6 +413,30 @@ export function Header() {
           </nav>
         )}
       </header>
+
+      <nav
+        aria-label="Navigasi cepat"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper-raised/95 px-2 pt-2 shadow-[0_-8px_24px_rgba(23,33,58,0.08)] backdrop-blur-lg [padding-bottom:calc(0.5rem+env(safe-area-inset-bottom))] xl:hidden"
+      >
+        <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1">
+          {mobilePrimaryItems.map(({ to, label, icon: Icon }) => {
+            const active = isActive(to);
+            return (
+              <Link
+                key={to}
+                to={to}
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition-colors ${
+                  active ? "bg-forest-tint text-forest" : "text-ink-soft hover:bg-paper"
+                }`}
+              >
+                <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
 
       <SalaryBenchmarkModal
         isOpen={salaryModalOpen}
