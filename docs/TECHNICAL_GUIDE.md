@@ -264,6 +264,11 @@ Jumlah yang ditampilkan adalah listing yang dikembalikan API sebelum filter
 lokasi, validasi tautan, dan deduplikasi; angka ini bukan jumlah lowongan yang
 pasti relevan atau masih aktif. Sumber gagal tidak membatalkan hasil dari
 sumber lain.
+Tanggal listing disimpan sebagai timestamp ISO bila disediakan sumber; tanggal
+tidak valid atau lebih dari 24 jam di masa depan diabaikan. Listing tanpa
+tanggal ditandai, dan listing berumur lebih dari 30 hari diberi peringatan agar
+kandidat memeriksa ulang statusnya di situs sumber. Ini bukan verifikasi bahwa
+lowongan masih aktif.
 Status visa adalah deteksi teks sederhana: “belum disebut” tidak berarti
 sponsorship tersedia, dan kandidat tetap harus memverifikasi syarat dengan
 perusahaan.

@@ -50,6 +50,20 @@ import {
   Link2,
 } from "lucide-react";
 
+function getPostingAgeDays(postedAtDate?: string): number | undefined {
+  if (!postedAtDate) return undefined;
+  const timestamp = Date.parse(postedAtDate);
+  if (Number.isNaN(timestamp) || timestamp > Date.now() + 24 * 60 * 60 * 1000) {
+    return undefined;
+  }
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 86_400_000));
+}
+
+function isPostingDateStale(postedAtDate?: string): boolean {
+  const ageDays = getPostingAgeDays(postedAtDate);
+  return ageDays !== undefined && ageDays > 30;
+}
+
 export function JobsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -81,7 +95,7 @@ export function JobsPage() {
     return getSessionCvSkills(user?.id || "guest") || [];
   });
   const [autoApplyMinScore, setAutoApplyMinScore] = useState(50);
-  const [cvPanelOpen, setCvPanelOpen] = useState(true);
+  const [cvPanelOpen, setCvPanelOpen] = useState(false);
   const [newSkillInput, setNewSkillInput] = useState("");
   const [scoreBoostToast, setScoreBoostToast] = useState<string | null>(null);
 
@@ -486,14 +500,14 @@ export function JobsPage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
 
         {/* ── JOB-APPLICATION ASSISTANT ──────────────────────────────────── */}
-        <div className="mb-6 rounded-2xl border-2 border-forest/30 bg-gradient-to-br from-forest/5 via-paper-raised to-emerald-50/40 shadow-lg overflow-hidden">
+        <div className="mb-6 overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-sm">
           {/* Header row */}
           <div
-            className="flex items-center justify-between px-5 py-4 cursor-pointer select-none"
+            className="flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-4 transition-colors hover:bg-paper/70 sm:px-5"
             onClick={() => setCvPanelOpen((o) => !o)}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-forest text-white shadow">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-forest-tint text-forest">
                 <Rocket className="h-4 w-4" />
               </div>
               <div>
@@ -529,7 +543,7 @@ export function JobsPage() {
 
           {/* Expandable body */}
           {cvPanelOpen && (
-            <div className="border-t border-forest/10 px-5 pb-5 pt-4 space-y-4">
+            <div className="space-y-4 border-t border-line px-4 pb-5 pt-4 sm:px-5">
               {/* Step 1: Upload */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <div
@@ -678,8 +692,8 @@ export function JobsPage() {
         </div>
 
         {/* Banner Hero */}
-        <div className="rounded-2xl border border-line bg-gradient-to-r from-forest-tint via-paper-raised to-paper-raised p-6 shadow-sm">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex flex-col rounded-2xl border border-line bg-paper-raised p-4 shadow-sm sm:p-6">
+        <div className="order-5 grid gap-3 border-t border-line pt-4 sm:flex sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-forest">
               <Sparkles className="h-5 w-5" />
               <span className="text-xs font-bold uppercase tracking-wider">
@@ -687,10 +701,10 @@ export function JobsPage() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap">
               <button
                 onClick={() => setSalaryModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink border border-line hover:border-forest/50 transition-all cursor-pointer"
+                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink transition-all hover:border-forest/50 sm:min-h-0 sm:rounded-full sm:py-1"
               >
                 <Calculator className="h-3.5 w-3.5 text-forest" />
                 <span>Kalkulator Gaji Tech</span>
@@ -699,7 +713,7 @@ export function JobsPage() {
               <button
                 id="job-importer-open"
                 onClick={() => setJobImporterOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-forest px-3.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-forest-dark transition-all cursor-pointer"
+                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-forest px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-forest-dark sm:min-h-0 sm:rounded-full sm:py-1"
               >
                 <Link2 className="h-3.5 w-3.5" />
                 <span>Impor dari URL / Paste</span>
@@ -707,7 +721,7 @@ export function JobsPage() {
 
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-semibold text-ink border border-line hover:border-forest/50 transition-all cursor-pointer"
+                className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink transition-all hover:border-forest/50 sm:min-h-0 sm:rounded-full sm:py-1"
               >
                 <PlusCircle className="h-3.5 w-3.5 text-forest" />
                 <span>Analisis JD</span>
@@ -716,15 +730,15 @@ export function JobsPage() {
 
           </div>
 
-          <h1 className="mt-2 font-serif text-2xl font-bold text-ink sm:text-3xl">
+          <h1 className="order-1 font-serif text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             Lowongan Kerja dari Berbagai Sumber
           </h1>
-          <p className="mt-1 max-w-2xl text-xs text-ink-soft leading-relaxed">
+          <p className="order-2 mt-1 max-w-2xl text-xs leading-relaxed text-ink-soft">
             Urutkan hingga 100 lowongan berdasarkan skill CV. Indikasi sponsorship hanya ditampilkan jika tertulis jelas di deskripsi; verifikasi lagi di situs perusahaan.
           </p>
 
           {/* Search Form */}
-          <form onSubmit={handleSearch} className="mt-6 flex flex-col sm:flex-row gap-2">
+          <form onSubmit={handleSearch} className="order-3 mt-4 grid gap-2 sm:grid-cols-[1fr_auto] lg:grid-cols-[1fr_auto_auto]">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-3 h-4 w-4 text-ink-soft" />
               <input
@@ -732,7 +746,7 @@ export function JobsPage() {
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 placeholder="Cari profesi atau keahlian (misal: akuntan, sales, guru, perawat, designer, engineer)..."
-                className="w-full rounded-lg border border-line bg-paper-raised pl-10 pr-4 py-2.5 text-xs text-ink placeholder:text-ink-soft/50 shadow-xs focus:border-forest focus:outline-none"
+                className="min-h-11 w-full rounded-xl border border-line bg-paper pl-10 pr-4 py-2.5 text-sm text-ink shadow-xs placeholder:text-ink-soft/60 focus:border-forest focus:outline-none"
               />
             </div>
             <Button type="submit" className="gap-2 text-xs py-2.5 px-5">
@@ -743,7 +757,7 @@ export function JobsPage() {
             <button
               type="button"
               onClick={handleOpenGoogleJobs}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-400 bg-blue-50/80 px-4 py-2.5 text-xs font-bold text-blue-900 hover:bg-blue-100 transition-all cursor-pointer"
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2.5 text-xs font-bold text-ink transition-all hover:border-forest/50 hover:bg-paper sm:col-span-2 lg:col-span-1"
               title="Buka pencarian live di Google Jobs engine"
             >
               <Globe className="h-4 w-4 text-blue-700" />
@@ -752,7 +766,7 @@ export function JobsPage() {
           </form>
 
           {/* Location & Category Filters */}
-          <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-line">
+          <div className="order-4 mt-4 flex flex-col justify-between gap-4 border-t border-line pt-4 sm:flex-row sm:items-center">
             {/* Location Selector */}
             <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto rounded-lg border border-line bg-paper p-1">
               {[
@@ -1042,10 +1056,19 @@ export function JobsPage() {
                                 : "Visa belum disebut"}
                           </span>
 
-                          {job.postedAt && (
-                            <span className="text-[10px] text-ink-soft flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {job.postedAt}
+                          <span
+                            className="text-[10px] text-ink-soft flex items-center gap-1"
+                            title="Tanggal berasal dari sumber lowongan dan tidak memastikan posisi masih terbuka."
+                          >
+                            <Clock className="h-3 w-3" />
+                            {job.postedAt || "Tanggal tidak dicantumkan"}
+                          </span>
+                          {isPostingDateStale(job.postedAtDate) && (
+                            <span
+                              className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900"
+                              title="Listing berumur lebih dari 30 hari. Periksa kembali statusnya di situs sumber."
+                            >
+                              Cek status · 30+ hari
                             </span>
                           )}
                         </div>

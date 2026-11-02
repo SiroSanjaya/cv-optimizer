@@ -6,17 +6,17 @@ export function HeroDocument() {
       <div className="overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-[#eefaff]">
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-forest-tint">
               <img src="/icons.png" alt="" className="h-8 w-9 object-cover object-top" />
             </span>
             <div>
-              <p className="text-sm font-extrabold text-[#17204b]">
-                satset<span className="text-[#119ed2]">CV</span>
+              <p className="text-sm font-extrabold text-ink">
+                satset<span className="text-forest">CV</span>
               </p>
               <p className="text-[11px] text-ink-soft">Ruang persiapan lamaran</p>
             </div>
           </div>
-          <span className="rounded-full bg-[#e6f9fd] px-2.5 py-1 text-[10px] font-semibold text-[#078dbb]">
+          <span className="rounded-full bg-forest-tint px-2.5 py-1 text-[10px] font-semibold text-forest">
             Contoh alur
           </span>
         </div>

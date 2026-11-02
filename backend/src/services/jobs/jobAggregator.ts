@@ -14,6 +14,7 @@ export interface JobItem {
   description: string;
   skills: string[];
   postedAt?: string;
+  postedAtDate?: string;
   logo?: string;
   remote?: boolean;
   visaSponsorship?: "available" | "unavailable" | "not_mentioned";
@@ -123,6 +124,35 @@ function formatRupiah(num: number): string {
   return "Rp " + num.toLocaleString("id-ID");
 }
 
+export function formatPostedAt(
+  value: unknown,
+  now: Date = new Date()
+): { postedAt?: string; postedAtDate?: string } {
+  if (typeof value !== "string" && typeof value !== "number" && !(value instanceof Date)) {
+    return {};
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || date.getTime() > now.getTime() + 24 * 60 * 60 * 1000) {
+    return {};
+  }
+
+  const diffDays = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 86_400_000));
+  let postedAt: string;
+  if (diffDays === 0) postedAt = "Hari ini";
+  else if (diffDays === 1) postedAt = "Kemarin";
+  else if (diffDays < 7) postedAt = `${diffDays} hari lalu`;
+  else if (diffDays < 30) postedAt = `${Math.floor(diffDays / 7)} minggu lalu`;
+  else {
+    postedAt = new Intl.DateTimeFormat("id-ID", {
+      dateStyle: "medium",
+      timeZone: "Asia/Jakarta",
+    }).format(date);
+  }
+
+  return { postedAt, postedAtDate: date.toISOString() };
+}
+
 /**
  * Fetches actual live jobs from Kalibrr Job Board API (Indonesia)
  */
@@ -173,17 +203,7 @@ export async function fetchKalibrrApiJobs(query: string = ""): Promise<JobItem[]
         item.company?.logo_small ||
         undefined;
 
-      let postedAt: string | undefined;
-      if (item.activation_date || item.created_at) {
-        const d = new Date(item.activation_date || item.created_at);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
-        if (diffDays <= 0) postedAt = "Hari ini";
-        else if (diffDays === 1) postedAt = "Kemarin";
-        else if (diffDays < 7) postedAt = `${diffDays} hari lalu`;
-        else if (diffDays < 30) postedAt = `${Math.floor(diffDays / 7)} minggu lalu`;
-        else postedAt = d.toLocaleDateString("id-ID");
-      }
+      const { postedAt, postedAtDate } = formatPostedAt(item.activation_date || item.created_at);
 
       jobs.push({
         id: `kalibrr-${item.id}`,
@@ -197,6 +217,7 @@ export async function fetchKalibrrApiJobs(query: string = ""): Promise<JobItem[]
         description: clipDescription(cleanDesc),
         skills: detectedSkills,
         postedAt,
+        postedAtDate,
         logo,
         remote: Boolean(item.is_work_from_home),
         visaSponsorship: detectVisaSponsorship(cleanDesc),
@@ -235,16 +256,7 @@ export async function fetchRemotiveApiJobs(query: string = ""): Promise<JobItem[
       const rawTags: string[] = Array.isArray(item.tags) ? item.tags : [];
       const detectedSkills = extractSkillsFromText(title + " " + cleanDesc, rawTags);
 
-      let postedAt: string | undefined;
-      if (item.publication_date) {
-        const d = new Date(item.publication_date);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
-        if (diffDays <= 0) postedAt = "Hari ini";
-        else if (diffDays === 1) postedAt = "Kemarin";
-        else if (diffDays < 7) postedAt = `${diffDays} hari lalu`;
-        else postedAt = `${Math.floor(diffDays / 7)} minggu lalu`;
-      }
+      const { postedAt, postedAtDate } = formatPostedAt(item.publication_date);
 
       jobs.push({
         id: `remotive-${item.id}`,
@@ -258,6 +270,7 @@ export async function fetchRemotiveApiJobs(query: string = ""): Promise<JobItem[
         description: clipDescription(cleanDesc),
         skills: detectedSkills,
         postedAt,
+        postedAtDate,
         logo: item.company_logo || undefined,
         remote: true,
         visaSponsorship: detectVisaSponsorship(cleanDesc),
@@ -307,6 +320,7 @@ export async function fetchArbeitnowApiJobs(query: string = ""): Promise<JobItem
         url: item.url,
         description: clipDescription(cleanDesc),
         skills: detectedSkills,
+        ...formatPostedAt(item.created_at || item.createdAt || item.date),
         remote: Boolean(item.remote),
         visaSponsorship: detectVisaSponsorship(cleanDesc),
       });
@@ -353,16 +367,7 @@ export async function fetchJoobleApiJobs(
       const cleanDesc = stripHtml(item.snippet || "");
       const detectedSkills = extractSkillsFromText(title + " " + cleanDesc);
 
-      let postedAt: string | undefined;
-      if (item.updated) {
-        const d = new Date(item.updated);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
-        if (diffDays <= 0) postedAt = "Hari ini";
-        else if (diffDays === 1) postedAt = "Kemarin";
-        else if (diffDays < 7) postedAt = `${diffDays} hari lalu`;
-        else postedAt = `${Math.floor(diffDays / 7)} minggu lalu`;
-      }
+      const { postedAt, postedAtDate } = formatPostedAt(item.updated);
 
       jobs.push({
         id: `jooble-${(item.id || item.link || title).toString().slice(0, 40)}`,
@@ -376,6 +381,7 @@ export async function fetchJoobleApiJobs(
         description: clipDescription(cleanDesc),
         skills: detectedSkills,
         postedAt,
+        postedAtDate,
         remote: /remote|wfh|jarak jauh/i.test(title + " " + cleanDesc),
         visaSponsorship: detectVisaSponsorship(cleanDesc),
       });
@@ -421,16 +427,7 @@ export async function fetchRemoteOKApiJobs(query: string = ""): Promise<JobItem[
 
       const detectedSkills = extractSkillsFromText(title + " " + cleanDesc, tags);
 
-      let postedAt: string | undefined;
-      if (item.date) {
-        const d = new Date(item.date);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
-        if (diffDays <= 0) postedAt = "Hari ini";
-        else if (diffDays === 1) postedAt = "Kemarin";
-        else if (diffDays < 7) postedAt = `${diffDays} hari lalu`;
-        else postedAt = `${Math.floor(diffDays / 7)} minggu lalu`;
-      }
+      const { postedAt, postedAtDate } = formatPostedAt(item.date);
 
       jobs.push({
         id: `remoteok-${item.id}`,
@@ -447,6 +444,7 @@ export async function fetchRemoteOKApiJobs(query: string = ""): Promise<JobItem[
         description: clipDescription(cleanDesc),
         skills: detectedSkills,
         postedAt,
+        postedAtDate,
         logo: item.company_logo || item.logo || undefined,
         remote: true,
         visaSponsorship: detectVisaSponsorship(cleanDesc),
@@ -497,16 +495,7 @@ export async function fetchHimalayasApiJobs(query: string = ""): Promise<JobItem
           ? item.locationRestrictions.join(", ")
           : "Remote (Worldwide)";
 
-      let postedAt: string | undefined;
-      if (item.pubDate) {
-        const d = new Date(item.pubDate);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 3600 * 24));
-        if (diffDays <= 0) postedAt = "Hari ini";
-        else if (diffDays === 1) postedAt = "Kemarin";
-        else if (diffDays < 7) postedAt = `${diffDays} hari lalu`;
-        else postedAt = `${Math.floor(diffDays / 7)} minggu lalu`;
-      }
+      const { postedAt, postedAtDate } = formatPostedAt(item.pubDate);
 
       jobs.push({
         id: `himalayas-${item.id || item.guid || title}`.slice(0, 60),
@@ -522,7 +511,8 @@ export async function fetchHimalayasApiJobs(query: string = ""): Promise<JobItem
         url: item.applicationLink || item.guid,
         description: clipDescription(cleanDesc),
         skills: detectedSkills,
-        postedAt: postedAt || undefined,
+        postedAt,
+        postedAtDate,
         logo: item.companyLogo || undefined,
         remote: true,
         visaSponsorship: detectVisaSponsorship(cleanDesc),

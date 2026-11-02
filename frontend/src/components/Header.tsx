@@ -74,7 +74,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-line/80 bg-paper-raised/95 shadow-[0_1px_8px_rgba(23,33,58,0.04)] backdrop-blur-md">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link
             to="/"
@@ -87,8 +87,8 @@ export function Header() {
               alt=""
               className="h-8 w-11 object-cover object-top"
             />
-            <span className="whitespace-nowrap font-sans text-lg font-extrabold tracking-tight text-[#17204b] sm:text-xl">
-              satset<span className="text-[#119ed2]">CV</span>
+            <span className="whitespace-nowrap font-sans text-lg font-extrabold tracking-tight text-ink sm:text-xl">
+              satset<span className="text-forest">CV</span>
             </span>
           </Link>
 

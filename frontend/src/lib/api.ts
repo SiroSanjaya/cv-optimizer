@@ -192,6 +192,7 @@ export interface RecommendedJob {
   description: string;
   skills: string[];
   postedAt?: string;
+  postedAtDate?: string;
   logo?: string;
   remote?: boolean;
   responseRate?: number;

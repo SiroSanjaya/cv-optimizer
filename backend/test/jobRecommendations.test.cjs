@@ -4,6 +4,7 @@ const {
   calculateJobMatch,
   detectVisaSponsorship,
   extractSkillsFromText,
+  formatPostedAt,
 } = require("../dist/services/jobs/jobAggregator");
 const {
   analyzeCustomJobText,
@@ -77,6 +78,17 @@ test("skill matching does not award points for partial-word overlaps", () => {
   assert.equal(result.matchScore, 50);
   assert.deepEqual(result.matchingSkills, ["Customer Service"]);
   assert.deepEqual(result.missingSkills, ["Excel"]);
+});
+
+test("posting dates expose a stable timestamp and handle invalid or far-future values", () => {
+  const now = new Date("2026-11-02T10:00:00.000Z");
+
+  assert.deepEqual(formatPostedAt("2026-11-01T10:00:00.000Z", now), {
+    postedAt: "Kemarin",
+    postedAtDate: "2026-11-01T10:00:00.000Z",
+  });
+  assert.deepEqual(formatPostedAt("not-a-date", now), {});
+  assert.deepEqual(formatPostedAt("2026-11-05T10:00:00.000Z", now), {});
 });
 
 test("visa sponsorship status requires explicit evidence from the listing", () => {
