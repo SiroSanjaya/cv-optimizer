@@ -1,4 +1,4 @@
-import { ArrowUpRight, BriefcaseBusiness, Check, FileText } from "lucide-react";
+import { ArrowUpRight, Check, FileText } from "lucide-react";
 
 export function HeroDocument() {
   return (
@@ -6,16 +6,18 @@ export function HeroDocument() {
       <div className="overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-forest-tint text-forest">
-              <BriefcaseBusiness className="h-5 w-5" aria-hidden="true" />
+            <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-[#eefaff]">
+              <img src="/icons.png" alt="" className="h-8 w-9 object-cover object-top" />
             </span>
             <div>
-              <p className="text-sm font-bold text-ink">Ruang lamaran</p>
-              <p className="text-[11px] text-ink-soft">Contoh tampilan</p>
+              <p className="text-sm font-extrabold text-[#17204b]">
+                satset<span className="text-[#119ed2]">CV</span>
+              </p>
+              <p className="text-[11px] text-ink-soft">Ruang persiapan lamaran</p>
             </div>
           </div>
-          <span className="rounded-full bg-amber-tint px-2.5 py-1 text-[10px] font-semibold text-amber">
-            Sedang disiapkan
+          <span className="rounded-full bg-[#e6f9fd] px-2.5 py-1 text-[10px] font-semibold text-[#078dbb]">
+            Contoh alur
           </span>
         </div>
 
@@ -27,9 +29,9 @@ export function HeroDocument() {
                   Posisi yang dituju
                 </p>
                 <h3 className="mt-1 font-serif text-lg font-bold text-ink">
-                  Senior Product Manager
+                  Lowongan pilihanmu
                 </h3>
-                <p className="mt-0.5 text-xs text-ink-soft">Contoh deskripsi posisi</p>
+                <p className="mt-0.5 text-xs text-ink-soft">Posisi yang ingin kamu incar</p>
               </div>
               <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-ink-soft" aria-hidden="true" />
             </div>
@@ -48,7 +50,7 @@ export function HeroDocument() {
                 <div>
                   <p className="text-xs font-semibold text-ink">Pengalaman terkait</p>
                   <p className="mt-0.5 text-[11px] leading-5 text-ink-soft">
-                    Periksa pengalaman mana yang mendukung persyaratan role.
+                    Periksa pengalaman mana yang mendukung posisi ini.
                   </p>
                 </div>
               </div>
@@ -67,7 +69,7 @@ export function HeroDocument() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {["Lowongan", "CV tailored", "Latihan interview"].map((item) => (
+            {["Lowongan", "CV disesuaikan", "Latihan wawancara"].map((item) => (
               <span
                 key={item}
                 className="rounded-full border border-line bg-paper px-3 py-1.5 text-[10px] font-medium text-ink-soft"

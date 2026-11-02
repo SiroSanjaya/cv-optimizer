@@ -80,21 +80,15 @@ export function Header() {
             to="/"
             onClick={closeMenus}
             className="flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg"
-            aria-label="CV Optimizer - beranda"
+            aria-label="satsetCV - beranda"
           >
-            <span
-              className={`flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-sm ${
-                isRecruiterMode ? "bg-blue-800" : "bg-forest"
-              }`}
-            >
-              {isRecruiterMode ? (
-                <Building2 className="h-5 w-5" />
-              ) : (
-                <Sparkles className="h-5 w-5" />
-              )}
-            </span>
-            <span className="whitespace-nowrap font-serif text-lg font-bold tracking-tight text-ink sm:text-xl">
-              CV Optimizer
+            <img
+              src="/icons.png"
+              alt=""
+              className="h-8 w-11 object-cover object-top"
+            />
+            <span className="whitespace-nowrap font-sans text-lg font-extrabold tracking-tight text-[#17204b] sm:text-xl">
+              satset<span className="text-[#119ed2]">CV</span>
             </span>
           </Link>
 

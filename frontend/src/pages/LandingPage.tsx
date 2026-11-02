@@ -1,75 +1,70 @@
 import { Link } from "react-router-dom";
 import {
+  ArrowRight,
+  BriefcaseBusiness,
+  CalendarCheck2,
   CheckCircle2,
+  ClipboardCheck,
   ShieldCheck,
-  Sparkles,
-  Briefcase,
-  TrendingUp,
-  Layers,
-  Search,
-  MessageSquareText,
-  Map,
+  FileCheck2,
   FileText,
+  Search,
+  Send,
 } from "lucide-react";
 import { Header } from "../components/Header";
 import { HeroDocument } from "../components/HeroDocument";
 
 const trustPoints = [
-  { icon: CheckCircle2, label: "Berangkat dari pengalaman kerjamu" },
-  { icon: ShieldCheck, label: "Kamu tetap pegang kendali atas hasilnya" },
+  { icon: CheckCircle2, label: "Isi CV tetap berdasarkan pengalamanmu" },
+  { icon: ShieldCheck, label: "Kamu yang cek dan kirim lamaran" },
 ];
 
-const features = [
+const workspaces = [
   {
-    icon: TrendingUp,
-    title: "CV sesuai lowongan",
+    number: "01",
+    icon: Search,
+    title: "Cari posisi",
     description:
-      "Lihat pengalaman yang relevan dan bagian yang perlu diperjelas.",
-    color: "bg-forest-tint text-forest",
+      "Mulai dari posisi yang kamu incar atau jelajahi lowongan yang tersedia.",
+    href: "/jobs",
+    action: "Buka lowongan",
   },
   {
-    icon: Map,
-    title: "Cari lowongan",
+    number: "02",
+    icon: FileCheck2,
+    title: "Siapkan lamaran",
     description:
-      "Jelajahi pilihan profesi dan periksa detail di sumber lowongan.",
-    color: "bg-amber-tint text-amber",
+      "Sesuaikan CV dan buat surat lamaran. Periksa dulu sebelum dipakai.",
+    href: "/optimize",
+    action: "Mulai dari CV",
   },
   {
-    icon: Layers,
-    title: "Tracker lamaran",
+    number: "03",
+    icon: CalendarCheck2,
+    title: "Ingat tindak lanjut",
     description:
-      "Catat posisi, tahap seleksi, dan jadwal tindak lanjut.",
-    color: "bg-blue-50 text-blue-700",
-  },
-  {
-    icon: MessageSquareText,
-    title: "Latihan interview",
-    description:
-      "Berlatih dengan pertanyaan berdasarkan pengalaman dan role.",
-    color: "bg-rust-tint text-rust",
+      "Simpan lamaran dan catat tahap berikutnya supaya nggak kelewat.",
+    href: "/tracker",
+    action: "Buka tracker",
   },
 ];
 
 const steps = [
   {
-    number: "01",
-    title: "Mulai dari CV dan role",
-    body: "Unggah CV, lalu pilih lowongan atau tempel deskripsi posisi yang kamu incar.",
+    title: "Tentukan posisi",
+    body: "Pilih lowongan atau tempel deskripsi posisi yang kamu incar.",
   },
   {
-    number: "02",
-    title: "Tinjau kecocokan",
-    body: "Periksa pengalaman dan skill yang relevan maupun yang belum terlihat di CV.",
+    title: "Cek pengalamanmu",
+    body: "Lihat bagian CV yang mendukung posisi dan hal yang perlu dilengkapi.",
   },
   {
-    number: "03",
-    title: "Siapkan materi lamaran",
-    body: "Buat draf CV dan cover letter untuk posisi itu, lalu koreksi sebelum digunakan.",
+    title: "Edit sebelum kirim",
+    body: "Tinjau CV dan surat lamaran. Tidak ada yang dikirim otomatis.",
   },
   {
-    number: "04",
-    title: "Pantau prosesnya",
-    body: "Simpan lamaran di tracker dan latihan menjelang wawancara berikutnya.",
+    title: "Catat progres",
+    body: "Simpan posisi di tracker dan atur tindak lanjutmu sendiri.",
   },
 ];
 
@@ -80,31 +75,31 @@ export function LandingPage() {
 
       <main>
         {/* Hero Section */}
-        <section className="relative isolate overflow-hidden bg-gradient-to-br from-forest-dark via-forest to-ink">
+        <section className="relative isolate overflow-hidden bg-gradient-to-br from-[#101638] via-[#17204b] to-[#0d253d]">
           <div aria-hidden="true" className="pointer-events-none absolute -right-32 -top-40 h-[30rem] w-[30rem] rounded-full border border-white/10" />
           <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-20 h-[22rem] w-[22rem] rounded-full border border-white/10" />
           <div className="relative mx-auto grid max-w-7xl items-center gap-7 px-4 py-8 sm:gap-10 sm:px-8 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:px-12 lg:py-20">
             <div className="min-w-0">
               <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-semibold leading-4 text-white/90 backdrop-blur sm:text-xs">
-                <Briefcase className="h-3.5 w-3.5" />
-                <span>Untuk perjalanan karier berikutnya</span>
+                <BriefcaseBusiness className="h-3.5 w-3.5" />
+                <span>Buat proses lamar kerja lebih rapi</span>
               </div>
 
-              <h1 className="mt-4 max-w-2xl font-serif text-[2rem] font-semibold leading-[1.12] tracking-tight text-white sm:mt-6 sm:text-5xl lg:text-6xl">
-                Bikin pengalamanmu lebih terlihat di lamaran berikutnya.
+              <h1 className="mt-4 max-w-2xl font-sans text-[1.9rem] font-extrabold leading-[1.08] tracking-tight text-white sm:mt-6 sm:text-5xl lg:text-6xl">
+                Cari kerja nggak perlu berantakan.
               </h1>
 
               <p className="mt-3 max-w-xl text-[13px] leading-6 text-white/75 sm:mt-5 sm:text-base sm:leading-7">
-                Temukan lowongan, sesuaikan CV, dan pantau lamaran dalam satu
-                alur. Kamu tetap meninjau semuanya sebelum dikirim.
+                Cari lowongan, siapkan CV dan surat lamaran, lalu catat
+                progresnya. Kamu tetap cek dan kirim sendiri.
               </p>
 
               <div className="mt-5 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:items-center">
                 <Link
                   to="/optimize"
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white bg-white px-5 py-3 text-sm font-bold text-forest-dark shadow-lg transition hover:bg-forest-tint sm:w-auto"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white bg-white px-5 py-3 text-sm font-bold text-[#17204b] shadow-lg transition hover:bg-[#eaf9fd] sm:w-auto"
                 >
-                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <FileText className="h-4 w-4 shrink-0" />
                   Siapkan CV untuk lowongan
                 </Link>
                 <Link
@@ -119,7 +114,7 @@ export function LandingPage() {
               <dl className="mt-5 grid grid-cols-2 gap-2 border-t border-white/15 pt-4 sm:mt-8 sm:flex sm:gap-8 sm:pt-6">
                 {trustPoints.map(({ icon: Icon, label }) => (
                   <div key={label} className="flex items-start gap-2">
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#55d8ef]" />
                     <span className="text-[10px] font-medium leading-4 text-white/80 sm:text-xs">{label}</span>
                   </div>
                 ))}
@@ -128,7 +123,7 @@ export function LandingPage() {
 
             <div className="grid grid-cols-3 gap-2 sm:hidden" aria-label="Alur singkat produk">
               {[
-                { label: "Cari role", icon: Search },
+                { label: "Cari posisi", icon: Search },
                 { label: "Sesuaikan CV", icon: FileText },
                 { label: "Pantau proses", icon: CheckCircle2 },
               ].map(({ label, icon: Icon }, index) => (
@@ -136,7 +131,7 @@ export function LandingPage() {
                   key={label}
                   className="flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-2 py-3 text-center backdrop-blur"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-emerald-100">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-[#55d8ef]">
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="text-[10px] font-semibold leading-4 text-white/90">
@@ -155,98 +150,228 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Feature Highlights Grid */}
-        <section className="border-y border-line bg-paper-raised py-10 sm:py-16 lg:py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mx-auto max-w-2xl text-center">
-              <span className="text-xs font-bold uppercase tracking-wider text-forest">
-                Semua langkah dalam satu tempat
-              </span>
-              <h2 className="mt-2 font-serif text-2xl font-bold leading-tight text-ink sm:text-3xl">
-                Dari cari lowongan sampai siap melamar.
-              </h2>
-              <p className="mx-auto mt-3 max-w-2xl text-xs leading-5 text-ink-soft sm:text-sm sm:leading-6">
-                Pakai pengalamanmu sebagai dasar, sesuaikan materi untuk tiap
-                posisi, dan tentukan sendiri apa yang akan dikirim.
+        <section className="bg-[#f3f6fb] py-12 sm:py-20">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-14">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#118dbb]">
+                Bukan cuma file CV
               </p>
+              <h2 className="mt-3 max-w-md font-sans text-3xl font-extrabold leading-tight tracking-tight text-[#17204b] sm:text-4xl">
+                Satu posisi. Semua persiapannya kelihatan.
+              </h2>
+              <p className="mt-4 max-w-md text-sm leading-6 text-[#56617a]">
+                Biar kamu tahu posisi mana yang lagi dikejar, materi apa yang
+                sudah siap, dan apa langkah berikutnya.
+              </p>
+              <Link
+                to="/tracker"
+                className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#17204b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#26356c]"
+              >
+                Lihat ruang lamaran
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
 
-            <div className="mt-7 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 lg:grid-cols-4">
-              {features.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.title}
-                    className="group rounded-2xl border border-line bg-paper p-3.5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-forest/40 hover:shadow-lg sm:p-5"
-                  >
-                    <div className={`inline-flex rounded-xl p-2.5 ${item.color} sm:p-3`}>
-                      <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+            <div className="overflow-hidden rounded-2xl border border-[#dce3ee] bg-white shadow-[0_24px_70px_-35px_rgba(23,32,75,0.35)]">
+              <div className="flex items-center justify-between border-b border-[#e8edf4] px-4 py-3.5 sm:px-6">
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src="/icons.png"
+                    alt=""
+                    className="h-6 w-7 object-cover object-top"
+                  />
+                  <span className="text-sm font-bold text-[#17204b]">Ruang lamaran</span>
+                </div>
+                <span className="rounded-full bg-[#edfaff] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#138cb7]">
+                  Contoh tampilan
+                </span>
+              </div>
+
+              <div className="grid gap-0 sm:grid-cols-[1.05fr_0.95fr]">
+                <div className="p-4 sm:border-r sm:border-[#e8edf4] sm:p-6">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8791a5]">
+                    Posisi yang dituju
+                  </p>
+                  <h3 className="mt-2 text-xl font-bold tracking-tight text-[#17204b]">
+                    Lowongan pilihanmu
+                  </h3>
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-[#66718a]">
+                    <BriefcaseBusiness className="h-3.5 w-3.5" />
+                    Posisi dan detail dari lowongan yang kamu pilih
+                  </p>
+
+                  <div className="mt-5 rounded-xl bg-[#f5f8fc] p-3.5">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e6f9fd] text-[#078dbb]">
+                        <FileText className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-bold text-[#17204b]">CV untuk posisi ini</p>
+                        <p className="mt-1 text-[11px] leading-4 text-[#66718a]">
+                          Tinjau pengalaman yang relevan sebelum dipakai.
+                        </p>
+                      </div>
                     </div>
-                    <h3 className="mt-3 font-serif text-sm font-bold leading-5 text-ink transition-colors group-hover:text-forest sm:mt-4 sm:text-lg sm:leading-6">
-                      {item.title}
-                    </h3>
-                    <p className="mt-1.5 text-[11px] leading-[1.35rem] text-ink-soft sm:mt-2 sm:text-sm sm:leading-6">
-                      {item.description}
-                    </p>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {["Pengalaman", "Skill", "Pencapaian"].map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-md border border-[#dce5ef] bg-white px-2 py-1 text-[10px] font-medium text-[#526078]"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                );
-              })}
+                </div>
+
+                <div className="border-t border-[#e8edf4] bg-[#fbfcfe] p-4 sm:border-t-0 sm:p-6">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8791a5]">
+                      Sebelum melamar
+                    </p>
+                    <ClipboardCheck className="h-4 w-4 text-[#138cb7]" />
+                  </div>
+                  <ol className="mt-4 space-y-4">
+                    {[
+                      { icon: Search, title: "Pahami kebutuhan posisi", done: true },
+                      { icon: FileCheck2, title: "Periksa CV dan surat", done: true },
+                      { icon: Send, title: "Kirim sendiri saat siap", done: false },
+                    ].map(({ icon: Icon, title, done }, index) => (
+                      <li key={title} className="flex items-center gap-3">
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                            done
+                              ? "bg-[#e6f9fd] text-[#078dbb]"
+                              : "border border-dashed border-[#b8c2d2] text-[#8490a5]"
+                          }`}
+                        >
+                          {done ? (
+                            <CheckCircle2 className="h-4 w-4" />
+                          ) : (
+                            <span className="text-[10px] font-bold">{index + 1}</span>
+                          )}
+                        </span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Icon className="h-3.5 w-3.5 shrink-0 text-[#738099]" />
+                          <span className="text-xs font-semibold text-[#303c57]">{title}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="mt-5 border-t border-[#e8edf4] pt-3 text-[10px] leading-4 text-[#79849a]">
+                    Kamu yang mengoreksi dan mengirim lamaran. Tidak ada
+                    pengiriman otomatis.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Step-by-Step Flow */}
-        <section id="how-it-works" className="border-t border-line bg-paper py-10 sm:py-16 lg:py-20">
+        <section className="bg-white py-12 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mx-auto max-w-xl text-center">
-              <span className="text-xs font-bold uppercase tracking-wider text-forest">
-                Cara kerja
-              </span>
-              <h2 className="mt-2 font-serif text-2xl font-bold leading-tight text-ink sm:text-3xl">
-                Langkahnya jelas, kamu tetap pegang kendali.
-              </h2>
+            <div className="flex flex-col justify-between gap-4 border-b border-[#e6eaf0] pb-6 sm:flex-row sm:items-end">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#118dbb]">
+                  Pakai yang kamu perlukan
+                </p>
+                <h2 className="mt-2 max-w-xl font-sans text-2xl font-extrabold tracking-tight text-[#17204b] sm:text-3xl">
+                  Nggak harus melakukan semuanya sekaligus.
+                </h2>
+              </div>
+              <p className="max-w-sm text-xs leading-5 text-[#66718a] sm:text-sm">
+                Mulai dari langkah yang paling kamu butuhkan hari ini.
+              </p>
             </div>
 
-            <div className="mt-7 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 lg:grid-cols-4">
-              {steps.map((step) => (
-                <div
-                  key={step.number}
-                  className="rounded-2xl border border-line bg-paper-raised p-3.5 shadow-sm sm:p-5"
+            <div className="divide-y divide-[#e6eaf0]">
+              {workspaces.map(({ number, icon: Icon, title, description, href, action }) => (
+                <Link
+                  key={number}
+                  to={href}
+                  className="group grid gap-3 py-5 transition-colors hover:bg-[#f8fbff] sm:grid-cols-[64px_1fr_auto] sm:items-center sm:gap-5 sm:px-3"
                 >
-                  <span className="font-serif text-2xl font-bold text-forest/50 sm:text-3xl">
-                    {step.number}
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edfaff] text-[#078dbb]">
+                    <Icon className="h-5 w-5" />
                   </span>
-                  <h3 className="mt-2 font-serif text-xs font-bold leading-5 text-ink sm:mt-3 sm:text-sm">
-                    {step.title}
-                  </h3>
-                  <p className="mt-1.5 text-[11px] leading-5 text-ink-soft sm:mt-2 sm:text-xs sm:leading-relaxed">
-                    {step.body}
-                  </p>
-                </div>
+                  <span>
+                    <span className="block text-base font-bold text-[#17204b]">{title}</span>
+                    <span className="mt-1 block max-w-2xl text-xs leading-5 text-[#66718a] sm:text-sm">
+                      {description}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-[#078dbb] sm:justify-self-end">
+                    {action}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </Link>
               ))}
             </div>
           </div>
         </section>
 
+        <section id="how-it-works" className="bg-[#f3f6fb] py-12 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-xl">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#118dbb]">
+                Cara kerjanya
+              </p>
+              <h2 className="mt-2 font-sans text-2xl font-extrabold leading-tight tracking-tight text-[#17204b] sm:text-3xl">
+                Dari lowongan yang menarik sampai lamaran terkirim.
+              </h2>
+            </div>
+
+            <ol className="mt-8 grid gap-6 sm:mt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+              {steps.map((step, index) => (
+                <li key={step.title} className="relative border-l-2 border-[#b7eaf4] pl-4 sm:border-l-0 sm:pl-0">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#17204b] text-xs font-bold text-white shadow-[0_0_0_5px_#e2f8fc] sm:h-10 sm:w-10">
+                    0{index + 1}
+                  </span>
+                  <h3 className="mt-3 text-sm font-bold text-[#17204b]">{step.title}</h3>
+                  <p className="mt-1.5 max-w-xs text-xs leading-5 text-[#66718a] sm:text-sm">
+                    {step.body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
         {/* Final CTA */}
-        <section className="border-t border-line bg-forest-tint/50 px-4 py-10 text-center sm:px-6 sm:py-16 lg:py-20">
-          <div className="mx-auto max-w-3xl">
-            <h2 className="font-serif text-2xl font-bold leading-tight text-ink sm:text-4xl">
-              Satu langkah kecil menuju lamaran yang lebih siap.
-            </h2>
-            <p className="mx-auto mt-3 max-w-lg text-xs leading-5 text-ink-soft sm:text-sm sm:leading-relaxed">
-              Mulai dari CV atau cari posisi yang ingin kamu incar.
-            </p>
-            <div className="mx-auto mt-6 flex max-w-md flex-col justify-center gap-2.5 sm:mt-8 sm:flex-row sm:gap-3">
-              <Link to="/optimize">
-                <span className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-forest-dark sm:w-auto">
-                  <Sparkles className="h-4 w-4" />
-                  Siapkan CV
+        <section className="bg-white px-4 py-10 sm:px-6 sm:py-16 lg:py-20">
+          <div className="mx-auto flex max-w-6xl flex-col gap-6 overflow-hidden rounded-3xl bg-[#17204b] px-5 py-8 text-white sm:flex-row sm:items-center sm:justify-between sm:px-10 sm:py-10">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2">
+                <img
+                  src="/icons.png"
+                  alt=""
+                  className="h-7 w-8 object-cover object-top"
+                />
+                <span className="text-sm font-extrabold tracking-tight">
+                  satset<span className="text-[#55d8ef]">CV</span>
                 </span>
+              </div>
+              <h2 className="mt-4 font-sans text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                Sudah nemu lowongan?
+                <br className="hidden sm:block" /> Siapkan lamarannya di sini.
+              </h2>
+              <p className="mt-2 max-w-lg text-xs leading-5 text-white/70 sm:text-sm">
+                Cek lowongan atau langsung sesuaikan CV. Kamu tetap punya
+                keputusan terakhir sebelum mengirim.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:min-w-48">
+              <Link
+                to="/optimize"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#55d8ef] px-5 py-2.5 text-sm font-bold text-[#101638] transition hover:bg-[#a2effa]"
+              >
+                Mulai dari CV
+                <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 to="/jobs"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-line bg-paper px-6 py-3 text-sm font-semibold text-ink transition-colors hover:border-forest hover:text-forest"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/20 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
               >
                 Cari lowongan
               </Link>
@@ -256,7 +381,7 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t border-line bg-paper px-4 py-6 pb-24 text-center text-xs text-ink-soft sm:px-6 sm:py-8 sm:pb-24 xl:pb-8">
-        <p>CV Optimizer — ruang kerja pencarian karier untuk profesional Indonesia.</p>
+        <p>satsetCV — cari, siapkan, dan pantau lamaran kerja.</p>
         <Link to="/privacy" className="mt-2 inline-block font-semibold text-forest underline">
           Privasi & penggunaan AI
         </Link>

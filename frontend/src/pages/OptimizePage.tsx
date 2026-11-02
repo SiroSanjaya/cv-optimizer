@@ -505,7 +505,7 @@ export function OptimizePage() {
         jobDescription,
         matchScore: effectiveScore,
         status: "applied",
-        notes: `Disimpan dari analisis CV Optimizer. Skor kecocokan skill: ${effectiveScore}%.`,
+        notes: `Disimpan dari analisis satsetCV. Skor kecocokan skill: ${effectiveScore}%.`,
       });
       setSavedToTracker(true);
     } catch (err) {
@@ -1398,7 +1398,7 @@ export function OptimizePage() {
       </main>
 
       <footer className="border-t border-line py-6 text-center text-xs text-ink-soft">
-        CV Optimizer — Bantu tinjau dan sesuaikan CV untuk lowongan yang dituju.
+        satsetCV — Tinjau dan sesuaikan CV untuk lowongan yang dituju.
       </footer>
     </div>
   );

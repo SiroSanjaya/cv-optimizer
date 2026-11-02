@@ -40,16 +40,14 @@ export function ShareableScoreModal({
   const validScore = Math.min(100, Math.max(0, Math.round(score)));
   const matchedSkills = (cv?.skills || []).slice(0, 6);
 
-  const viralCaption = `🚀 Baru aja audit dan optimasi CV saya menggunakan AI di CV Optimizer!
+  const viralCaption = `🚀 Saya lagi menyiapkan CV untuk posisi ${targetRole} dengan satsetCV.
 
-Hasil skor kecocokan ATS untuk posisi ${targetRole} tembus ${validScore}% dengan status kualifikasi sangat tinggi! 🔥
+Saya bisa membandingkan pengalaman di CV dengan kebutuhan posisi, lalu meninjau bagian yang perlu diperbaiki sebelum melamar.
 
-Alat ini beneran ngebantu banget memetakan celah skill, merekomendasikan keyword yang dicari recruiter, dan memformat ulang pencapaian kerja sesuai standar ATS internasional.
-
-Buat teman-teman yang lagi aktif job hunting atau mau tes seberapa siap CV-nya lolos screening, wajib coba gratis di sini:
+Coba siapkan CV-mu untuk posisi yang dituju:
 👉 ${window.location.origin}/optimize
 
-#CareerGrowth #JobHunting #CVReview #TechTalent #ATSResume #JobOpportunity #CVOptimizer`;
+#CareerGrowth #JobHunting #CVReview #JobOpportunity #satsetCV`;
 
   // Draw card on canvas whenever modal opens
   useEffect(() => {
@@ -250,7 +248,7 @@ Buat teman-teman yang lagi aktif job hunting atau mau tes seberapa siap CV-nya l
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `Halo! Saya baru saja menguji CV saya untuk posisi ${targetRole} di CV Optimizer dan mendapat skor ATS ${validScore}%! 🚀 Coba cek skor CV kamu juga di sini: ${window.location.origin}/optimize`
+      `Halo! Saya sedang menyiapkan CV untuk posisi ${targetRole} dengan satsetCV. Lihat kecocokan pengalaman dan rapikan materi lamaranmu di sini: ${window.location.origin}/optimize`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };

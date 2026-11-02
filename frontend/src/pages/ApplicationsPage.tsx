@@ -595,7 +595,7 @@ export function ApplicationsPage() {
       </main>
 
       <footer className="border-t border-line py-6 text-center text-xs text-ink-soft">
-        CV Optimizer Application Tracker — Bantu kamu organize lamaran hingga tanda tangan kontrak.
+        satsetCV Tracker — Catat lamaran dan tindak lanjutmu di satu tempat.
       </footer>
 
       {/* Job Importer Modal */}

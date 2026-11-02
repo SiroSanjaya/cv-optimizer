@@ -31,7 +31,7 @@ const faqSections = [
     items: [
       {
         q: "Format file CV apa saja yang didukung?",
-        a: "CV Optimizer mendukung PDF (.pdf) dan Word (.docx / .doc). Ukuran maksimal file adalah 10 MB. Kami menyarankan PDF untuk hasil parsing terbaik.",
+        a: "satsetCV mendukung PDF (.pdf) dan Word (.docx / .doc). Ukuran maksimal file adalah 10 MB. Kami menyarankan PDF untuk hasil parsing terbaik.",
       },
       {
         q: "Bagaimana cara menganalisis CV saya?",
@@ -159,7 +159,7 @@ const faqSections = [
       },
       {
         q: "Bagaimana cara share scorecard?",
-        a: "Klik tombol 'Pamerkan Skor LinkedIn 🚀' di halaman hasil. Kamu bisa download PNG resolusi tinggi, atau langsung share via link. Tambahkan hashtag #CVOptimizer agar lebih mudah ditemukan!",
+        a: "Klik tombol 'Pamerkan Skor LinkedIn 🚀' di halaman hasil. Kamu bisa mengunduh PNG atau membagikan tautannya. Tambahkan hashtag #satsetCV jika ingin.",
       },
     ] as FaqItem[],
   },
@@ -265,7 +265,7 @@ export function FaqPage() {
               <span className="text-forest">Kami Jawab Semua.</span>
             </h1>
             <p className="mt-4 text-sm sm:text-base text-ink-soft leading-relaxed max-w-xl mx-auto">
-              Panduan lengkap menggunakan CV Optimizer — dari upload CV hingga share scorecard viral ke LinkedIn.
+              Panduan menggunakan satsetCV — dari unggah CV sampai mengatur tindak lanjut lamaran.
             </p>
           </div>
         </section>
@@ -275,7 +275,7 @@ export function FaqPage() {
           <div className="mx-auto max-w-5xl px-6">
             <div className="text-center mb-10">
               <span className="text-xs font-bold uppercase tracking-wider text-forest">Mulai dalam 2 menit</span>
-              <h2 className="mt-2 font-serif text-2xl font-bold text-ink">Cara Cepat Pakai CV Optimizer</h2>
+              <h2 className="mt-2 font-serif text-2xl font-bold text-ink">Cara Cepat Pakai satsetCV</h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 relative">
               {quickSteps.map((step, i) => (
@@ -433,7 +433,7 @@ export function FaqPage() {
       </main>
 
       <footer className="border-t border-line py-8 text-center text-xs text-ink-soft bg-paper">
-        CV Optimizer — Dibuat untuk para pencari kerja di Indonesia dan global.{" "}
+        satsetCV — Dibuat untuk membantu pencari kerja mengatur proses lamarannya.{" "}
         <Link to="/" className="font-semibold text-forest hover:underline">
           Kembali ke Beranda
         </Link>

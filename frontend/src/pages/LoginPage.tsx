@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContextValue";
 import { Header } from "../components/Header";
-import { Sparkles, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 interface GoogleCredentialResponse {
   credential?: string;
@@ -116,8 +116,12 @@ export function LoginPage() {
           {/* Left Hero Brand Panel */}
           <div className="bg-gradient-to-br from-forest to-forest-dark p-8 text-white md:col-span-5 flex flex-col justify-between">
             <div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md">
-                <Sparkles className="h-5 w-5 text-emerald-300" />
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/10 backdrop-blur-md">
+                <img
+                  src="/icons.png"
+                  alt=""
+                  className="h-8 w-9 object-cover object-top"
+                />
               </div>
               <h2 className="mt-6 font-serif text-2xl font-bold leading-snug">
                 Karier Impian Dimulai dari CV yang Tepat.
@@ -187,7 +191,7 @@ export function LoginPage() {
       </main>
 
       <footer className="border-t border-line py-6 text-center text-xs text-ink-soft">
-        CV Optimizer — Solusi cerdas pencari kerja Indonesia.
+        satsetCV — Biar proses cari kerja lebih satset.
       </footer>
     </div>
   );
