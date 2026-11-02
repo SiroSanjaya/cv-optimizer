@@ -16,6 +16,7 @@ import { CoverLetterSection } from "../components/CoverLetterSection";
 import { ShareableScoreModal } from "../components/ShareableScoreModal";
 import { InteractiveRewriteDiff } from "../components/InteractiveRewriteDiff";
 import { ResumeQualityAssurance } from "../components/ResumeQualityAssurance";
+import { BetaFeedbackCard } from "../components/BetaFeedbackCard";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContextValue";
 import { fireConfetti } from "../lib/confetti";
@@ -26,6 +27,8 @@ import {
   downloadCoverLetterPdf,
   downloadCvFile,
   createApplication,
+  trackProductEvent,
+  type JobApplicationContext,
 } from "../lib/api";
 import type {
   CoverLetterResult,
@@ -136,9 +139,92 @@ function readPendingBatch(): { targets: BatchTarget[]; error: string | null } {
   }
 }
 
+function readPendingJobContext(): {
+  targetJob: JobApplicationContext | null;
+  jobDescription: string;
+} {
+  const normalizeJobUrl = (value: unknown): string | undefined => {
+    if (typeof value !== "string") return undefined;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:"
+        ? url.toString()
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const rawTarget = sessionStorage.getItem("target_job");
+  if (rawTarget) {
+    try {
+      const target = JSON.parse(rawTarget) as Partial<JobApplicationContext>;
+      if (
+        typeof target.position === "string" &&
+        typeof target.company === "string" &&
+        typeof target.jobDescription === "string"
+      ) {
+        const jobUrl = normalizeJobUrl(target.jobUrl);
+        return {
+          targetJob: {
+            position: target.position,
+            company: target.company,
+            jobDescription: target.jobDescription,
+            ...(jobUrl ? { jobUrl } : {}),
+            ...(typeof target.source === "string" ? { source: target.source } : {}),
+            ...(typeof target.location === "string" ? { location: target.location } : {}),
+            ...(typeof target.salary === "string" ? { salary: target.salary } : {}),
+            ...(typeof target.matchScore === "number" ? { matchScore: target.matchScore } : {}),
+          },
+          jobDescription: target.jobDescription,
+        };
+      }
+    } catch {
+      sessionStorage.removeItem("target_job");
+    }
+  }
+
+  const rawImportedJob = sessionStorage.getItem("imported_job");
+  if (rawImportedJob) {
+    try {
+      const imported = JSON.parse(rawImportedJob) as {
+        company?: unknown;
+        position?: unknown;
+        jobDescription?: unknown;
+        sourceUrl?: unknown;
+      };
+      if (
+        typeof imported.company === "string" &&
+        typeof imported.position === "string" &&
+        typeof imported.jobDescription === "string"
+      ) {
+        const jobUrl = normalizeJobUrl(imported.sourceUrl);
+        return {
+          targetJob: {
+            position: imported.position,
+            company: imported.company,
+            jobDescription: imported.jobDescription,
+            ...(jobUrl ? { jobUrl } : {}),
+            source: "Impor manual",
+          },
+          jobDescription: imported.jobDescription,
+        };
+      }
+    } catch {
+      sessionStorage.removeItem("imported_job");
+    }
+  }
+
+  return {
+    targetJob: null,
+    jobDescription: sessionStorage.getItem("target_job_description") || "",
+  };
+}
+
 export function OptimizePage() {
   const { user, refreshUser, isLoading: isAuthLoading } = useAuth();
   const [initialBatch] = useState(readPendingBatch);
+  const [initialJobContext] = useState(readPendingJobContext);
   const [batchTargets, setBatchTargets] = useState(initialBatch.targets);
   const [batchResults, setBatchResults] = useState<PreparedBatchItem[]>([]);
   const [stage, setStage] = useState<Stage>("form");
@@ -170,12 +256,20 @@ export function OptimizePage() {
   const [replaceCvMode, setReplaceCvMode] = useState(false);
   const [analysis, setAnalysis] = useState<CvAnalysis | null>(null);
   const [tailoredCv, setTailoredCv] = useState<StructuredCv | null>(null);
+  const [targetJob, setTargetJob] = useState<JobApplicationContext | null>(
+    initialJobContext.targetJob
+  );
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [savedToTracker, setSavedToTracker] = useState(false);
   const [claimedSkills, setClaimedSkills] = useState<string[]>([]);
   const [tailoredTab, setTailoredTab] = useState<"cv" | "diff" | "cover_letter">("cv");
+  const [feedbackVersion, setFeedbackVersion] = useState(0);
+
+  useEffect(() => {
+    void trackProductEvent("optimize_opened");
+  }, []);
 
   const activeRevisions: BulletRevision[] = useMemo(() => {
     if (analysis?.suggestedRevisions && analysis.suggestedRevisions.length > 0) {
@@ -227,18 +321,23 @@ export function OptimizePage() {
   const {
     control,
     handleSubmit,
-    setValue,
     register,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { jobDescription: "", privacyAccepted: false },
+    defaultValues: {
+      jobDescription: initialJobContext.jobDescription,
+      privacyAccepted: false,
+    },
   });
 
   const jobDescription = useWatch({ control, name: "jobDescription" });
 
   useEffect(() => {
     sessionStorage.removeItem("job_application_batch");
+    sessionStorage.removeItem("target_job");
+    sessionStorage.removeItem("target_job_description");
+    sessionStorage.removeItem("imported_job");
   }, []);
 
   // Restore saved CV from session if available
@@ -250,37 +349,6 @@ export function OptimizePage() {
       setCachedCvName(saved.fileName || "CV Terhubung");
     }
   }, [user?.id, structuredCv]);
-
-  // Check if job description was passed from Jobs recommendation page or Job Importer
-  useEffect(() => {
-    // 1. Standard JD handoff from Jobs page
-    const savedDesc = sessionStorage.getItem("target_job_description");
-    if (savedDesc) {
-      setValue("jobDescription", savedDesc);
-      sessionStorage.removeItem("target_job_description");
-      return;
-    }
-
-    // 2. Rich handoff from Job Importer Modal (URL / paste)
-    const importedRaw = sessionStorage.getItem("imported_job");
-    if (importedRaw) {
-      try {
-        const imported = JSON.parse(importedRaw) as {
-          company: string;
-          position: string;
-          jobDescription: string;
-          sourceUrl?: string;
-          skills?: string[];
-        };
-        if (imported.jobDescription) {
-          setValue("jobDescription", imported.jobDescription);
-        }
-        sessionStorage.removeItem("imported_job");
-      } catch {
-        sessionStorage.removeItem("imported_job");
-      }
-    }
-  }, [setValue]);
 
   const handleToggleSkill = (skill: string) => {
     setClaimedSkills((prev) => {
@@ -449,6 +517,7 @@ export function OptimizePage() {
         saveSessionCvSkills(uid, result.cv.skills);
       }
       setStage("results");
+      void trackProductEvent("analysis_completed");
       if ((result.analysis?.matchScore || 0) >= 70) {
         setTimeout(() => fireConfetti(2500), 300);
       }
@@ -482,6 +551,8 @@ export function OptimizePage() {
       await refreshUser();
       setTailoredCv(result.cv);
       setStage("tailored");
+      setFeedbackVersion((version) => version + 1);
+      void trackProductEvent("optimization_completed");
       setTimeout(() => fireConfetti(3500), 300);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Terjadi kesalahan saat membuat CV tailored.");
@@ -492,7 +563,7 @@ export function OptimizePage() {
   const handleSaveToTracker = async () => {
     if (!analysis) return;
     try {
-      // Extract position or company from first line of job description
+      // Fall back to the first line when this flow was not started from a listing.
       const lines = jobDescription.split("\n").filter((l) => l.trim().length > 0);
       const titleLine = lines[0] || "Target Role";
       const parts = titleLine.split(" at ");
@@ -500,14 +571,21 @@ export function OptimizePage() {
       const company = parts[1] || "Perusahaan Target";
 
       await createApplication({
-        company: company.replace(/[^a-zA-Z0-9 ]/g, "").slice(0, 40),
-        position: position.replace(/[^a-zA-Z0-9 ]/g, "").slice(0, 40),
+        company: targetJob?.company || company,
+        position: targetJob?.position || position,
         jobDescription,
-        matchScore: effectiveScore,
-        status: "applied",
-        notes: `Disimpan dari analisis satsetCV. Skor kecocokan skill: ${effectiveScore}%.`,
+        jobUrl: targetJob?.jobUrl,
+        matchScore: targetJob?.matchScore ?? effectiveScore,
+        status: "saved",
+        notes: [
+          "Disimpan dari analisis satsetCV; belum menandakan lamaran sudah terkirim.",
+          targetJob?.source ? `Sumber: ${targetJob.source}.` : "",
+          targetJob?.location ? `Lokasi: ${targetJob.location}.` : "",
+          targetJob?.salary ? `Gaji tercantum: ${targetJob.salary}.` : "",
+        ].filter(Boolean).join(" "),
       });
       setSavedToTracker(true);
+      void trackProductEvent("tracker_saved");
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err.message : "Gagal menyimpan lamaran ke tracker."
@@ -516,10 +594,14 @@ export function OptimizePage() {
   };
 
   const startOver = () => {
+    if (stage === "results" || stage === "tailored") {
+      void trackProductEvent("optimization_restarted");
+    }
     setFile(null);
     setStructuredCv(null);
     setAnalysis(null);
     setTailoredCv(null);
+    setTargetJob(null);
     setSubmitError(null);
     setSavedToTracker(false);
     setClaimedSkills([]);
@@ -824,6 +906,33 @@ export function OptimizePage() {
                 Batalkan batch
               </button>
             </div>
+          </div>
+        )}
+
+        {targetJob && stage === "form" && (
+          <div className="mt-5 rounded-xl border border-forest/25 bg-forest-tint/35 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-forest">
+              Lowongan yang dipilih
+            </p>
+            <p className="mt-1 text-sm font-semibold text-ink">
+              {targetJob.position} · {targetJob.company}
+            </p>
+            <p className="mt-1 text-xs text-ink-soft">
+              {[targetJob.location, targetJob.source, targetJob.salary]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+            {targetJob.jobUrl && (
+              <a
+                href={targetJob.jobUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-forest underline"
+              >
+                Cek lowongan asli sebelum melamar
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
         )}
 
@@ -1241,11 +1350,13 @@ export function OptimizePage() {
                 ) : (
                   <>
                     <BookmarkPlus className="h-4 w-4 text-forest" />
-                    Simpan ke Tracker Lamaran
+                    Simpan ke Tracker · belum melamar
                   </>
                 )}
               </button>
             </div>
+
+            <BetaFeedbackCard key={feedbackVersion} />
           </div>
         )}
 
@@ -1362,7 +1473,7 @@ export function OptimizePage() {
                 }`}
               >
                 <BookmarkPlus className="h-4 w-4" />
-                {savedToTracker ? "Sudah di Tracker Lamaran" : "Tambahkan ke Pipeline Tracker"}
+                {savedToTracker ? "Sudah disimpan di Tracker" : "Simpan ke Tracker · belum melamar"}
               </button>
             </div>
           </div>

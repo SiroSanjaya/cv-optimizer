@@ -10,6 +10,7 @@ datasource db {
 }
 
 enum ApplicationStatus {
+  saved
   applied
   hr_interview
   user_interview
@@ -211,4 +212,3 @@ model FunnelEvent {
 
   @@index([eventName, createdAt])
 }
-

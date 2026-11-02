@@ -52,7 +52,7 @@ export async function getRecommendedJobs(
       : "all";
     const catFilter = (["frontend", "backend", "fullstack", "data", "devops", "mobile", "all"].includes(String(category)) ? String(category) : "all") as any;
 
-    const jobs = await getAggregatedRecommendations(candidateSkills, {
+    const recommendations = await getAggregatedRecommendations(candidateSkills, {
       keyword: searchKeyword,
       location: locFilter,
       category: catFilter,
@@ -68,7 +68,8 @@ export async function getRecommendedJobs(
         skills: candidateSkills,
         isPersonalized,
       },
-      jobs,
+      jobs: recommendations.jobs,
+      sources: recommendations.sources,
     });
   } catch (err) {
     next(err);

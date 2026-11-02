@@ -70,7 +70,8 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
     };
   }
 
-  const total = apps.length;
+  const submittedApps = apps.filter((app) => app.status !== "saved");
+  const total = submittedApps.length;
 
   // Status distribution
   const byStatus: Record<string, number> = {};
@@ -80,9 +81,26 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
 
   const interviewCount = apps.filter((a) => INTERVIEW_STATUSES.has(a.status)).length;
   const offerCount = byStatus["offer"] || 0;
+  if (total === 0) {
+    return {
+      total: 0,
+      responseRate: 0,
+      interviewRate: 0,
+      offerRate: 0,
+      avgMatchScore: null,
+      byStatus,
+      topPerformingPositions: [],
+      topPerformingSkills: [],
+      recentTrend: [],
+      cvVersionPerformance: [],
+      insights: [
+        `${byStatus.saved || 0} lowongan tersimpan. Tandai sebagai terkirim setelah kamu benar-benar mengirim lamaran untuk mulai melihat hasil.`,
+      ],
+    };
+  }
 
   // Response = any status that is NOT just "applied" and NOT "ghosted"
-  const responseCount = apps.filter(
+  const responseCount = submittedApps.filter(
     (a) => a.status !== "applied" && a.status !== "ghosted"
   ).length;
 
@@ -90,7 +108,7 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
   const interviewRate = total > 0 ? Math.round((interviewCount / total) * 100) : 0;
   const offerRate = total > 0 ? Math.round((offerCount / total) * 100) : 0;
 
-  const scores = apps
+  const scores = submittedApps
     .map((a) => a.matchScore)
     .filter((s): s is number => typeof s === "number");
   const avgMatchScore =
@@ -101,7 +119,7 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
     string,
     { count: number; interviewCount: number }
   > = {};
-  for (const app of apps) {
+  for (const app of submittedApps) {
     const pos = normalizePosition(app.position || "Unknown");
     if (!positionMap[pos]) positionMap[pos] = { count: 0, interviewCount: 0 };
     positionMap[pos].count++;
@@ -120,7 +138,7 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
 
   // Skill performance from analysis.keywords or job description keywords
   const skillMap: Record<string, { appearances: number; interviewsGenerated: number }> = {};
-  for (const app of apps) {
+  for (const app of submittedApps) {
     const analysis = app.analysis as any;
     const keywords: string[] =
       Array.isArray(analysis?.matchedKeywords)
@@ -148,7 +166,7 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const monthApps = apps.filter((a) => {
+    const monthApps = submittedApps.filter((a) => {
       const appMonth = a.appliedAt
         ? `${a.appliedAt.getFullYear()}-${String(a.appliedAt.getMonth() + 1).padStart(2, "0")}`
         : "";
@@ -164,7 +182,7 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
 
   // CV Version performance
   const cvMap: Record<string, { label: string; applications: number; interviewCount: number }> = {};
-  for (const app of apps) {
+  for (const app of submittedApps) {
     const cvId = app.cvVersionId || "none";
     const label = app.cvVersion?.label || (cvId === "none" ? "Tanpa CV tersimpan" : `CV #${cvId.slice(-4)}`);
     if (!cvMap[cvId]) cvMap[cvId] = { label, applications: 0, interviewCount: 0 };

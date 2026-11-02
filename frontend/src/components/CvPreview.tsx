@@ -19,7 +19,7 @@ import {
   Sliders,
 } from "lucide-react";
 import type { EducationEntry, StructuredCv } from "../types/cv";
-import { downloadCvFile } from "../lib/api";
+import { downloadCvFile, trackProductEvent } from "../lib/api";
 import { createGmailComposeUrl } from "../lib/gmail";
 import { Button } from "./Button";
 
@@ -89,6 +89,7 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
       );
       const name = (cv.personalInfo.name || "CV").replace(/\s+/g, "_");
       triggerBrowserDownload(blob, `${name}_Optimized.${format}`);
+      void trackProductEvent("cv_exported");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mengunduh berkas CV.");
     } finally {

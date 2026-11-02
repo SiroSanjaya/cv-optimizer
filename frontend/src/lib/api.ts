@@ -8,10 +8,17 @@ import type {
 } from "../types/cv";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const PRODUCT_SESSION_KEY = "satsetcv_product_session";
+const PRODUCT_ANALYTICS_CONSENT_KEY = "satsetcv_product_analytics_consent";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+});
+
+const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: false,
 });
 
 // Automatically attach token from localStorage if present
@@ -35,6 +42,7 @@ export interface User {
 }
 
 export type ApplicationStatus =
+  | "saved"
   | "applied"
   | "hr_interview"
   | "user_interview"
@@ -69,6 +77,109 @@ export interface ApplicationMetrics {
   byStatus: Record<string, number>;
 }
 
+export type ProductEventName =
+  | "landing_viewed"
+  | "optimize_opened"
+  | "analysis_completed"
+  | "optimization_completed"
+  | "cv_exported"
+  | "tracker_saved"
+  | "optimization_restarted";
+
+export interface BetaFeedback {
+  applicationFrequency:
+    | "three_plus_weekly"
+    | "one_to_two_weekly"
+    | "monthly"
+    | "exploring";
+  valueRating: number;
+  mainValue:
+    | "cv_tailoring"
+    | "match_analysis"
+    | "cover_letter"
+    | "application_tracker"
+    | "job_search";
+  reuseIntent: "yes" | "maybe" | "no";
+  willingnessToPay:
+    | "free_only"
+    | "under_25k"
+    | "25k_to_50k"
+    | "50k_to_100k"
+    | "over_100k"
+    | "one_time"
+    | "not_sure";
+  mainBlocker:
+    | "too_much_effort"
+    | "results_not_trustworthy"
+    | "job_sources"
+    | "missing_workflow"
+    | "price"
+    | "other";
+}
+
+export function getProductSessionId(): string {
+  const savedId = localStorage.getItem(PRODUCT_SESSION_KEY);
+  if (savedId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(savedId)) {
+    return savedId;
+  }
+  const sessionId = crypto.randomUUID();
+  localStorage.setItem(PRODUCT_SESSION_KEY, sessionId);
+  return sessionId;
+}
+
+export function hasProductAnalyticsConsent(): boolean {
+  try {
+    return localStorage.getItem(PRODUCT_ANALYTICS_CONSENT_KEY) === "yes";
+  } catch (error) {
+    console.warn("Could not read anonymous product analytics consent.", error);
+    return false;
+  }
+}
+
+export async function trackProductEvent(eventName: ProductEventName): Promise<void> {
+  try {
+    if (!hasProductAnalyticsConsent()) return;
+    await publicApi.post("/api/feedback/events", {
+      eventName,
+      sessionId: getProductSessionId(),
+    });
+  } catch (error) {
+    console.warn("Could not record anonymous product usage event.", error);
+  }
+}
+
+export async function submitBetaFeedback(
+  feedback: BetaFeedback,
+  analyticsConsent: boolean
+): Promise<void> {
+  try {
+    await publicApi.post("/api/feedback", {
+      ...feedback,
+      sessionId: getProductSessionId(),
+    });
+    if (analyticsConsent) {
+      localStorage.setItem(PRODUCT_ANALYTICS_CONSENT_KEY, "yes");
+    } else {
+      localStorage.removeItem(PRODUCT_ANALYTICS_CONSENT_KEY);
+    }
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Gagal mengirim feedback."));
+  }
+}
+
+export async function deleteProductData(): Promise<void> {
+  const sessionId = localStorage.getItem(PRODUCT_SESSION_KEY);
+  if (sessionId) {
+    try {
+      await publicApi.delete(`/api/feedback/${encodeURIComponent(sessionId)}`);
+    } catch (error) {
+      throw new Error(extractErrorMessage(error, "Gagal menghapus data penggunaan."));
+    }
+  }
+  localStorage.removeItem(PRODUCT_SESSION_KEY);
+  localStorage.removeItem(PRODUCT_ANALYTICS_CONSENT_KEY);
+}
+
 export interface RecommendedJob {
   id: string;
   title: string;
@@ -88,6 +199,23 @@ export interface RecommendedJob {
   matchScore?: number;
   matchingSkills?: string[];
   missingSkills?: string[];
+}
+
+export interface JobApplicationContext {
+  position: string;
+  company: string;
+  jobDescription: string;
+  jobUrl?: string;
+  source?: string;
+  location?: string;
+  salary?: string;
+  matchScore?: number;
+}
+
+export interface JobSourceStatus {
+  label: string;
+  status: "available" | "no_results" | "failed" | "not_configured";
+  receivedCount: number;
 }
 
 
@@ -427,9 +555,14 @@ export async function getJobRecommendations(params?: {
   location?: "indonesia" | "malaysia" | "singapore" | "australia" | "remote" | "all";
   category?: string;
   skills?: string[];
-}): Promise<{ query: any; jobs: RecommendedJob[] }> {
+}): Promise<{ query: any; jobs: RecommendedJob[]; sources: JobSourceStatus[] }> {
   try {
-    const { data } = await api.get<{ success: boolean; query: any; jobs: RecommendedJob[] }>(
+    const { data } = await api.get<{
+      success: boolean;
+      query: any;
+      jobs: RecommendedJob[];
+      sources: JobSourceStatus[];
+    }>(
       "/api/jobs/recommendations",
       {
         params: {

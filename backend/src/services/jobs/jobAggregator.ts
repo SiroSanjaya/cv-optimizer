@@ -30,6 +30,12 @@ export interface JobFilterOptions {
   skills?: string[];
 }
 
+export interface JobSourceStatus {
+  label: string;
+  status: "available" | "no_results" | "failed" | "not_configured";
+  receivedCount: number;
+}
+
 export function detectVisaSponsorship(
   description: string
 ): "available" | "unavailable" | "not_mentioned" {
@@ -201,7 +207,7 @@ export async function fetchKalibrrApiJobs(query: string = ""): Promise<JobItem[]
     return jobs;
   } catch (err) {
     logger.warn("kalibrr_api_fetch_failed", { message: (err as Error).message });
-    return [];
+    throw err;
   }
 }
 
@@ -261,7 +267,7 @@ export async function fetchRemotiveApiJobs(query: string = ""): Promise<JobItem[
     return jobs;
   } catch (err) {
     logger.warn("remotive_api_fetch_failed", { message: (err as Error).message });
-    return [];
+    throw err;
   }
 }
 
@@ -311,7 +317,7 @@ export async function fetchArbeitnowApiJobs(query: string = ""): Promise<JobItem
     return jobs;
   } catch (err) {
     logger.warn("arbeitnow_api_fetch_failed", { message: (err as Error).message });
-    return [];
+    throw err;
   }
 }
 
@@ -378,7 +384,7 @@ export async function fetchJoobleApiJobs(
     return jobs;
   } catch (err) {
     logger.warn("jooble_api_fetch_failed", { message: (err as Error).message });
-    return [];
+    throw err;
   }
 }
 
@@ -452,7 +458,7 @@ export async function fetchRemoteOKApiJobs(query: string = ""): Promise<JobItem[
     return jobs;
   } catch (err) {
     logger.warn("remoteok_api_fetch_failed", { message: (err as Error).message });
-    return [];
+    throw err;
   }
 }
 
@@ -528,7 +534,7 @@ export async function fetchHimalayasApiJobs(query: string = ""): Promise<JobItem
     return jobs;
   } catch (err) {
     logger.warn("himalayas_api_fetch_failed", { message: (err as Error).message });
-    return [];
+    throw err;
   }
 }
 
@@ -545,16 +551,17 @@ export function calculateJobMatch(candidateSkills: string[], job: JobItem): JobI
     };
   }
 
-  const normCandidate = candidateSkills.map((s) => s.toLowerCase().trim());
+  const normalizeSkill = (skill: string) =>
+    skill.normalize("NFKC").toLowerCase().replace(/[\s._/-]+/g, "");
+  const normCandidate = candidateSkills.map(normalizeSkill).filter(Boolean);
 
   const matching: string[] = [];
   const missing: string[] = [];
 
   for (const jobSkill of job.skills) {
-    const jobSkillLower = jobSkill.toLowerCase();
-    const isMatched = normCandidate.some(
-      (cs) => cs === jobSkillLower || cs.includes(jobSkillLower) || jobSkillLower.includes(cs)
-    );
+    const jobSkillNormalized = normalizeSkill(jobSkill);
+    const isMatched = jobSkillNormalized.length > 0 &&
+      normCandidate.includes(jobSkillNormalized);
     if (isMatched) {
       if (!matching.includes(jobSkill)) matching.push(jobSkill);
     } else {
@@ -574,6 +581,22 @@ export function calculateJobMatch(candidateSkills: string[], job: JobItem): JobI
   };
 }
 
+function getPostedAgeDays(postedAt?: string): number {
+  if (!postedAt) return Number.POSITIVE_INFINITY;
+  const label = postedAt.toLowerCase();
+  if (label === "hari ini") return 0;
+  if (label === "kemarin") return 1;
+  const relative = label.match(/(\d+)\s+(hari|minggu) lalu/);
+  if (relative) {
+    const amount = Number(relative[1]);
+    return amount * (relative[2] === "minggu" ? 7 : 1);
+  }
+  const parsedDate = Date.parse(postedAt);
+  return Number.isNaN(parsedDate)
+    ? Number.POSITIVE_INFINITY
+    : Math.max(0, Math.floor((Date.now() - parsedDate) / 86_400_000));
+}
+
 /**
  * Main aggregator: pulls live jobs from Kalibrr API + Remotive API + Arbeitnow +
  * Jooble + RemoteOK + Himalayas
@@ -581,7 +604,7 @@ export function calculateJobMatch(candidateSkills: string[], job: JobItem): JobI
 export async function getAggregatedRecommendations(
   candidateSkills: string[] = [],
   options: JobFilterOptions = {}
-): Promise<JobItem[]> {
+): Promise<{ jobs: JobItem[]; sources: JobSourceStatus[] }> {
   const keyword = (options.keyword || "").trim();
   const location = options.location || "all";
   const category = options.category || "all";
@@ -592,7 +615,7 @@ export async function getAggregatedRecommendations(
     effectiveKeyword = `${category} ${keyword}`.trim();
   }
 
-  const fetchers: Promise<JobItem[]>[] = [];
+  const fetchers: Array<{ label: string; source: JobItem["source"]; promise: Promise<JobItem[]> }> = [];
   const markets: Record<string, string> = {
     indonesia: "Indonesia",
     malaysia: "Malaysia",
@@ -602,40 +625,70 @@ export async function getAggregatedRecommendations(
 
   // Indonesia has a dedicated local source; Jooble can query each target market.
   if (location === "indonesia" || location === "all") {
-    fetchers.push(fetchKalibrrApiJobs(effectiveKeyword));
+    fetchers.push({ label: "Kalibrr", source: "Kalibrr", promise: fetchKalibrrApiJobs(effectiveKeyword) });
   }
 
-  if (location === "all") {
+  if (location !== "remote" && !JOOBLE_API_KEY) {
+    fetchers.push({ label: "Jooble", source: "Jooble", promise: Promise.resolve([]) });
+  } else if (location === "all") {
     for (const market of Object.values(markets)) {
-      fetchers.push(fetchJoobleApiJobs(effectiveKeyword, market));
+      fetchers.push({
+        label: `Jooble (${market})`,
+        source: "Jooble",
+        promise: fetchJoobleApiJobs(effectiveKeyword, market),
+      });
     }
   } else if (location !== "remote") {
-    fetchers.push(fetchJoobleApiJobs(effectiveKeyword, markets[location]));
+    fetchers.push({
+      label: `Jooble (${markets[location]})`,
+      source: "Jooble",
+      promise: fetchJoobleApiJobs(effectiveKeyword, markets[location]),
+    });
   }
 
   // Remote sources are useful alongside country-specific searches because some
   // employers accept candidates worldwide without local visa sponsorship.
-  fetchers.push(fetchRemotiveApiJobs(effectiveKeyword));
-  fetchers.push(fetchArbeitnowApiJobs(effectiveKeyword));
-  fetchers.push(fetchRemoteOKApiJobs(effectiveKeyword));
-  fetchers.push(fetchHimalayasApiJobs(effectiveKeyword));
+  fetchers.push({ label: "Remotive", source: "Remotive", promise: fetchRemotiveApiJobs(effectiveKeyword) });
+  fetchers.push({ label: "Arbeitnow", source: "Arbeitnow", promise: fetchArbeitnowApiJobs(effectiveKeyword) });
+  fetchers.push({ label: "RemoteOK", source: "RemoteOK", promise: fetchRemoteOKApiJobs(effectiveKeyword) });
+  fetchers.push({ label: "Himalayas", source: "Himalayas", promise: fetchHimalayasApiJobs(effectiveKeyword) });
 
   // Run in parallel with graceful error handling
-  const results = await Promise.allSettled(fetchers);
+  const results = await Promise.allSettled(fetchers.map((fetcher) => fetcher.promise));
   const liveJobs: JobItem[] = [];
+  const sources: JobSourceStatus[] = [];
 
-  for (const r of results) {
-    if (r.status === "fulfilled" && Array.isArray(r.value)) {
-      liveJobs.push(...r.value);
+  for (const [index, result] of results.entries()) {
+    const fetcher = fetchers[index];
+    if (fetcher.source === "Jooble" && !JOOBLE_API_KEY) {
+      sources.push({ label: "Jooble", status: "not_configured", receivedCount: 0 });
+    } else if (result.status === "rejected") {
+      sources.push({ label: fetcher.label, status: "failed", receivedCount: 0 });
+    } else {
+      const sourceJobs = Array.isArray(result.value) ? result.value : [];
+      liveJobs.push(...sourceJobs);
+      sources.push({
+        label: fetcher.label,
+        status: sourceJobs.length > 0 ? "available" : "no_results",
+        receivedCount: sourceJobs.length,
+      });
     }
   }
 
-  const combinedRaw = liveJobs;
+  const combinedRaw = liveJobs.filter((job) => {
+    if (!job.title.trim() || !job.company.trim()) return false;
+    try {
+      const url = new URL(job.url);
+      return url.protocol === "https:" || url.protocol === "http:";
+    } catch {
+      return false;
+    }
+  });
   const marketAliases: Record<string, RegExp> = {
-    indonesia: /\b(?:indonesia|jakarta|bandung|surabaya|yogyakarta|bali|tangerang|bekasi|depok|batam)\b/i,
-    malaysia: /\b(?:malaysia|kuala lumpur|penang|johor|cyberjaya|selangor)\b/i,
+    indonesia: /\b(?:indonesia|jakarta|bandung|surabaya|yogyakarta|jogja|bali|denpasar|tangerang|bekasi|depok|batam|medan|semarang|makassar|malang|palembang|pekanbaru|balikpapan|samarinda|manado|pontianak|banjarmasin|cikarang|karawang|cilegon|solo|surakarta|bogor|cirebon|mataram|lombok|indonesia)\b/i,
+    malaysia: /\b(?:malaysia|kuala lumpur|penang|johor|cyberjaya|selangor|sab[a-h]|sarawak|putrajaya|ipoh|melaka|malacca)\b/i,
     singapore: /\b(?:singapore|singapura)\b/i,
-    australia: /\b(?:australia|sydney|melbourne|brisbane|perth|adelaide|canberra)\b/i,
+    australia: /\b(?:australia|sydney|melbourne|brisbane|perth|adelaide|canberra|darwin|hobart|gold coast)\b/i,
   };
   const selectedMarkets = location === "all"
     ? Object.keys(marketAliases)
@@ -670,13 +723,15 @@ export async function getAggregatedRecommendations(
   if (candidateSkills.length) {
     scoredJobs.sort((a, b) =>
       (b.matchScore ?? -1) - (a.matchScore ?? -1) ||
+      getPostedAgeDays(a.postedAt) - getPostedAgeDays(b.postedAt) ||
       Number(b.visaSponsorship === "available") - Number(a.visaSponsorship === "available")
     );
   } else {
     scoredJobs.sort((a, b) =>
+      getPostedAgeDays(a.postedAt) - getPostedAgeDays(b.postedAt) ||
       Number(b.visaSponsorship === "available") - Number(a.visaSponsorship === "available")
     );
   }
 
-  return scoredJobs.slice(0, 100);
+  return { jobs: scoredJobs.slice(0, 100), sources };
 }

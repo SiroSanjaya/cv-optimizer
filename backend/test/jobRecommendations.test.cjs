@@ -60,6 +60,25 @@ test("professional job skills can be matched against a candidate CV", () => {
   assert.deepEqual(result.missingSkills, ["Payroll"]);
 });
 
+test("skill matching does not award points for partial-word overlaps", () => {
+  const job = {
+    id: "listing-excel",
+    title: "Support Specialist",
+    company: "Example Co",
+    location: "Jakarta",
+    source: "Kalibrr",
+    url: "https://example.com/jobs/support",
+    description: "Provide excellent customer support.",
+    skills: ["Excel", "Customer Service"],
+  };
+
+  const result = calculateJobMatch(["Excellent communication", "Customer Service"], job);
+
+  assert.equal(result.matchScore, 50);
+  assert.deepEqual(result.matchingSkills, ["Customer Service"]);
+  assert.deepEqual(result.missingSkills, ["Excel"]);
+});
+
 test("visa sponsorship status requires explicit evidence from the listing", () => {
   assert.equal(
     detectVisaSponsorship("We offer visa sponsorship for qualified candidates."),

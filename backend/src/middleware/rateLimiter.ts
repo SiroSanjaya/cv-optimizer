@@ -23,6 +23,7 @@ function sharedStore(prefix: string) {
 
 const apiStore = sharedStore("rate:api:");
 const aiStore = sharedStore("rate:ai:");
+const feedbackStore = sharedStore("rate:feedback:");
 
 export const apiRateLimiter = rateLimit({
   windowMs: windowMinutes * 60 * 1000,
@@ -47,5 +48,17 @@ export const aiSubmitRateLimiter = rateLimit({
     success: false,
     error: "AI task limit reached. Please wait before submitting another task.",
     code: "RATE_LIMITED",
+  },
+});
+
+export const feedbackRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  ...(feedbackStore ? { store: feedbackStore } : {}),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many feedback requests. Please try again later.",
   },
 });

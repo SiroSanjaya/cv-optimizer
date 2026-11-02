@@ -19,6 +19,7 @@ import {
   analyzeCv,
   type RecommendedJob,
   type ImportedJob,
+  type JobSourceStatus,
 } from "../lib/api";
 import {
   Search,
@@ -55,18 +56,19 @@ export function JobsPage() {
   const [jobs, setJobs] = useState<RecommendedJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [jobSources, setJobSources] = useState<JobSourceStatus[]>([]);
   const [retryKey, setRetryKey] = useState(0);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [submittedKeyword, setSubmittedKeyword] = useState("");
   const [locationFilter, setLocationFilter] = useState<
     "all" | "indonesia" | "malaysia" | "singapore" | "australia" | "remote"
-  >("all");
+  >("indonesia");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isPersonalized, setIsPersonalized] = useState<boolean>(false);
   const [skillsCount, setSkillsCount] = useState<number>(0);
   const [selectedBatchJobs, setSelectedBatchJobs] = useState<RecommendedJob[]>([]);
 
-  // Smart Auto-Apply state & CV persistence
+  // Job preparation and CV persistence
   const cvInputRef = useRef<HTMLInputElement>(null);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [parsingCv, setParsing] = useState(false);
@@ -103,7 +105,13 @@ export function JobsPage() {
   const [jobImporterOpen, setJobImporterOpen] = useState(false);
 
   const handleJobImported = useCallback((job: ImportedJob) => {
-    // Navigate to /optimize with the imported JD pre-filled via session storage
+    sessionStorage.setItem("target_job", JSON.stringify({
+      position: job.position,
+      company: job.company,
+      jobDescription: job.jobDescription,
+      jobUrl: job.sourceUrl,
+      source: "Impor manual",
+    }));
     sessionStorage.setItem("imported_job", JSON.stringify({
       company: job.company,
       position: job.position,
@@ -121,9 +129,10 @@ export function JobsPage() {
         position: job.position,
         jobDescription: job.jobDescription,
         jobUrl: job.sourceUrl || undefined,
+        status: "saved",
       });
-    } catch {
-      // Silent fail — tracker save is optional
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Gagal menyimpan lowongan ke tracker.");
     }
   }, []);
 
@@ -141,12 +150,14 @@ export function JobsPage() {
       .then((res) => {
         if (isMounted) {
           setJobs(res.jobs);
+          setJobSources(res.sources ?? []);
           setIsPersonalized(Boolean(res.query?.isPersonalized));
           setSkillsCount(res.query?.skillsCount || 0);
         }
       })
       .catch((err) => {
         if (isMounted) {
+          setJobSources([]);
           setLoadError(err instanceof Error ? err.message : "Gagal memuat lowongan.");
         }
       })
@@ -163,7 +174,12 @@ export function JobsPage() {
     e.preventDefault();
     setLoading(true);
     setLoadError(null);
-    setSubmittedKeyword(searchKeyword.trim());
+    setJobSources([]);
+    const nextKeyword = searchKeyword.trim();
+    setSubmittedKeyword(nextKeyword);
+    if (nextKeyword === submittedKeyword) {
+      setRetryKey((key) => key + 1);
+    }
   };
 
   const handleOpenGoogleJobs = () => {
@@ -176,16 +192,27 @@ export function JobsPage() {
       remote: "Remote",
     };
     const locQuery = locations[locationFilter];
-    const fullQuery = `${searchKeyword || "Software Engineer"} ${locQuery}`;
+    const fullQuery = `${searchKeyword || "lowongan kerja"} ${locQuery}`;
     const googleJobsUrl = `https://www.google.com/search?ibp=htl;jobs&q=${encodeURIComponent(fullQuery)}`;
-    window.open(googleJobsUrl, "_blank");
+    window.open(googleJobsUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleQuickOptimize = (job: RecommendedJob) => {
     sessionStorage.removeItem("job_application_batch");
+    const jobDescription = `${job.title} at ${job.company}\nLocation: ${job.location}\n\nRequirements & Overview:\n${job.description}\n\nSkills: ${job.skills.join(", ")}`;
+    sessionStorage.setItem("target_job", JSON.stringify({
+      position: job.title,
+      company: job.company,
+      jobDescription,
+      jobUrl: job.url,
+      source: job.source,
+      location: job.location,
+      salary: job.salary,
+      matchScore: job.matchScore,
+    }));
     sessionStorage.setItem(
       "target_job_description",
-      `${job.title} at ${job.company}\n\nRequirements & Overview:\n${job.description}\n\nSkills: ${job.skills.join(", ")}`
+      jobDescription
     );
     navigate("/optimize");
   };
@@ -208,7 +235,7 @@ export function JobsPage() {
     }
   };
 
-  // ─── Smart Auto-Apply & Interactive Skills Handlers ────────────────────────
+  // ─── Job preparation & interactive skills handlers ─────────────────────────
   const handleCvUpload = async (file: File) => {
     setCvFile(file);
     setParsing(true);
@@ -336,6 +363,15 @@ export function JobsPage() {
     }));
     sessionStorage.setItem("job_application_batch", JSON.stringify(targets));
     sessionStorage.setItem("target_job_description", targets[0].jobDescription);
+    sessionStorage.setItem("target_job", JSON.stringify({
+      position: targets[0].title,
+      company: targets[0].company,
+      jobDescription: targets[0].jobDescription,
+      jobUrl: targets[0].url,
+      source: jobsToPrepare[0].source,
+      location: targets[0].location,
+      matchScore: targets[0].matchScore,
+    }));
     navigate("/optimize");
   };
 
@@ -366,12 +402,13 @@ export function JobsPage() {
       await createApplication({
         company: job.company,
         position: job.title,
+        jobDescription: `${job.title} at ${job.company}\nLocation: ${job.location}\n\n${job.description}`,
         jobUrl: job.url,
         matchScore: job.matchScore,
-        status: "applied",
+        status: "saved",
         notes: `Sumber: ${job.source}. Lokasi: ${job.location}. Gaji: ${job.salary || "N/A"}`,
       });
-      alert(`Berhasil menyimpan "${job.title} di ${job.company}" ke Tracker Lamaran!`);
+      alert(`Lowongan "${job.title} di ${job.company}" disimpan ke Tracker. Tandai sebagai terkirim setelah kamu benar-benar mengirim lamaran.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal menyimpan ke tracker");
     } finally {
@@ -438,6 +475,9 @@ export function JobsPage() {
   ];
   const remainingBatchTasks = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
   const availableBatchPackages = Math.min(100, Math.floor(remainingBatchTasks / 3));
+  const allConfiguredSourcesUnavailable =
+    jobSources.length > 0 &&
+    jobSources.every((source) => source.status === "failed" || source.status === "not_configured");
 
   return (
     <div className="min-h-screen bg-paper flex flex-col justify-between">
@@ -445,7 +485,7 @@ export function JobsPage() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
 
-        {/* ── SMART AUTO-APPLY PANEL ─────────────────────────────────────── */}
+        {/* ── JOB-APPLICATION ASSISTANT ──────────────────────────────────── */}
         <div className="mb-6 rounded-2xl border-2 border-forest/30 bg-gradient-to-br from-forest/5 via-paper-raised to-emerald-50/40 shadow-lg overflow-hidden">
           {/* Header row */}
           <div
@@ -460,12 +500,12 @@ export function JobsPage() {
                 <p className="font-bold text-sm text-ink">
                   {parsedSkills.length > 0
                     ? `CV Terdeteksi · ${parsedSkills.length} skill · ${eligibleJobs.length} loker cocok`
-                    : "Asisten Apply — Siapkan Lamaran ATS"}
+                    : "Asisten Lamaran — Siapkan Dokumen ATS"}
                 </p>
                 <p className="text-[11px] text-ink-soft">
                   {parsedSkills.length > 0
                     ? `${eligibleJobs.length} lowongan Greenhouse/Lever dengan match ≥${autoApplyMinScore}%`
-                    : "Upload CV untuk mencari lowongan ATS yang didukung dan menyiapkan CV tailored"}
+                    : "Upload CV untuk melihat kecocokan dan menyiapkan dokumen lamaran"}
                 </p>
               </div>
             </div>
@@ -480,7 +520,7 @@ export function JobsPage() {
                   className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-xs font-bold text-white shadow hover:bg-forest-dark transition-all cursor-pointer"
                 >
                   <Zap className="h-3.5 w-3.5" />
-                  Siapkan Apply ({Math.min(eligibleJobs.length, availableBatchPackages)})
+                  Siapkan Materi ({Math.min(eligibleJobs.length, availableBatchPackages)})
                 </button>
               )}
               {cvPanelOpen ? <ChevronUp className="h-4 w-4 text-ink-soft" /> : <ChevronDown className="h-4 w-4 text-ink-soft" />}
@@ -623,7 +663,7 @@ export function JobsPage() {
                     className="flex items-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-forest-dark disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
                   >
                     <Zap className="h-4 w-4" />
-                    Siapkan {Math.min(eligibleJobs.length, availableBatchPackages)} Lamaran ATS
+                    Siapkan {Math.min(eligibleJobs.length, availableBatchPackages)} Paket Lamaran
                   </button>
                 </div>
               )}
@@ -731,7 +771,11 @@ export function JobsPage() {
                     onClick={() => {
                       setLoading(true);
                       setLoadError(null);
+                      setJobSources([]);
                       setLocationFilter(loc.id as typeof locationFilter);
+                      if (loc.id === locationFilter) {
+                        setRetryKey((key) => key + 1);
+                      }
                     }}
                     className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
                       locationFilter === loc.id
@@ -758,8 +802,12 @@ export function JobsPage() {
                   onClick={() => {
                     setLoading(true);
                     setLoadError(null);
+                    setJobSources([]);
                     setSearchKeyword(role);
                     setSubmittedKeyword(role);
+                    if (role === submittedKeyword) {
+                      setRetryKey((key) => key + 1);
+                    }
                   }}
                   className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-[11px] transition-all cursor-pointer ${
                     submittedKeyword.toLowerCase() === role.toLowerCase()
@@ -810,12 +858,12 @@ export function JobsPage() {
               <div className="mb-5 flex flex-col gap-3 rounded-xl border border-forest/20 bg-forest-tint/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-bold text-ink">
-                    Siapkan paket lamaran untuk beberapa lowongan sekaligus
+                    Siapkan materi lamaran untuk beberapa lowongan sekaligus
                   </p>
                   <p className="mt-1 text-xs text-ink-soft">
                     {user
                       ? `Sisa ${remainingBatchTasks} task AI, cukup untuk ${availableBatchPackages} paket. Satu paket memakai 3 task (analisis CV, CV tailored, cover letter).${availableBatchPackages === 0 ? " Kuota perlu minimal 3 task untuk memilih lowongan." : ""}`
-                      : `Mode Tamu (Guest): Kamu bisa memilih hingga ${availableBatchPackages} lowongan untuk disiapkan paket lamarannya di halaman Optimize.`}
+                      : `Mode Tamu (Guest): Kamu bisa memilih hingga ${availableBatchPackages} lowongan untuk menyiapkan materi lamarannya di halaman Optimize.`}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -837,9 +885,9 @@ export function JobsPage() {
                       eligibleJobs.length === 0
                     }
                     className="rounded-lg border border-forest px-4 py-2 text-xs font-bold text-forest hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
-                    title={`Pilih lowongan Greenhouse/Lever dengan skill match minimal ${autoApplyMinScore}%`}
+                    title={`Pilih lowongan Greenhouse/Lever dengan skill match minimal ${autoApplyMinScore}%; pengiriman tetap manual`}
                   >
-                    Pilih ATS ≥{autoApplyMinScore}% ({Math.min(eligibleJobs.length, availableBatchPackages)})
+                    Pilih ATS didukung ≥{autoApplyMinScore}% ({Math.min(eligibleJobs.length, availableBatchPackages)})
                   </button>
                   <button
                     type="button"
@@ -863,6 +911,39 @@ export function JobsPage() {
               {isPersonalized ? "Diurutkan berdasarkan skill CV, lalu indikasi sponsorship" : "Upload CV untuk personalisasi; sponsorship hanya berdasarkan teks"}
             </span>
           </div>
+          {jobSources.length > 0 && (
+            <div className="mb-4 rounded-lg border border-line bg-paper-raised px-3 py-2">
+              <p className="text-[10px] font-semibold text-ink-soft">
+                Status sumber (jumlah listing yang dikembalikan API sebelum penyaringan):
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {jobSources.map((source) => {
+                  const label = source.status === "available"
+                    ? `${source.label}: merespons (${source.receivedCount})`
+                    : source.status === "failed"
+                      ? `${source.label}: gagal`
+                      : source.status === "not_configured"
+                        ? `${source.label}: API key belum diatur`
+                        : `${source.label}: tidak ada listing`;
+                  const className = source.status === "available"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : source.status === "failed"
+                      ? "border-rust/30 bg-rust-tint text-rust"
+                      : source.status === "not_configured"
+                        ? "border-amber-200 bg-amber-50 text-amber-900"
+                        : "border-line bg-paper text-ink-soft";
+                  return (
+                    <span
+                      key={source.label}
+                      className={`rounded-full border px-2 py-1 text-[10px] font-medium ${className}`}
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="py-16 text-center">
@@ -880,6 +961,7 @@ export function JobsPage() {
                 onClick={() => {
                   setLoading(true);
                   setLoadError(null);
+                  setJobSources([]);
                   setRetryKey((key) => key + 1);
                 }}
                 className="mt-4 rounded-lg bg-forest px-4 py-2 text-xs font-semibold text-white hover:bg-forest-dark"
@@ -891,11 +973,24 @@ export function JobsPage() {
             <div className="rounded-xl border border-line bg-paper-raised p-12 text-center shadow-sm space-y-3">
               <Building2 className="mx-auto h-10 w-10 text-ink-soft/40" />
               <h3 className="font-serif text-base font-bold text-ink">
-                Tidak ada lowongan yang sesuai filter saat ini
+                {allConfiguredSourcesUnavailable
+                  ? "Sumber lowongan sedang tidak tersedia"
+                  : "Tidak ada lowongan yang sesuai filter saat ini"}
               </h3>
               <p className="text-xs text-ink-soft max-w-md mx-auto">
-                Coba pilih negara lain atau cari lewat Google Jobs.
+                {allConfiguredSourcesUnavailable
+                  ? "Semua sumber yang dikonfigurasi gagal dihubungi atau belum memiliki API key. Coba lagi atau gunakan pencarian eksternal."
+                  : "Coba profesi atau lokasi lain, atau lanjutkan pencarian di Google Jobs."}
               </p>
+              {allConfiguredSourcesUnavailable && (
+                <button
+                  type="button"
+                  onClick={() => setRetryKey((key) => key + 1)}
+                  className="mr-2 inline-flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-xs font-bold text-white shadow hover:bg-forest-dark"
+                >
+                  Coba sumber lagi
+                </button>
+              )}
               <button
                 onClick={handleOpenGoogleJobs}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition-all cursor-pointer"

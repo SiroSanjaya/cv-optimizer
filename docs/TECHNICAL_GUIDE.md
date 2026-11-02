@@ -173,7 +173,7 @@ Schema Prisma saat ini meliputi:
 - `Application`: lowongan, skor/analisis, status tracker, catatan, tanggal.
 - `UsageCredit`: pemakaian dan limit kuota bulanan user.
 - `AiJobReservation`: kaitan job queue dengan reservasi kuota.
-- `ApplicationStatus`: applied, hr_interview, user_interview, technical_test,
+- `ApplicationStatus`: saved, applied, hr_interview, user_interview, technical_test,
   offer, rejected, ghosted, withdrawn.
 
 Gunakan file migration Prisma yang ter-commit sebagai sumber perubahan schema.
@@ -258,6 +258,12 @@ feed remote tidak lagi dibatasi ke pekerjaan software. Sumber lokal Indonesia
 mencakup Kalibrr; pencarian negara Malaysia, Singapura, dan Australia
 menggunakan `JOOBLE_API_KEY` opsional. Cakupan dan jumlah hasil tetap
 bergantung pada sumber yang tersedia dan bukan katalog lengkap semua pekerjaan.
+Halaman Jobs memulai pencarian dari Indonesia dan menampilkan status setiap
+sumber (merespons, tidak ada listing, gagal, atau Jooble belum dikonfigurasi).
+Jumlah yang ditampilkan adalah listing yang dikembalikan API sebelum filter
+lokasi, validasi tautan, dan deduplikasi; angka ini bukan jumlah lowongan yang
+pasti relevan atau masih aktif. Sumber gagal tidak membatalkan hasil dari
+sumber lain.
 Status visa adalah deteksi teks sederhana: “belum disebut” tidak berarti
 sponsorship tersedia, dan kandidat tetap harus memverifikasi syarat dengan
 perusahaan.
@@ -276,7 +282,10 @@ cover letter yang dikenali. Data paket tidak dikirim ke backend atau disimpan
 oleh extension. Pengguna tetap mengunggah CV, menjawab pertanyaan form,
 memeriksa seluruh isi, dan menekan tombol submit sendiri. Setelah benar-benar
 submit, pengguna menandai hasil batch untuk menyimpan lowongan, status
-"terkirim", dan skor kecocokan ke tracker/dashboard. Skor tersebut bukan
+"terkirim", dan skor kecocokan ke tracker/dashboard. Menyimpan listing dari
+halaman Jobs atau Optimize menggunakan status `saved` ("belum melamar"), bukan
+"terkirim"; pengguna dapat mengubah status setelah benar-benar mengirim lamaran.
+Migration status baru harus dijalankan saat release. Skor tersebut bukan
 probabilitas diterima. Panduan instalasi lokal tersedia di
 `browser-extension/README.md`.
 
@@ -444,7 +453,44 @@ tanpa batas hanya berdasarkan kuota aplikasi atau free tier; pantau pemakaian
 dan biaya pada project Google, pasang alert, dan tetapkan kuota aplikasi yang
 sesuai dengan anggaran operator.
 
-## 10. Batasan produk yang perlu dipahami
+## 10. Validasi beta dan feedback
+
+Setelah CV berhasil dibuat, pengguna dapat mengirim survei singkat yang opsional.
+Jawabannya hanya kategori terstruktur (frekuensi melamar, nilai manfaat, fitur
+yang paling membantu, niat menggunakan lagi, rentang harga, dan hambatan); CV,
+deskripsi lowongan, nama, email, serta akun tidak dikirim. Data disimpan sebagai
+`FunnelEvent` tanpa migrasi baru. Jawaban harga adalah riset, bukan pembayaran
+atau bukti kesediaan membayar.
+
+Persetujuan analitik terpisah dan opsional. Jika disetujui, event penggunaan
+berikutnya memakai ID acak yang tersimpan di browser, tidak ditautkan ke akun.
+Pengguna dapat menghapus semua event dan feedback dengan ID perangkat tersebut
+dari halaman Privasi. Feedback dikirim ke `POST /api/feedback`, event yang
+diizinkan ke `POST /api/feedback/events`, dan penghapusan ke
+`DELETE /api/feedback/:sessionId`.
+
+Contoh query PostgreSQL untuk membaca hasil beta:
+
+```sql
+SELECT
+  metadata->>'applicationFrequency' AS application_frequency,
+  metadata->>'willingnessToPay' AS willingness_to_pay,
+  metadata->>'mainValue' AS main_value,
+  metadata->>'reuseIntent' AS reuse_intent,
+  COUNT(*) AS responses,
+  ROUND(AVG((metadata->>'valueRating')::numeric), 1) AS average_value_rating
+FROM "FunnelEvent"
+WHERE "eventName" = 'beta_feedback'
+GROUP BY 1, 2, 3, 4
+ORDER BY responses DESC;
+```
+
+Event penggunaan hanya mencakup pengguna yang menyetujui analitik; jangan
+menganggapnya sebagai total traffic atau memakai survei self-selected sebagai
+bukti harga. Tetapkan dan terapkan masa retensi data sebelum membuka beta ke
+publik.
+
+## 11. Batasan produk yang perlu dipahami
 
 - Hasil generatif dapat salah atau mengubah nuansa kalimat; verifikasi semua
   fakta CV dan cover letter.
@@ -459,7 +505,7 @@ sesuai dengan anggaran operator.
 - Antarmuka terutama Bahasa Indonesia; pengalaman bahasa Inggris belum
   sepenuhnya dilokalkan.
 
-## 11. Jalur belajar yang disarankan
+## 12. Jalur belajar yang disarankan
 
 Ikuti satu alur vertikal supaya hubungan frontend, API, service, dan test
 terlihat jelas:
@@ -490,7 +536,7 @@ Untuk setiap perubahan, jalankan test backend yang berkaitan, `npm test`,
 `npm run check` frontend, lalu tinjau `git diff --check` dan diff sebelum
 commit.
 
-## 12. Istilah singkat
+## 13. Istilah singkat
 
 - **API:** antarmuka HTTP yang dipakai frontend dan worker.
 - **BullMQ:** library job queue Node.js berbasis Redis.

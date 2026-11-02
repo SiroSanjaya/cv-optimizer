@@ -46,7 +46,7 @@ export function ApplicationsPage() {
   const [company, setCompany] = useState("");
   const [position, setPosition] = useState("");
   const [jobUrl, setJobUrl] = useState("");
-  const [status, setStatus] = useState<ApplicationStatus>("applied");
+  const [status, setStatus] = useState<ApplicationStatus>("saved");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -117,6 +117,7 @@ export function ApplicationsPage() {
         position: job.position,
         jobDescription: job.jobDescription,
         jobUrl: job.sourceUrl || undefined,
+        status: "saved",
       });
       await loadApps();
     } catch {
@@ -157,6 +158,11 @@ export function ApplicationsPage() {
   };
 
   const stages: StageConfig[] = [
+    {
+      key: "saved",
+      label: "Disimpan · belum melamar",
+      badge: "bg-amber-100 text-amber-900 border-amber-200",
+    },
     {
       key: "applied",
       label: "Lamaran Terkirim",
@@ -214,7 +220,7 @@ export function ApplicationsPage() {
               </h1>
             </div>
             <p className="mt-1 text-xs text-ink-soft">
-              Rekap semua posisi yang kamu lamar, pantau tahapan interview HR & User, hingga offer diterima!
+              Simpan lowongan yang menarik, lalu pantau setelah lamaran benar-benar dikirim sampai interview dan offer.
             </p>
           </div>
 
@@ -379,6 +385,7 @@ export function ApplicationsPage() {
                                 onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
                                 className="w-full rounded border border-line bg-paper-raised px-1.5 py-1 text-[10px] text-ink focus:border-forest focus:outline-none"
                               >
+                                <option value="saved">Disimpan · belum melamar</option>
                                 <option value="applied">Lamaran Terkirim</option>
                                 <option value="hr_interview">Interview HR</option>
                                 <option value="user_interview">Interview User</option>
@@ -408,7 +415,7 @@ export function ApplicationsPage() {
                   <th className="px-4 py-3 font-semibold">Tahap Saat Ini</th>
                   <th className="px-4 py-3 font-semibold">Skor kecocokan CV</th>
                   <th className="px-4 py-3 font-semibold">Catatan / Link</th>
-                  <th className="px-4 py-3 font-semibold">Tanggal Lamar</th>
+                  <th className="px-4 py-3 font-semibold">Tanggal dicatat</th>
                   <th className="px-4 py-3 font-semibold text-right">Aksi</th>
                 </tr>
               </thead>
@@ -432,6 +439,7 @@ export function ApplicationsPage() {
                           onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
                           className="rounded border border-line bg-paper px-2 py-1 text-xs font-semibold text-ink focus:border-forest"
                         >
+                          <option value="saved">Disimpan · belum melamar</option>
                           <option value="applied">Lamaran Terkirim</option>
                           <option value="hr_interview">Interview HR</option>
                           <option value="user_interview">Interview User</option>
@@ -539,6 +547,7 @@ export function ApplicationsPage() {
                     onChange={(e) => setStatus(e.target.value as ApplicationStatus)}
                     className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink focus:border-forest focus:outline-none"
                   >
+                    <option value="saved">Disimpan · belum melamar</option>
                     <option value="applied">Lamaran Terkirim (Screening)</option>
                     <option value="hr_interview">Interview HR</option>
                     <option value="user_interview">Interview User</option>

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { Header } from "../components/Header";
 import { HeroDocument } from "../components/HeroDocument";
+import { trackProductEvent } from "../lib/api";
 
 const trustPoints = [
   { icon: CheckCircle2, label: "Isi CV tetap berdasarkan pengalamanmu" },
@@ -69,6 +71,10 @@ const steps = [
 ];
 
 export function LandingPage() {
+  useEffect(() => {
+    void trackProductEvent("landing_viewed");
+  }, []);
+
   return (
     <div className="min-h-screen bg-paper">
       <Header />
@@ -82,7 +88,7 @@ export function LandingPage() {
             <div className="min-w-0">
               <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-semibold leading-4 text-white/90 backdrop-blur sm:text-xs">
                 <BriefcaseBusiness className="h-3.5 w-3.5" />
-                <span>Buat proses lamar kerja lebih rapi</span>
+                <span>Untuk profesional yang aktif melamar</span>
               </div>
 
               <h1 className="mt-4 max-w-2xl font-sans text-[1.9rem] font-extrabold leading-[1.08] tracking-tight text-white sm:mt-6 sm:text-5xl lg:text-6xl">
@@ -90,8 +96,9 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-3 max-w-xl text-[13px] leading-6 text-white/75 sm:mt-5 sm:text-base sm:leading-7">
-                Cari lowongan, siapkan CV dan surat lamaran, lalu catat
-                progresnya. Kamu tetap cek dan kirim sendiri.
+                Mulai dari lowongan yang kamu incar, cek kecocokan CV, siapkan
+                dokumen lamaran, lalu catat progresnya. Kamu tetap meninjau dan
+                mengirim sendiri.
               </p>
 
               <div className="mt-5 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:items-center">

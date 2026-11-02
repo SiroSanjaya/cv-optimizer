@@ -1,7 +1,25 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "../components/Header";
+import { deleteProductData } from "../lib/api";
 
 export function PrivacyPage() {
+  const [deletionStatus, setDeletionStatus] = useState<string | null>(null);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
+
+  const handleDeleteProductData = async () => {
+    setDeletionStatus(null);
+    setDeletionError(null);
+    try {
+      await deleteProductData();
+      setDeletionStatus("Feedback dan data penggunaan anonim dari perangkat ini sudah dihapus.");
+    } catch (error) {
+      setDeletionError(
+        error instanceof Error ? error.message : "Data belum berhasil dihapus. Silakan coba lagi."
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-paper">
       <Header />
@@ -60,6 +78,32 @@ export function PrivacyPage() {
             menghapus akun dan data terkait melalui Dashboard. Penghapusan ini tidak
             mengatur salinan atau kebijakan retensi Google Gemini.
           </p>
+        </section>
+
+        <section className="mt-6 space-y-3">
+          <h2 className="font-serif text-xl font-bold">Feedback beta dan analitik</h2>
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Jawaban survei beta disimpan di database bersama ID acak yang tersimpan
+            di browser ini agar feedback dari perangkat yang sama dapat dihapus.
+            Jawaban tidak berisi nama, email, CV, atau deskripsi lowongan. Aktivitas
+            penggunaan seperti membuka alur optimasi, menyelesaikan analisis,
+            mengunduh CV, dan menyimpan tracker hanya dicatat jika kamu menyetujuinya
+            di survei. Aktivitas tersebut memakai ID acak yang sama dan tidak
+            dihubungkan dengan akun.
+          </p>
+          <button
+            type="button"
+            onClick={handleDeleteProductData}
+            className="min-h-10 rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-paper-raised"
+          >
+            Hapus feedback dan data penggunaan perangkat ini
+          </button>
+          {deletionStatus && (
+            <p role="status" className="text-sm text-emerald-800">{deletionStatus}</p>
+          )}
+          {deletionError && (
+            <p role="alert" className="text-sm text-red-700">{deletionError}</p>
+          )}
         </section>
 
         <section className="mt-6 space-y-3">
