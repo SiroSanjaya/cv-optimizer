@@ -406,9 +406,9 @@ export function InterviewPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto w-full max-w-5xl px-6 py-8 flex-1">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 sm:px-6 sm:py-8">
         {/* Breadcrumb & Navigation */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-ink-soft">
             <Link to="/dashboard" className="hover:text-forest">Dashboard</Link>
             <ChevronRight className="h-3.5 w-3.5" />

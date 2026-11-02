@@ -38,6 +38,7 @@ export function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [mobileStage, setMobileStage] = useState<ApplicationStatus | "all">("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [jobImporterOpen, setJobImporterOpen] = useState(false);
@@ -209,13 +210,13 @@ export function ApplicationsPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto w-full max-w-7xl px-6 py-8 flex-1">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-8">
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-6">
           <div>
             <div className="flex items-center gap-2">
               <Briefcase className="h-6 w-6 text-forest" />
-              <h1 className="font-serif text-2xl font-bold text-ink">
+              <h1 className="font-serif text-xl font-bold text-ink sm:text-2xl">
                 Tracker Status Lamaran Kerja
               </h1>
             </div>
@@ -224,7 +225,7 @@ export function ApplicationsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
             <div className="flex items-center rounded-lg border border-line bg-paper-raised p-1 text-xs">
               <button
                 onClick={() => setViewMode("kanban")}
@@ -300,9 +301,104 @@ export function ApplicationsPage() {
               Coba lagi
             </Button>
           </div>
-        ) : viewMode === "kanban" ? (
-          <div className="mt-8 overflow-x-auto pb-3">
-            <div className="grid min-w-[1760px] grid-cols-8 gap-4 items-start">
+        ) : (
+          <>
+          <section className="mt-6 space-y-3 lg:hidden" aria-label="Daftar lamaran">
+            <label htmlFor="mobile-application-stage" className="block text-xs font-semibold text-ink">
+              Filter tahap lamaran
+            </label>
+            <select
+              id="mobile-application-stage"
+              value={mobileStage}
+              onChange={(event) => setMobileStage(event.target.value as ApplicationStatus | "all")}
+              className="w-full rounded-lg border border-line bg-paper-raised px-3 py-2.5 text-sm text-ink"
+            >
+              <option value="all">Semua tahap ({applications.length})</option>
+              {stages.map((stage) => (
+                <option key={stage.key} value={stage.key}>
+                  {stage.label} ({applications.filter((app) => app.status === stage.key).length})
+                </option>
+              ))}
+            </select>
+
+            {applications.filter((app) => mobileStage === "all" || app.status === mobileStage).length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line bg-paper-raised p-6 text-center">
+                <p className="text-sm font-semibold text-ink">
+                  {applications.length === 0 ? "Belum ada lowongan di tracker" : "Belum ada lamaran di tahap ini"}
+                </p>
+                <p className="mt-1 text-xs text-ink-soft">
+                  Simpan lowongan yang menarik, lalu catat status lamaranmu di sini.
+                </p>
+                {applications.length === 0 && (
+                  <Button onClick={() => navigate("/jobs")} className="mt-4">
+                    Cari lowongan
+                  </Button>
+                )}
+              </div>
+            ) : (
+              applications
+                .filter((app) => mobileStage === "all" || app.status === mobileStage)
+                .map((app) => (
+                  <article key={app.id} className="rounded-xl border border-line bg-paper-raised p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h2 className="break-words text-sm font-bold text-ink">{app.position}</h2>
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-soft">
+                          <Building2 className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{app.company}</span>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(app.id)}
+                        aria-label={`Hapus lamaran ${app.position} di ${app.company}`}
+                        className="shrink-0 rounded-lg p-2 text-ink-soft hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${stages.find((stage) => stage.key === app.status)?.badge ?? ""}`}>
+                        {stages.find((stage) => stage.key === app.status)?.label ?? app.status}
+                      </span>
+                      {app.matchScore != null && (
+                        <span className="rounded-full bg-forest-tint px-2.5 py-1 text-[11px] font-bold text-forest">
+                          {app.matchScore}% cocok
+                        </span>
+                      )}
+                    </div>
+                    {app.notes && <p className="mt-3 break-words text-xs text-ink-soft">{app.notes}</p>}
+                    <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3">
+                      <label htmlFor={`mobile-status-${app.id}`} className="text-[11px] font-semibold text-ink-soft">
+                        Perbarui tahap
+                      </label>
+                      <select
+                        id={`mobile-status-${app.id}`}
+                        value={app.status}
+                        onChange={(event) => handleStatusChange(app.id, event.target.value as ApplicationStatus)}
+                        className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink"
+                      >
+                        {stages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
+                      </select>
+                      {app.jobUrl && (
+                        <a
+                          href={app.jobUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-forest hover:underline"
+                        >
+                          Buka lowongan <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                ))
+            )}
+          </section>
+
+          {viewMode === "kanban" ? (
+          <div className="mt-8 hidden pb-3 lg:block">
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {stages.map((stage) => {
                 const items = applications.filter((a) => a.status === stage.key);
 
@@ -407,8 +503,8 @@ export function ApplicationsPage() {
           </div>
         ) : (
           /* Table View */
-          <div className="mt-8 overflow-hidden rounded-xl border border-line bg-paper-raised shadow-sm">
-            <table className="w-full text-left text-xs">
+          <div className="mt-8 hidden overflow-x-auto rounded-xl border border-line bg-paper-raised shadow-sm lg:block">
+            <table className="w-full min-w-[900px] text-left text-xs">
               <thead className="border-b border-line bg-paper text-ink-soft">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Posisi & Perusahaan</th>
@@ -486,6 +582,8 @@ export function ApplicationsPage() {
               </tbody>
             </table>
           </div>
+          )}
+          </>
         )}
 
         {/* Modal Tambah Lamaran */}

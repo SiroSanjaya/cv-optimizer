@@ -497,53 +497,56 @@ export function JobsPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:px-6 sm:py-8">
 
         {/* ── JOB-APPLICATION ASSISTANT ──────────────────────────────────── */}
-        <div className="mb-6 overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-sm">
+        <div className="order-2 mb-5 overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-sm">
           {/* Header row */}
-          <div
-            className="flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-4 transition-colors hover:bg-paper/70 sm:px-5"
-            onClick={() => setCvPanelOpen((o) => !o)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-forest-tint text-forest">
-                <Rocket className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="font-bold text-sm text-ink">
-                  {parsedSkills.length > 0
-                    ? `CV Terdeteksi · ${parsedSkills.length} skill · ${eligibleJobs.length} loker cocok`
-                    : "Asisten Lamaran — Siapkan Dokumen ATS"}
-                </p>
-                <p className="text-[11px] text-ink-soft">
-                  {parsedSkills.length > 0
-                    ? `${eligibleJobs.length} lowongan Greenhouse/Lever dengan match ≥${autoApplyMinScore}%`
-                    : "Upload CV untuk melihat kecocokan dan menyiapkan dokumen lamaran"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 px-2 py-2 sm:px-3">
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 cursor-pointer select-none items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-paper/70"
+              aria-expanded={cvPanelOpen}
+              aria-controls="job-application-assistant"
+              onClick={() => setCvPanelOpen((open) => !open)}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-forest-tint text-forest">
+                  <Rocket className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-ink">
+                    {parsedSkills.length > 0
+                      ? `CV Terdeteksi · ${parsedSkills.length} skill · ${eligibleJobs.length} loker cocok`
+                      : "Opsional · Tambahkan CV untuk skor kecocokan"}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-ink-soft">
+                    {parsedSkills.length > 0
+                      ? `${eligibleJobs.length} lowongan Greenhouse/Lever dengan match ≥${autoApplyMinScore}%`
+                      : "Lowongan bisa dicari dulu tanpa upload CV"}
+                  </span>
+                </span>
+              </span>
+              {cvPanelOpen ? <ChevronUp className="h-4 w-4 shrink-0 text-ink-soft" /> : <ChevronDown className="h-4 w-4 shrink-0 text-ink-soft" />}
+            </button>
+            <div className="flex shrink-0 items-center gap-2">
               {parsedSkills.length > 0 && eligibleJobs.length > 0 && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePrepareAutoApplyBatch();
-                  }}
+                  onClick={handlePrepareAutoApplyBatch}
                   disabled={availableBatchPackages === 0}
                   className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-xs font-bold text-white shadow hover:bg-forest-dark transition-all cursor-pointer"
                 >
                   <Zap className="h-3.5 w-3.5" />
-                  Siapkan Materi ({Math.min(eligibleJobs.length, availableBatchPackages)})
+                  <span className="hidden sm:inline">Siapkan Materi</span>
+                  <span>({Math.min(eligibleJobs.length, availableBatchPackages)})</span>
                 </button>
               )}
-              {cvPanelOpen ? <ChevronUp className="h-4 w-4 text-ink-soft" /> : <ChevronDown className="h-4 w-4 text-ink-soft" />}
             </div>
           </div>
 
           {/* Expandable body */}
           {cvPanelOpen && (
-            <div className="space-y-4 border-t border-line px-4 pb-5 pt-4 sm:px-5">
+            <div id="job-application-assistant" className="space-y-4 border-t border-line px-4 pb-5 pt-4 sm:px-5">
               {/* Step 1: Upload */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <div
@@ -692,12 +695,12 @@ export function JobsPage() {
         </div>
 
         {/* Banner Hero */}
-        <div className="flex flex-col rounded-2xl border border-line bg-paper-raised p-4 shadow-sm sm:p-6">
+        <div className="order-1 flex flex-col rounded-2xl border border-line bg-paper-raised p-4 shadow-sm sm:p-6">
         <div className="order-5 grid gap-3 border-t border-line pt-4 sm:flex sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-forest">
               <Sparkles className="h-5 w-5" />
               <span className="text-xs font-bold uppercase tracking-wider">
-                Lowongan yang Dicocokkan dengan CV
+                Pencarian Lowongan
               </span>
             </div>
 
@@ -734,7 +737,7 @@ export function JobsPage() {
             Lowongan Kerja dari Berbagai Sumber
           </h1>
           <p className="order-2 mt-1 max-w-2xl text-xs leading-relaxed text-ink-soft">
-            Urutkan hingga 100 lowongan berdasarkan skill CV. Indikasi sponsorship hanya ditampilkan jika tertulis jelas di deskripsi; verifikasi lagi di situs perusahaan.
+            Cari dan bandingkan hingga 100 lowongan. Tambahkan CV secara opsional untuk melihat kecocokan skill; indikasi sponsorship hanya berdasarkan teks deskripsi.
           </p>
 
           {/* Search Form */}
@@ -745,7 +748,7 @@ export function JobsPage() {
                 type="text"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Cari profesi atau keahlian (misal: akuntan, sales, guru, perawat, designer, engineer)..."
+                placeholder="Cari profesi atau keahlian, mis. engineer"
                 className="min-h-11 w-full rounded-xl border border-line bg-paper pl-10 pr-4 py-2.5 text-sm text-ink shadow-xs placeholder:text-ink-soft/60 focus:border-forest focus:outline-none"
               />
             </div>
@@ -768,7 +771,7 @@ export function JobsPage() {
           {/* Location & Category Filters */}
           <div className="order-4 mt-4 flex flex-col justify-between gap-4 border-t border-line pt-4 sm:flex-row sm:items-center">
             {/* Location Selector */}
-            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto rounded-lg border border-line bg-paper p-1">
+            <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-line bg-paper p-1 sm:flex sm:flex-wrap">
               {[
                 { id: "all", label: "Semua Target", icon: Globe },
                 { id: "indonesia", label: "Indonesia", icon: MapPin },
@@ -791,7 +794,7 @@ export function JobsPage() {
                         setRetryKey((key) => key + 1);
                       }
                     }}
-                    className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                    className={`flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2 text-xs font-semibold transition-all cursor-pointer sm:px-3 ${
                       locationFilter === loc.id
                         ? "bg-forest text-white shadow-xs"
                         : "text-ink-soft hover:text-ink"
@@ -805,11 +808,11 @@ export function JobsPage() {
             </div>
 
             {/* Profession quick searches */}
-            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto py-1 text-xs">
-              <span className="text-ink-soft text-[11px] font-medium mr-1 flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1.5 py-1 text-xs">
+              <span className="basis-full text-ink-soft text-[11px] font-medium flex items-center gap-1">
                 <Filter className="h-3 w-3" /> Coba profesi:
               </span>
-              {suggestedRoles.map((role) => (
+              {suggestedRoles.map((role, index) => (
                 <button
                   key={role}
                   type="button"
@@ -823,7 +826,7 @@ export function JobsPage() {
                       setRetryKey((key) => key + 1);
                     }
                   }}
-                  className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-[11px] transition-all cursor-pointer ${
+                  className={`${index >= 6 ? "hidden sm:inline-flex" : "inline-flex"} whitespace-nowrap rounded-full px-3 py-2 text-[11px] transition-all cursor-pointer ${
                     submittedKeyword.toLowerCase() === role.toLowerCase()
                       ? "bg-forest-tint text-forest font-bold border border-forest/40 shadow-xs"
                       : "border border-line bg-paper-raised text-ink-soft hover:text-ink hover:border-forest/40"
@@ -840,7 +843,7 @@ export function JobsPage() {
         </div>
 
         {/* Status / Personalization Banner */}
-        <div className="mt-6">
+        <div className="order-3 mt-4">
           {isPersonalized ? (
             <div className="flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-900 shadow-xs">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -867,7 +870,7 @@ export function JobsPage() {
         </div>
 
         {/* Jobs Grid */}
-        <div className="mt-8">
+        <div className="order-4 mt-6">
             {jobs.length > 0 && (
               <div className="mb-5 flex flex-col gap-3 rounded-xl border border-forest/20 bg-forest-tint/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>

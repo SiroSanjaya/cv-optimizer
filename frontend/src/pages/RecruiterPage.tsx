@@ -96,9 +96,9 @@ export function RecruiterPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl px-6 py-8 flex-1 space-y-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-5 sm:space-y-8 sm:px-6 sm:py-8">
         {/* Recruiter Hero Banner */}
-        <div className="rounded-2xl border border-line bg-gradient-to-r from-blue-900/10 via-paper-raised to-paper-raised p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="rounded-2xl border border-line bg-gradient-to-r from-blue-900/10 via-paper-raised to-paper-raised p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5 sm:p-6">
           <div>
             <div className="flex items-center gap-2 text-blue-800">
               <Building2 className="h-5 w-5" />

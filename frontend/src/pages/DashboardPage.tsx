@@ -133,7 +133,7 @@ export function DashboardPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl px-6 py-8 flex-1 space-y-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-5 sm:space-y-8 sm:px-6 sm:py-8">
         {loading ? (
           <div className="py-24 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-forest border-r-transparent mb-3" />
@@ -142,7 +142,7 @@ export function DashboardPage() {
         ) : (
           <>
             {/* User Hero Banner */}
-            <div className="rounded-2xl border border-line bg-gradient-to-r from-forest-tint/70 via-paper-raised to-paper-raised p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="rounded-2xl border border-line bg-gradient-to-r from-forest-tint/70 via-paper-raised to-paper-raised p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5 sm:p-6">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   {user?.picture ? (
@@ -211,8 +211,8 @@ export function DashboardPage() {
             )}
 
             {/* Objective Key Metrics Row */}
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <div className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+              <div className="rounded-xl border border-line bg-paper-raised p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between text-ink-soft">
                   <span className="text-xs font-bold uppercase tracking-wider">Total Lamaran</span>
                   <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
@@ -227,7 +227,7 @@ export function DashboardPage() {
                 </span>
               </div>
 
-              <div className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm">
+              <div className="rounded-xl border border-line bg-paper-raised p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between text-ink-soft">
                   <span className="text-xs font-bold uppercase tracking-wider">Skor Kecocokan Rata-rata</span>
                   <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
@@ -242,7 +242,7 @@ export function DashboardPage() {
                 </span>
               </div>
 
-              <div className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm">
+              <div className="rounded-xl border border-line bg-paper-raised p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between text-ink-soft">
                   <span className="text-xs font-bold uppercase tracking-wider">Tahap Wawancara Aktif</span>
                   <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
@@ -257,7 +257,7 @@ export function DashboardPage() {
                 </span>
               </div>
 
-              <div className="rounded-xl border border-line bg-paper-raised p-5 shadow-sm">
+              <div className="rounded-xl border border-line bg-paper-raised p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between text-ink-soft">
                   <span className="text-xs font-bold uppercase tracking-wider">Total Offer</span>
                   <div className="rounded-lg bg-amber-50 p-2 text-amber-600">

@@ -23,7 +23,7 @@ export function PrivacyPage() {
   return (
     <div className="min-h-screen bg-paper">
       <Header />
-      <main className="mx-auto max-w-3xl px-6 py-12 text-ink">
+      <main className="mx-auto max-w-3xl px-4 py-8 text-ink sm:px-6 sm:py-12">
         <Link to="/" className="text-sm font-semibold text-forest underline">
           Kembali ke beranda
         </Link>

@@ -64,11 +64,12 @@ export function Header() {
   const mobilePrimaryItems = user
     ? [
       { to: "/jobs", label: "Lowongan", icon: Search },
+      { to: "/optimize", label: "Siapkan CV", icon: FileText },
       { to: "/tracker", label: "Tracker", icon: Briefcase },
-      { to: "/interview", label: "Latihan", icon: Sparkles },
     ]
     : [
       { to: "/jobs", label: "Lowongan", icon: Search },
+      { to: "/optimize", label: "Siapkan CV", icon: FileText },
       { to: "/login", label: "Masuk", icon: LogIn },
     ];
 
@@ -290,16 +291,6 @@ export function Header() {
               </div>
             )}
 
-            <Link
-              to="/optimize"
-              onClick={closeMenus}
-              aria-label="Siapkan CV untuk lowongan"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-forest px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-forest-dark sm:px-4 sm:text-sm xl:hidden"
-            >
-              <FileText className="h-4 w-4 shrink-0" />
-              <span className="hidden min-[360px]:inline">Siapkan CV</span>
-            </Link>
-
             <button
               type="button"
               aria-label={mobileMenuOpen ? "Tutup navigasi" : "Buka navigasi"}
@@ -420,7 +411,7 @@ export function Header() {
         aria-label="Navigasi cepat"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper-raised/95 px-2 pt-2 shadow-[0_-8px_24px_rgba(23,33,58,0.08)] backdrop-blur-lg [padding-bottom:calc(0.5rem+env(safe-area-inset-bottom))] xl:hidden"
       >
-        <div className="mx-auto flex max-w-lg items-stretch justify-around gap-1">
+        <div className="mx-auto grid max-w-lg grid-cols-3 gap-1">
           {mobilePrimaryItems.map(({ to, label, icon: Icon }) => {
             const active = isActive(to);
             return (

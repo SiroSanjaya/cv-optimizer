@@ -111,7 +111,7 @@ export function LoginPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto flex w-full max-w-4xl flex-1 items-center justify-center px-6 py-12">
+      <main className="mx-auto flex w-full max-w-4xl flex-1 items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
         <div className="grid w-full overflow-hidden rounded-2xl border border-line bg-paper-raised shadow-xl md:grid-cols-12">
           {/* Left Hero Brand Panel */}
           <div className="bg-gradient-to-br from-forest to-forest-dark p-8 text-white md:col-span-5 flex flex-col justify-between">
