@@ -462,6 +462,53 @@ Build dan unit test bukan load test. Jumlah pengguna yang dapat ditangani
 bergantung pada request mix, latensi dan batas provider, concurrency worker,
 ukuran database/Redis, serta konfigurasi hosting.
 
+### Railway Free Trial untuk beta terbatas
+
+Konfigurasi berikut menggunakan Vercel untuk frontend, Railway untuk API,
+worker, dan Redis, serta Supabase untuk PostgreSQL. Railway saat ini menawarkan
+kredit trial satu kali sebesar $5 selama 30 hari tanpa kartu kredit. Setelah
+trial, paket gratis mencakup kredit pemakaian $1 per bulan; layanan yang
+melewati kredit dapat berhenti atau membutuhkan upgrade. Ini bukan jaminan
+uptime production. Periksa [harga Railway](https://railway.com/pricing) dan
+pantau pemakaian sebelum mengundang pengguna.
+
+1. Hubungkan repository GitHub ke project Railway. Buat service API dari
+   repository tersebut dan atur **Root Directory** ke `/backend`; Railway
+   akan menggunakan `backend/Dockerfile`.
+2. Tambahkan Redis private di project yang sama. Jangan membuat Redis dapat
+   diakses publik. Gunakan URL internal Redis Railway sebagai `REDIS_URL`.
+3. Isi variable API di Railway:
+   `NODE_ENV=production`, `FRONTEND_URL` dengan origin frontend Vercel,
+   `DATABASE_URL` dan `DIRECT_URL` dari Supabase, `REDIS_URL`,
+   `JWT_SECRET`, `AI_JOB_ENCRYPTION_KEY`, dan `GEMINI_API_KEY`. Tambahkan
+   `GOOGLE_CLIENT_ID` jika login Google digunakan. `DATABASE_URL` dipakai
+   aplikasi; `DIRECT_URL` dipakai Prisma saat migration. Simpan nilai rahasia
+   hanya di dashboard secret provider, jangan di Git atau chat.
+4. Pada service API, set **Pre-deploy Command** ke
+   `npx prisma migrate deploy`, lalu set health check path ke
+   `/api/ready`. Jalankan migration hanya dari satu service. Start command
+   API adalah `node dist/server.js` (default pada Dockerfile). Buat public
+   domain HTTPS setelah deployment berhasil.
+5. Buat service worker kedua dari repository yang sama, juga dengan **Root
+   Directory** `/backend`, dan set start command `npm run worker`. Berikan
+   worker `DATABASE_URL`, `REDIS_URL`, `AI_JOB_ENCRYPTION_KEY`, dan
+   `GEMINI_API_KEY` yang sama seperti API. Worker tidak memerlukan public
+   domain dan tidak menjalankan migration.
+6. Di Vercel, atur `VITE_API_URL` ke public origin API Railway, tanpa akhiran
+   `/api` (contoh bentuk: `https://nama-service.up.railway.app`). Atur
+   `VITE_GOOGLE_CLIENT_ID` jika login Google digunakan, lalu redeploy
+   frontend. Pastikan Google OAuth mengizinkan origin Vercel dan ID client
+   yang sama dipakai backend.
+7. Verifikasi `https://<domain-api>/api/health` dan
+   `https://<domain-api>/api/ready`; keduanya harus merespons API, dan
+   `/api/ready` harus menunjukkan `ready`. Uji login, simpan data, antrean AI,
+   serta hasilnya dari frontend live sebelum mengundang beta tester.
+
+Sebelum memasukkan credential database yang pernah dibagikan di percakapan,
+rotasi password Supabase dan credential terkait. Jangan gunakan lagi nilai
+yang terekspos. Kredensial baru harus dimasukkan langsung ke dashboard
+provider, bukan dikirim lewat chat.
+
 ### Biaya Gemini jika aplikasi dibuat gratis
 
 Google menyediakan free tier untuk model dan batas pemakaian tertentu; model,
