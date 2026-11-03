@@ -50,4 +50,7 @@ export interface AIProvider {
     cv: StructuredCv,
     jobDescription: string
   ): Promise<InterviewQuestion[]>;
+
+  /** Generate a JSON-formatted response for a validated feature-specific prompt. */
+  generateJsonResponse(prompt: string): Promise<string>;
 }

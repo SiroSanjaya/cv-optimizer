@@ -17,9 +17,13 @@ import {
   analyzeCustomJob,
   generateRecruiterPitch,
   analyzeCv,
+  getSavedJobs,
+  saveJob,
+  removeSavedJob,
   type RecommendedJob,
   type ImportedJob,
   type JobSourceStatus,
+  type SavedJob,
 } from "../lib/api";
 import {
   Search,
@@ -62,6 +66,49 @@ function isPostingDateStale(postedAtDate?: string): boolean {
   return ageDays !== undefined && ageDays > 30;
 }
 
+function getApplicationDeadlineLabel(deadline?: string): string | undefined {
+  if (!deadline) return undefined;
+  const timestamp = Date.parse(deadline);
+  if (Number.isNaN(timestamp)) return undefined;
+  const daysRemaining = Math.ceil((timestamp - Date.now()) / 86_400_000);
+  if (daysRemaining < 0) return "Deadline terlewat";
+  if (daysRemaining === 0) return "Deadline hari ini";
+  if (daysRemaining === 1) return "Deadline besok";
+  return `Deadline ${new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeZone: "Asia/Jakarta",
+  }).format(timestamp)} · ${daysRemaining} hari lagi`;
+}
+
+function isApplicationDeadlineExpired(deadline?: string): boolean {
+  const timestamp = deadline ? Date.parse(deadline) : Number.NaN;
+  return Number.isFinite(timestamp) && timestamp < Date.now();
+}
+
+interface JobSearchFilters {
+  company: string;
+  industry: string;
+  locationQuery: string;
+  experienceLevel: NonNullable<RecommendedJob["experienceLevel"]> | "";
+  employmentType: string;
+  salaryMin: string;
+  salaryMax: string;
+  salaryCurrency: string;
+  salaryPeriod: "hourly" | "monthly" | "annual";
+}
+
+const EMPTY_JOB_SEARCH_FILTERS: JobSearchFilters = {
+  company: "",
+  industry: "",
+  locationQuery: "",
+  experienceLevel: "",
+  employmentType: "",
+  salaryMin: "",
+  salaryMax: "",
+  salaryCurrency: "IDR",
+  salaryPeriod: "monthly",
+};
+
 export function JobsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -75,9 +122,15 @@ export function JobsPage() {
   const [locationFilter, setLocationFilter] = useState<
     "all" | "indonesia" | "malaysia" | "singapore" | "australia" | "remote"
   >("indonesia");
+  const [searchFilters, setSearchFilters] = useState<JobSearchFilters>(EMPTY_JOB_SEARCH_FILTERS);
+  const [appliedSearchFilters, setAppliedSearchFilters] = useState<JobSearchFilters>(EMPTY_JOB_SEARCH_FILTERS);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isPersonalized, setIsPersonalized] = useState<boolean>(false);
   const [selectedBatchJobs, setSelectedBatchJobs] = useState<RecommendedJob[]>([]);
+  const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
+  const [savedJobsLoading, setSavedJobsLoading] = useState(false);
+  const [savedJobsError, setSavedJobsError] = useState<string | null>(null);
+  const [showSavedJobs, setShowSavedJobs] = useState(false);
 
   // Job preparation and CV persistence
   const cvInputRef = useRef<HTMLInputElement>(null);
@@ -157,6 +210,15 @@ export function JobsPage() {
       keyword: submittedKeyword,
       location: locationFilter,
       skills: sessionSkills,
+      company: appliedSearchFilters.company,
+      industry: appliedSearchFilters.industry,
+      locationQuery: appliedSearchFilters.locationQuery,
+      experienceLevel: appliedSearchFilters.experienceLevel || undefined,
+      employmentType: appliedSearchFilters.employmentType,
+      salaryMin: appliedSearchFilters.salaryMin ? Number(appliedSearchFilters.salaryMin) : undefined,
+      salaryMax: appliedSearchFilters.salaryMax ? Number(appliedSearchFilters.salaryMax) : undefined,
+      salaryCurrency: appliedSearchFilters.salaryCurrency,
+      salaryPeriod: appliedSearchFilters.salaryPeriod,
     })
       .then((res) => {
         if (isMounted) {
@@ -178,7 +240,37 @@ export function JobsPage() {
     return () => {
       isMounted = false;
     };
-  }, [submittedKeyword, locationFilter, user?.id, retryKey, parsedSkills]);
+  }, [submittedKeyword, locationFilter, user?.id, retryKey, parsedSkills, appliedSearchFilters]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setSavedJobs([]);
+      setSavedJobsError(null);
+      return;
+    }
+
+    let active = true;
+    setSavedJobsLoading(true);
+    getSavedJobs()
+      .then((jobs) => {
+        if (active) {
+          setSavedJobs(jobs);
+          setSavedJobsError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setSavedJobsError(error instanceof Error ? error.message : "Gagal memuat lowongan tersimpan.");
+        }
+      })
+      .finally(() => {
+        if (active) setSavedJobsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,9 +279,22 @@ export function JobsPage() {
     setJobSources([]);
     const nextKeyword = searchKeyword.trim();
     setSubmittedKeyword(nextKeyword);
+    setAppliedSearchFilters({ ...searchFilters });
     if (nextKeyword === submittedKeyword) {
       setRetryKey((key) => key + 1);
     }
+  };
+
+  const updateSearchFilter = <K extends keyof JobSearchFilters,>(
+    key: K,
+    value: JobSearchFilters[K]
+  ) => {
+    setSearchFilters((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleOpenJobDetails = (job: RecommendedJob) => {
+    sessionStorage.setItem(`job_detail:${job.id}`, JSON.stringify(job));
+    navigate(`/jobs/detail?jobId=${encodeURIComponent(job.id)}`, { state: { job } });
   };
 
   const handleOpenGoogleJobs = () => {
@@ -425,6 +530,33 @@ export function JobsPage() {
     }
   };
 
+  const handleToggleSavedJob = async (job: RecommendedJob) => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    setSavingId(job.id);
+    setSavedJobsError(null);
+    try {
+      const alreadySaved = savedJobs.some((savedJob) => savedJob.externalId === job.id);
+      if (alreadySaved) {
+        await removeSavedJob(job.id);
+        setSavedJobs((current) => current.filter((savedJob) => savedJob.externalId !== job.id));
+      } else {
+        const savedJob = await saveJob(job);
+        setSavedJobs((current) => [
+          savedJob,
+          ...current.filter((item) => item.externalId !== job.id),
+        ]);
+      }
+    } catch (error) {
+      setSavedJobsError(error instanceof Error ? error.message : "Gagal memperbarui lowongan tersimpan.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   // Analyze Custom Job from Google / LinkedIn
   const handleAnalyzeCustomJob = async () => {
     if (!importText.trim()) return;
@@ -487,6 +619,9 @@ export function JobsPage() {
   const allConfiguredSourcesUnavailable =
     jobSources.length > 0 &&
     jobSources.every((source) => source.status === "failed" || source.status === "not_configured");
+  const visibleJobs: RecommendedJob[] = showSavedJobs
+    ? savedJobs.map((job) => ({ ...job, id: job.externalId }))
+    : jobs;
 
   return (
     <div className="min-h-screen bg-paper flex flex-col justify-between">
@@ -716,7 +851,7 @@ export function JobsPage() {
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 placeholder="Contoh: admin, perawat, software engineer"
-                aria-label="Profesi atau keahlian"
+                aria-label="Posisi atau keahlian"
                 className="min-h-11 w-full rounded-xl border border-line bg-paper pl-10 pr-4 py-2.5 text-sm text-ink shadow-xs placeholder:text-ink-soft/60 focus:border-forest focus:outline-none"
               />
             </div>
@@ -745,6 +880,139 @@ export function JobsPage() {
               Cari Lowongan
             </Button>
           </form>
+
+          <details className="mt-3 rounded-xl border border-line bg-paper/70 p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-forest">
+              Filter lanjutan: perusahaan, industri, pengalaman, tipe kerja, dan gaji
+            </summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                Perusahaan
+                <input
+                  value={searchFilters.company}
+                  onChange={(event) => updateSearchFilter("company", event.target.value)}
+                  maxLength={120}
+                  placeholder="Nama perusahaan"
+                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                Industri
+                <input
+                  value={searchFilters.industry}
+                  onChange={(event) => updateSearchFilter("industry", event.target.value)}
+                  maxLength={120}
+                  placeholder="Contoh: teknologi"
+                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                Kota / lokasi
+                <input
+                  value={searchFilters.locationQuery}
+                  onChange={(event) => updateSearchFilter("locationQuery", event.target.value)}
+                  maxLength={120}
+                  placeholder="Contoh: Jakarta"
+                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                Tingkat pengalaman
+                <select
+                  value={searchFilters.experienceLevel}
+                  onChange={(event) =>
+                    updateSearchFilter(
+                      "experienceLevel",
+                      event.target.value as JobSearchFilters["experienceLevel"]
+                    )
+                  }
+                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
+                >
+                  <option value="">Semua tingkat</option>
+                  <option value="internship">Magang</option>
+                  <option value="entry">Pemula / entry-level</option>
+                  <option value="mid">Menengah</option>
+                  <option value="senior">Senior</option>
+                  <option value="lead">Lead / manajerial</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                Tipe pekerjaan
+                <select
+                  value={searchFilters.employmentType}
+                  onChange={(event) => updateSearchFilter("employmentType", event.target.value)}
+                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
+                >
+                  <option value="">Semua tipe</option>
+                  <option value="full-time">Full-time</option>
+                  <option value="part-time">Part-time</option>
+                  <option value="contract">Kontrak</option>
+                  <option value="intern">Magang</option>
+                  <option value="freelance">Freelance</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                Gaji minimum
+                <input
+                  type="number"
+                  min="0"
+                  value={searchFilters.salaryMin}
+                  onChange={(event) => updateSearchFilter("salaryMin", event.target.value)}
+                  placeholder="Opsional"
+                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
+                />
+              </label>
+              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                Gaji maksimum
+                <input
+                  type="number"
+                  min="0"
+                  value={searchFilters.salaryMax}
+                  onChange={(event) => updateSearchFilter("salaryMax", event.target.value)}
+                  placeholder="Opsional"
+                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                  Mata uang
+                  <select
+                    value={searchFilters.salaryCurrency}
+                    onChange={(event) => updateSearchFilter("salaryCurrency", event.target.value)}
+                    className="min-h-10 w-full rounded-lg border border-line bg-paper px-2 text-xs text-ink focus:border-forest focus:outline-none"
+                  >
+                    <option value="IDR">IDR</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="AUD">AUD</option>
+                    <option value="SGD">SGD</option>
+                    <option value="MYR">MYR</option>
+                  </select>
+                </label>
+                <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
+                  Periode
+                  <select
+                    value={searchFilters.salaryPeriod}
+                    onChange={(event) =>
+                      updateSearchFilter(
+                        "salaryPeriod",
+                        event.target.value as JobSearchFilters["salaryPeriod"]
+                      )
+                    }
+                    className="min-h-10 w-full rounded-lg border border-line bg-paper px-2 text-xs text-ink focus:border-forest focus:outline-none"
+                  >
+                    <option value="monthly">Bulanan</option>
+                    <option value="annual">Tahunan</option>
+                    <option value="hourly">Per jam</option>
+                  </select>
+                </label>
+              </div>
+              <p className="text-[10px] leading-relaxed text-ink-soft sm:col-span-2 lg:col-span-4">
+                Filter gaji hanya mencocokkan data dengan mata uang dan periode yang jelas dari sumber. Lowongan tanpa informasi gaji terstruktur tidak ditampilkan saat rentang gaji diisi.
+              </p>
+            </div>
+          </details>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-ink-soft">
@@ -899,17 +1167,42 @@ export function JobsPage() {
                 </p>
               </div>
             )}
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2" role="tablist" aria-label="Daftar lowongan">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={!showSavedJobs}
+                onClick={() => setShowSavedJobs(false)}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${!showSavedJobs ? "bg-forest text-white" : "border border-line bg-paper-raised text-ink-soft"}`}
+              >
+                Rekomendasi
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={showSavedJobs}
+                onClick={() => setShowSavedJobs(true)}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${showSavedJobs ? "bg-forest text-white" : "border border-line bg-paper-raised text-ink-soft"}`}
+              >
+                Tersimpan ({savedJobs.length})
+              </button>
+            </div>
             <p className="text-xs font-semibold text-ink-soft">
-              Menampilkan <span className="text-ink font-bold">{jobs.length}</span> dari maksimal 100 lowongan
+              Menampilkan <span className="text-ink font-bold">{visibleJobs.length}</span>{showSavedJobs ? " lowongan tersimpan" : " dari maksimal 100 lowongan"}
             </p>
             <span className="text-[11px] text-ink-soft">
-              {isPersonalized
+              {!showSavedJobs && isPersonalized
                 ? "Urut berdasarkan skill CV · status visa dari teks"
-                : "CV opsional untuk skor skill · status visa dari teks"}
+                : !showSavedJobs ? "CV opsional untuk skor skill · status visa dari teks" : ""}
             </span>
           </div>
-          {jobSources.length > 0 && (
+          {savedJobsError && (
+            <p className="mb-3 rounded-lg border border-rust/30 bg-rust-tint px-3 py-2 text-xs text-rust" role="alert">
+              {savedJobsError}
+            </p>
+          )}
+          {!showSavedJobs && jobSources.length > 0 && (
             <div className="mb-4 rounded-lg border border-line bg-paper-raised px-3 py-2">
               <p className="text-[10px] font-semibold text-ink-soft">
                 Status sumber (jumlah listing yang dikembalikan API sebelum penyaringan):
@@ -943,14 +1236,14 @@ export function JobsPage() {
             </div>
           )}
 
-          {loading ? (
+          {(showSavedJobs ? savedJobsLoading : loading) ? (
             <div className="py-16 text-center">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-forest border-r-transparent" />
               <p className="mt-3 text-xs font-medium text-ink-soft">
                 Mencari listing dari sumber lowongan...
               </p>
             </div>
-          ) : loadError ? (
+          ) : !showSavedJobs && loadError ? (
             <div className="rounded-xl border border-rust/30 bg-rust-tint p-8 text-center" role="alert">
               <h3 className="font-semibold text-rust">Lowongan gagal dimuat</h3>
               <p className="mt-2 text-xs text-rust">{loadError}</p>
@@ -967,20 +1260,28 @@ export function JobsPage() {
                 Coba lagi
               </button>
             </div>
-          ) : jobs.length === 0 ? (
+          ) : visibleJobs.length === 0 ? (
             <div className="rounded-xl border border-line bg-paper-raised p-12 text-center shadow-sm space-y-3">
               <Building2 className="mx-auto h-10 w-10 text-ink-soft/40" />
               <h3 className="font-serif text-base font-bold text-ink">
-                {allConfiguredSourcesUnavailable
+                {showSavedJobs
+                  ? "Belum ada lowongan tersimpan"
+                  : allConfiguredSourcesUnavailable
                   ? "Sumber lowongan sedang tidak tersedia"
                   : "Tidak ada lowongan yang sesuai filter saat ini"}
               </h3>
               <p className="text-xs text-ink-soft max-w-md mx-auto">
-                {allConfiguredSourcesUnavailable
+                {showSavedJobs
+                  ? "Simpan lowongan yang menarik dari rekomendasi agar mudah ditemukan kembali."
+                  : allConfiguredSourcesUnavailable
                   ? "Semua sumber yang dikonfigurasi gagal dihubungi atau belum memiliki API key. Coba lagi atau gunakan pencarian eksternal."
                   : "Coba profesi atau lokasi lain, atau lanjutkan pencarian di Google Jobs."}
               </p>
-              {allConfiguredSourcesUnavailable && (
+              {showSavedJobs ? (
+                <button type="button" onClick={() => setShowSavedJobs(false)} className="rounded-xl bg-forest px-4 py-2 text-xs font-bold text-white hover:bg-forest-dark">
+                  Cari lowongan
+                </button>
+              ) : allConfiguredSourcesUnavailable && (
                 <button
                   type="button"
                   onClick={() => setRetryKey((key) => key + 1)}
@@ -989,17 +1290,19 @@ export function JobsPage() {
                   Coba sumber lagi
                 </button>
               )}
-              <button
-                onClick={handleOpenGoogleJobs}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition-all cursor-pointer"
-              >
-                <Globe className="h-3.5 w-3.5" />
-                <span>Buka Google Jobs untuk "{searchKeyword}"</span>
-              </button>
+              {!showSavedJobs && (
+                <button
+                  onClick={handleOpenGoogleJobs}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition-all cursor-pointer"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>Buka Google Jobs untuk "{searchKeyword}"</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
-              {jobs.map((job) => (
+              {visibleJobs.map((job) => (
                 <div
                   key={job.id}
                   className="rounded-2xl border border-line bg-paper-raised p-4 shadow-sm transition-all hover:border-forest/60 hover:shadow sm:p-5"
@@ -1074,8 +1377,25 @@ export function JobsPage() {
                       </div>
 
                       {job.matchScore != null && (
-                        <div className="shrink-0 rounded-lg bg-forest-tint px-2.5 py-1 text-xs font-bold text-forest">
-                          {job.matchScore}% skill cocok
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="rounded-lg bg-forest-tint px-2.5 py-1 text-xs font-bold text-forest">
+                            {job.matchScore}% kecocokan
+                          </span>
+                          {job.applyRecommendation && (
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              job.applyRecommendation === "apply"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : job.applyRecommendation === "consider"
+                                  ? "bg-amber-100 text-amber-900"
+                                  : "bg-gray-100 text-gray-700"
+                            }`}>
+                              {job.applyRecommendation === "apply"
+                                ? "Layak dipertimbangkan"
+                                : job.applyRecommendation === "consider"
+                                  ? "Tinjau persyaratan"
+                                  : "Prioritas rendah"}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1086,6 +1406,30 @@ export function JobsPage() {
                         <span className="flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
                           <DollarSign className="h-3.5 w-3.5" />
                           {job.salary}
+                        </span>
+                      )}
+                      {job.industry && (
+                        <span className="rounded bg-paper px-2 py-0.5 text-ink-soft">
+                          {job.industry}
+                        </span>
+                      )}
+                      {job.experienceLevel && (
+                        <span className="rounded bg-paper px-2 py-0.5 text-ink-soft">
+                          Pengalaman: {job.experienceLevel}
+                        </span>
+                      )}
+                      {job.type && (
+                        <span className="rounded bg-paper px-2 py-0.5 text-ink-soft">
+                          {job.type}
+                        </span>
+                      )}
+                      {getApplicationDeadlineLabel(job.applicationDeadline) && (
+                        <span className={`rounded px-2 py-0.5 font-semibold ${
+                          isApplicationDeadlineExpired(job.applicationDeadline)
+                            ? "bg-rose-50 text-rose-700"
+                            : "bg-amber-50 text-amber-800"
+                        }`}>
+                          {getApplicationDeadlineLabel(job.applicationDeadline)}
                         </span>
                       )}
                     </div>
@@ -1139,6 +1483,14 @@ export function JobsPage() {
                   <div className="mt-5 border-t border-line pt-3.5 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button
+                        type="button"
+                        onClick={() => handleOpenJobDetails(job)}
+                        className="flex items-center gap-1 rounded-lg border border-forest/30 bg-forest-tint px-2.5 py-1.5 text-xs font-semibold text-forest hover:bg-forest hover:text-white transition-colors"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        <span>Detail</span>
+                      </button>
+                      <button
                         onClick={() => handleStartInterviewForJob(job)}
                         className="flex items-center gap-1 rounded-lg bg-forest-tint px-2.5 py-1.5 text-xs font-semibold text-forest hover:bg-forest hover:text-white transition-all cursor-pointer"
                         title="Latihan wawancara AI untuk posisi ini"
@@ -1188,6 +1540,22 @@ export function JobsPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleSavedJob(job)}
+                        disabled={savingId === job.id}
+                        className="flex items-center gap-1 rounded-lg border border-line bg-paper px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:border-forest/40 hover:text-forest disabled:opacity-50"
+                        title={savedJobs.some((savedJob) => savedJob.externalId === job.id) ? "Hapus dari lowongan tersimpan" : "Simpan lowongan"}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        <span>
+                          {savingId === job.id
+                            ? "Menyimpan..."
+                            : savedJobs.some((savedJob) => savedJob.externalId === job.id)
+                              ? "Tersimpan"
+                              : "Simpan"}
+                        </span>
+                      </button>
                       <button
                         onClick={() => handleSaveToTracker(job)}
                         disabled={savingId === job.id}

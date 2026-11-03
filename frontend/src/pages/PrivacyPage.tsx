@@ -37,20 +37,23 @@ export function PrivacyPage() {
         <section className="mt-8 space-y-3">
           <h2 className="font-serif text-xl font-bold">Data yang diproses</h2>
           <p className="text-sm leading-relaxed text-ink-soft">
-            CV (PDF/DOCX atau teks profil) dan deskripsi pekerjaan yang kamu kirim
-            diproses untuk mengekstrak informasi, menganalisis kecocokan, dan
-            menghasilkan dokumen. Jika menggunakan akun, email dan informasi profil
-            Google serta data tracker lamaran juga diproses oleh backend dan database.
+            CV (PDF/DOCX atau teks profil), deskripsi pekerjaan, dan informasi yang
+            kamu masukkan ke profil karier diproses untuk mengekstrak informasi,
+            menganalisis kecocokan, dan menghasilkan dokumen. Jika menggunakan akun,
+            profil karier, versi CV terstruktur, lowongan tersimpan, tracker lamaran,
+            roadmap pengembangan karier beserta progress milestone, email, dan
+            informasi profil Google disimpan oleh backend dan database.
           </p>
         </section>
 
         <section className="mt-6 space-y-3">
           <h2 className="font-serif text-xl font-bold">Pemrosesan AI</h2>
           <p className="text-sm leading-relaxed text-ink-soft">
-            Konten CV yang relevan dan deskripsi pekerjaan dikirim ke Google Gemini
-            untuk menjalankan fitur AI. Pemrosesan tersebut tunduk pada ketentuan dan
-            kebijakan Google yang berlaku. Jangan unggah informasi yang tidak ingin
-            diproses oleh layanan AI pihak ketiga.
+            Konten CV yang relevan, deskripsi pekerjaan, dan ringkasan profil untuk
+            roadmap karier dikirim ke Google Gemini saat fitur AI digunakan.
+            Pemrosesan tersebut tunduk pada ketentuan dan kebijakan Google yang
+            berlaku. Jangan unggah informasi yang tidak ingin diproses oleh layanan
+            AI pihak ketiga.
           </p>
         </section>
 
@@ -72,11 +75,14 @@ export function PrivacyPage() {
             File unggahan disimpan sementara di backend dan aplikasi mencoba
             menghapusnya setelah setiap permintaan selesai. Jika proses server
             terhenti sebelum pembersihan, file sementara mungkin tertinggal; operator
-            deployment harus mengelola direktori sementara dan backup. CV hasil
-            ekstraksi pada alur optimasi tidak disimpan permanen oleh endpoint
-            analisis, tetapi akun dan item tracker disimpan di database. Kamu dapat
-            menghapus akun dan data terkait melalui Dashboard. Penghapusan ini tidak
-            mengatur salinan atau kebijakan retensi Google Gemini.
+            deployment harus mengelola direktori sementara dan backup. Untuk akun
+            yang masuk, profil karier, versi CV terstruktur hasil analisis atau
+            optimasi, roadmap karier, dan progress milestone disimpan di database;
+            lowongan tersimpan dan item tracker juga disimpan. Penghapusan akun
+            melalui Dashboard menghapus data akun terkait di database. Job AI yang
+            sedang mengantre dapat tetap berada di Redis sampai masa retensi job
+            berakhir. Penghapusan ini tidak mengatur salinan atau kebijakan retensi
+            Google Gemini.
           </p>
         </section>
 

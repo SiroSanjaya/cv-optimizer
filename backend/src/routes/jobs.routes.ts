@@ -12,8 +12,17 @@ import {
 import { optionalAuth, requireAuth } from "../middleware/auth.middleware";
 import { submitAiTaskController } from "../controllers/aiJobs.controller";
 import { aiSubmitRateLimiter } from "../middleware/rateLimiter";
+import {
+  listSavedJobs,
+  removeSavedJob,
+  saveJob,
+} from "../controllers/savedJobs.controller";
 
 const router = Router();
+
+router.get("/saved", requireAuth, listSavedJobs);
+router.post("/saved", requireAuth, saveJob);
+router.delete("/saved/:externalId", requireAuth, removeSavedJob);
 
 // Job search & recommendations
 router.get("/recommendations", optionalAuth, getRecommendedJobs);
@@ -35,4 +44,3 @@ router.post("/talent/bulk-screen", requireAuth, aiSubmitRateLimiter, submitAiTas
 router.post("/talent/invite-template", optionalAuth, generateInterviewInviteController);
 
 export default router;
-

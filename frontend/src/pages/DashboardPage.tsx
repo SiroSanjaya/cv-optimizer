@@ -78,16 +78,25 @@ export function DashboardPage() {
   };
 
   const totalApps = metrics?.total ?? 0;
-  const hasAnalyzedCv = Boolean(user?.id && getSessionCvSkills(user.id) !== undefined);
+  const hasAnalyzedCv = Boolean(
+    (user?.cvVersionCount ?? 0) > 0 ||
+    (user?.id && getSessionCvSkills(user.id) !== undefined)
+  );
   const interviewingCount = metrics?.interviewing ?? 0;
   const offersCount = metrics?.offers ?? 0;
   const applicationStatusData = Object.entries(metrics?.byStatus ?? {}).map(([status, count]) => ({
     stage: {
       applied: "Terkirim",
+      preparing_documents: "Persiapan Dokumen",
+      hr_screening: "Screening HR",
+      assessment_test: "Tes Asesmen",
       hr_interview: "Interview HR",
+      technical_interview: "Interview Teknis",
       user_interview: "Interview User",
       technical_test: "Tes Teknis",
+      final_interview: "Interview Final",
       offer: "Offer",
+      hired: "Diterima",
       rejected: "Ditolak",
       ghosted: "Belum ada respons",
       withdrawn: "Ditarik",
@@ -97,7 +106,7 @@ export function DashboardPage() {
   const averageMatchScore = metrics?.avgMatchScore;
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("Hapus akun dan seluruh data tracker serta CV tersimpan? Tindakan ini tidak dapat dibatalkan.")) {
+    if (!window.confirm("Hapus akun, profil karier, versi CV, lowongan tersimpan, dan seluruh data tracker? Tindakan ini tidak dapat dibatalkan.")) {
       return;
     }
     if (window.prompt('Ketik "DELETE" untuk mengonfirmasi penghapusan akun.') !== "DELETE") {
@@ -114,16 +123,36 @@ export function DashboardPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case "saved":
+        return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900">Tertarik</span>;
+      case "preparing_documents":
+        return <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-[11px] font-semibold text-yellow-900">Persiapan Dokumen</span>;
+      case "applied":
+        return <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-700">Lamaran Terkirim</span>;
+      case "hr_screening":
+        return <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-800">Screening HR</span>;
+      case "assessment_test":
+        return <span className="rounded-full bg-cyan-100 px-2.5 py-0.5 text-[11px] font-semibold text-cyan-800">Tes Asesmen</span>;
+      case "hired":
+        return <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-800">Diterima</span>;
       case "offer":
         return <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">Dapat Offer 🎉</span>;
+      case "final_interview":
+        return <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-semibold text-violet-800">Interview Final</span>;
       case "user_interview":
         return <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800">Interview User</span>;
       case "hr_interview":
         return <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800">Interview HR</span>;
+      case "technical_interview":
+        return <span className="rounded-full bg-fuchsia-100 px-2.5 py-0.5 text-[11px] font-semibold text-fuchsia-800">Interview Teknis</span>;
       case "technical_test":
         return <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-semibold text-purple-800">Tes Teknis</span>;
       case "rejected":
         return <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-semibold text-rose-800">Ditolak</span>;
+      case "ghosted":
+        return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">Belum Ada Respons</span>;
+      case "withdrawn":
+        return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">Ditarik</span>;
       default:
         return <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-700">Terkirim (Screening)</span>;
     }
@@ -209,6 +238,30 @@ export function DashboardPage() {
                 </Link>
               </div>
             )}
+
+            <section aria-labelledby="job-journey-title" className="rounded-2xl border border-forest/20 bg-paper-raised p-4 shadow-sm sm:p-5">
+              <div className="mb-4">
+                <h2 id="job-journey-title" className="font-serif text-lg font-bold text-ink">
+                  Lanjutkan perjalanan kariermu
+                </h2>
+                <p className="mt-1 text-xs text-ink-soft">
+                  Profil karier, lowongan tersimpan, CV, dan tracker saling terhubung untuk membantu langkah berikutnya.
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  { to: "/profile", title: "Lengkapi profil", detail: "Atur pengalaman dan preferensi karier" },
+                  { to: "/jobs", title: "Temukan lowongan", detail: "Cari dan simpan peluang yang relevan" },
+                  { to: "/optimize", title: "Siapkan lamaran", detail: "Sesuaikan CV dan surat lamaran" },
+                  { to: "/tracker", title: "Pantau progres", detail: "Kelola tahap rekrutmen" },
+                ].map((step) => (
+                  <Link key={step.to} to={step.to} className="rounded-xl border border-line bg-paper p-3 transition-colors hover:border-forest/50 hover:bg-forest-tint/30">
+                    <span className="block text-xs font-bold text-ink">{step.title}</span>
+                    <span className="mt-1 block text-[11px] leading-relaxed text-ink-soft">{step.detail}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
 
             {/* Objective Key Metrics Row */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">

@@ -21,6 +21,7 @@ import {
 
 const primaryNavItems = [
   { to: "/dashboard", label: "Dashboard", icon: Layers },
+  { to: "/profile", label: "Profil Karier", icon: UserIcon },
   { to: "/optimize", label: "Optimasi CV", icon: FileText },
   { to: "/vault", label: "Story Vault", icon: Sparkles },
   { to: "/tracker", label: "Tracker", icon: Briefcase },
@@ -56,6 +57,7 @@ export function Header() {
   const mobileNavItems = user
     ? [
         ...primaryNavItems,
+        { to: "/career-development", label: "Pengembangan Karier", icon: Sparkles },
         { to: "/interview", label: "Latihan Wawancara", icon: Sparkles },
       ]
     : [
@@ -141,6 +143,7 @@ export function Header() {
                 onClick={() => setMoreOpen((open) => !open)}
                 className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   moreOpen ||
+                  isActive("/career-development") ||
                   isActive("/interview") ||
                   isActive("/faq")
                     ? "bg-forest-tint text-forest"
@@ -159,7 +162,17 @@ export function Header() {
                 >
                   {user && (
                     <Link
-                      to="/interview"
+                                  to="/career-development"
+                                  onClick={closeMenus}
+                                  className={linkClass("/career-development")}
+                                >
+                                  <Sparkles className="h-4 w-4" />
+                                  Pengembangan Karier
+                                </Link>
+                              )}
+                              {user && (
+                                <Link
+                                  to="/interview"
                       onClick={closeMenus}
                       className={linkClass("/interview")}
                     >

@@ -6,6 +6,8 @@ import { getSessionCvSkills } from "../lib/sessionProfile";
 import {
   startMockInterviewSession,
   evaluateMockInterviewAnswer,
+  getCareerProfile,
+  getCvVersions,
   type MockInterviewQuestion,
   type InterviewEvaluation,
 } from "../lib/api";
@@ -116,11 +118,19 @@ export function InterviewPage() {
     setLoading(true);
     setSessionError(null);
 
-    // Retrieve saved CV skills if available
-    let cvSkills: string[] | undefined;
-    if (user?.id) cvSkills = getSessionCvSkills(user.id);
-
     try {
+      let cvSkills: string[] | undefined;
+      if (user?.id) {
+        cvSkills = getSessionCvSkills(user.id);
+        if (!cvSkills?.length) {
+          const careerProfile = await getCareerProfile();
+          cvSkills = careerProfile?.structuredCv.skills;
+          if (!cvSkills?.length) {
+            cvSkills = (await getCvVersions())[0]?.structured.skills;
+          }
+        }
+      }
+
       const generated = await startMockInterviewSession({
         role,
         level,

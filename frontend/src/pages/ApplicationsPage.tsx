@@ -161,8 +161,13 @@ export function ApplicationsPage() {
   const stages: StageConfig[] = [
     {
       key: "saved",
-      label: "Disimpan · belum melamar",
+      label: "Tertarik",
       badge: "bg-amber-100 text-amber-900 border-amber-200",
+    },
+    {
+      key: "preparing_documents",
+      label: "Persiapan Dokumen",
+      badge: "bg-yellow-100 text-yellow-900 border-yellow-200",
     },
     {
       key: "applied",
@@ -170,9 +175,24 @@ export function ApplicationsPage() {
       badge: "bg-gray-100 text-gray-800 border-gray-200",
     },
     {
+      key: "hr_screening",
+      label: "Screening HR",
+      badge: "bg-sky-100 text-sky-800 border-sky-200",
+    },
+    {
+      key: "assessment_test",
+      label: "Tes Asesmen",
+      badge: "bg-cyan-100 text-cyan-800 border-cyan-200",
+    },
+    {
       key: "hr_interview",
       label: "Interview HR",
       badge: "bg-blue-100 text-blue-800 border-blue-200",
+    },
+    {
+      key: "technical_interview",
+      label: "Interview Teknis",
+      badge: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
     },
     {
       key: "user_interview",
@@ -185,9 +205,19 @@ export function ApplicationsPage() {
       badge: "bg-purple-100 text-purple-800 border-purple-200",
     },
     {
+      key: "final_interview",
+      label: "Interview Final",
+      badge: "bg-violet-100 text-violet-800 border-violet-200",
+    },
+    {
       key: "offer",
-      label: "Diterima / Offer 🎉",
+      label: "Tawaran Kerja",
       badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    },
+    {
+      key: "hired",
+      label: "Diterima",
+      badge: "bg-green-100 text-green-800 border-green-200",
     },
     {
       key: "rejected",
@@ -481,15 +511,7 @@ export function ApplicationsPage() {
                                 onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
                                 className="w-full rounded border border-line bg-paper-raised px-1.5 py-1 text-[10px] text-ink focus:border-forest focus:outline-none"
                               >
-                                <option value="saved">Disimpan · belum melamar</option>
-                                <option value="applied">Lamaran Terkirim</option>
-                                <option value="hr_interview">Interview HR</option>
-                                <option value="user_interview">Interview User</option>
-                                <option value="technical_test">Tes Teknis</option>
-                                <option value="offer">Offer Diterima 🎉</option>
-                                <option value="rejected">Belum Berhasil</option>
-                                <option value="ghosted">Belum Ada Respons</option>
-                                <option value="withdrawn">Ditarik</option>
+                                {stages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
                               </select>
                             </div>
                           </div>
@@ -535,15 +557,7 @@ export function ApplicationsPage() {
                           onChange={(e) => handleStatusChange(app.id, e.target.value as ApplicationStatus)}
                           className="rounded border border-line bg-paper px-2 py-1 text-xs font-semibold text-ink focus:border-forest"
                         >
-                          <option value="saved">Disimpan · belum melamar</option>
-                          <option value="applied">Lamaran Terkirim</option>
-                          <option value="hr_interview">Interview HR</option>
-                          <option value="user_interview">Interview User</option>
-                          <option value="technical_test">Tes Teknis</option>
-                          <option value="offer">Offer Diterima 🎉</option>
-                          <option value="rejected">Belum Berhasil</option>
-                          <option value="ghosted">Belum Ada Respons</option>
-                          <option value="withdrawn">Ditarik</option>
+                          {stages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
                         </select>
                       </td>
                       <td className="px-4 py-3">
@@ -645,15 +659,7 @@ export function ApplicationsPage() {
                     onChange={(e) => setStatus(e.target.value as ApplicationStatus)}
                     className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink focus:border-forest focus:outline-none"
                   >
-                    <option value="saved">Disimpan · belum melamar</option>
-                    <option value="applied">Lamaran Terkirim (Screening)</option>
-                    <option value="hr_interview">Interview HR</option>
-                    <option value="user_interview">Interview User</option>
-                    <option value="technical_test">Tes Teknis</option>
-                    <option value="offer">Offer Diterima</option>
-                    <option value="rejected">Belum Berhasil</option>
-                    <option value="ghosted">Belum Ada Respons</option>
-                    <option value="withdrawn">Ditarik</option>
+                    {stages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
                   </select>
                 </div>
 

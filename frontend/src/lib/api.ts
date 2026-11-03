@@ -41,13 +41,66 @@ export interface User {
   usedCredits?: number;
 }
 
+export interface CareerDevelopmentAnalysis {
+  targetRole: string;
+  jobCount: number;
+  skillDemand: Array<{ skill: string; count: number }>;
+  skillGaps: string[];
+  certifications: Array<{
+    id: string;
+    name: string;
+    issuer: string;
+    officialUrl: string;
+    relatedSkills: string[];
+  }>;
+}
+
+export type CareerMilestoneStatus = "not_started" | "in_progress" | "completed";
+
+export interface CareerDevelopmentPlan {
+  targetRole: string;
+  jobCount: number;
+  generatedAt: string;
+  skillDemand: Array<{ skill: string; count: number }>;
+  skillGaps: string[];
+  learningRecommendations: Array<{
+    id: string;
+    skill: string;
+    priority: "high" | "medium" | "low";
+    rationale: string;
+    steps: string[];
+  }>;
+  portfolioProjects: Array<{
+    id: string;
+    title: string;
+    rationale: string;
+    skills: string[];
+    scope: string[];
+  }>;
+  certifications: Array<{
+    id: string;
+    name: string;
+    issuer: string;
+    officialUrl: string;
+    relatedSkills: string[];
+    rationale: string;
+  }>;
+  progress: Record<string, CareerMilestoneStatus>;
+}
+
 export type ApplicationStatus =
   | "saved"
+  | "preparing_documents"
   | "applied"
+  | "hr_screening"
+  | "assessment_test"
   | "hr_interview"
+  | "technical_interview"
   | "user_interview"
   | "technical_test"
+  | "final_interview"
   | "offer"
+  | "hired"
   | "rejected"
   | "ghosted"
   | "withdrawn";
@@ -55,6 +108,7 @@ export type ApplicationStatus =
 export interface ApplicationItem {
   id: string;
   userId?: string;
+  cvVersionId?: string | null;
   company?: string | null;
   position?: string | null;
   jobDescription: string;
@@ -187,12 +241,19 @@ export interface RecommendedJob {
   location: string;
   salary?: string;
   type?: string;
-  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Jooble" | "RemoteOK" | "Himalayas" | "Indeed" | "Curated" | "Glints";
+  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Jooble" | "RemoteOK" | "Himalayas";
   url: string;
   description: string;
   skills: string[];
+  salaryMin?: number;
+  salaryMax?: number;
+  salaryCurrency?: "IDR" | "USD" | "EUR" | "GBP" | "AUD" | "SGD" | "MYR";
+  salaryPeriod?: "hourly" | "monthly" | "annual" | "unknown";
+  industry?: string;
+  experienceLevel?: "internship" | "entry" | "mid" | "senior" | "lead";
   postedAt?: string;
   postedAtDate?: string;
+  applicationDeadline?: string;
   logo?: string;
   remote?: boolean;
   responseRate?: number;
@@ -200,6 +261,9 @@ export interface RecommendedJob {
   matchScore?: number;
   matchingSkills?: string[];
   missingSkills?: string[];
+  matchReasons?: string[];
+  applyRecommendation?: "apply" | "consider" | "low_priority";
+  recommendationReason?: string;
 }
 
 export interface JobApplicationContext {
@@ -219,16 +283,45 @@ export interface JobSourceStatus {
   receivedCount: number;
 }
 
+export interface CareerProfile {
+  id?: string;
+  structuredCv: StructuredCv;
+  languages: string[];
+  targetRoles: string[];
+  preferredIndustries: string[];
+  preferredLocations: string[];
+  employmentPreferences: Array<"remote" | "hybrid" | "onsite">;
+  expectedSalaryMin: number | null;
+  expectedSalaryMax: number | null;
+  salaryCurrency: "IDR" | "USD";
+  updatedAt?: string;
+}
+
+export interface CvVersionItem {
+  id: string;
+  label: string | null;
+  structured: StructuredCv;
+  createdAt: string;
+}
+
+export interface SavedJob extends Omit<RecommendedJob, "id"> {
+  id: string;
+  externalId: string;
+  savedAt: string;
+}
+
 
 export interface AnalyzeResponse {
   success: true;
   cv: StructuredCv;
   analysis: CvAnalysis;
+  cvVersionId: string;
 }
 
 export interface GenerateResponse {
   success: true;
   cv: StructuredCv;
+  cvVersionId: string;
 }
 
 interface AiJobSubmission {
@@ -438,6 +531,98 @@ export async function importProfile(params: {
   }
 }
 
+export async function getCareerProfile(): Promise<CareerProfile | null> {
+  try {
+    const { data } = await api.get<{ success: boolean; profile: CareerProfile | null }>(
+      "/api/profile"
+    );
+    return data.profile;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memuat profil karier."));
+  }
+}
+
+export async function saveCareerProfile(
+  profile: Omit<CareerProfile, "id" | "updatedAt">
+): Promise<CareerProfile> {
+  try {
+    const { data } = await api.put<{ success: boolean; profile: CareerProfile }>(
+      "/api/profile",
+      profile
+    );
+    return data.profile;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal menyimpan profil karier."));
+  }
+}
+
+export async function getCvVersions(): Promise<CvVersionItem[]> {
+  try {
+    const { data } = await api.get<{ success: boolean; versions: CvVersionItem[] }>(
+      "/api/profile/cv-versions"
+    );
+    return data.versions;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memuat versi CV."));
+  }
+}
+
+export async function analyzeCareerDevelopment(
+  targetRole: string
+): Promise<{ analysis: CareerDevelopmentAnalysis; sources: Array<{
+  label: string;
+  status: string;
+  receivedCount: number;
+}> }> {
+  try {
+    const { data } = await api.post("/api/career-development/analyze", { targetRole });
+    return data;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal menganalisis kebutuhan skill."));
+  }
+}
+
+export async function getCareerDevelopmentPlan(): Promise<CareerDevelopmentPlan | null> {
+  try {
+    const { data } = await api.get<{ success: boolean; plan: CareerDevelopmentPlan | null }>(
+      "/api/career-development/plan"
+    );
+    return data.plan;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memuat roadmap karier."));
+  }
+}
+
+export async function generateCareerDevelopmentPlan(
+  targetRole: string
+): Promise<CareerDevelopmentPlan> {
+  try {
+    const response = await waitForAiJob<{ success: boolean; plan: CareerDevelopmentPlan }>(
+      api.post<AiJobSubmission>("/api/career-development/plan", { targetRole }, {
+        timeout: 45_000,
+      })
+    );
+    return response.plan;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal membuat roadmap karier."));
+  }
+}
+
+export async function updateCareerDevelopmentProgress(
+  milestoneId: string,
+  status: CareerMilestoneStatus
+): Promise<CareerDevelopmentPlan> {
+  try {
+    const { data } = await api.patch<{ success: boolean; plan: CareerDevelopmentPlan }>(
+      "/api/career-development/progress",
+      { milestoneId, status }
+    );
+    return data.plan;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal menyimpan progress roadmap."));
+  }
+}
+
 // ----------------- Auth APIs -----------------
 export async function fetchCurrentUser(): Promise<User | null> {
   try {
@@ -509,6 +694,7 @@ export async function getApplicationMetrics(): Promise<ApplicationMetrics> {
 export async function createApplication(app: {
   company: string;
   position: string;
+  cvVersionId?: string;
   jobDescription?: string;
   jobUrl?: string;
   matchScore?: number;
@@ -553,9 +739,18 @@ export async function deleteApplication(id: string): Promise<void> {
 // ----------------- Jobs Recommendations APIs -----------------
 export async function getJobRecommendations(params?: {
   keyword?: string;
+  company?: string;
+  industry?: string;
+  locationQuery?: string;
   location?: "indonesia" | "malaysia" | "singapore" | "australia" | "remote" | "all";
   category?: string;
   skills?: string[];
+  experienceLevel?: RecommendedJob["experienceLevel"];
+  employmentType?: string;
+  salaryMin?: number;
+  salaryMax?: number;
+  salaryCurrency?: string;
+  salaryPeriod?: "hourly" | "monthly" | "annual";
 }): Promise<{ query: any; jobs: RecommendedJob[]; sources: JobSourceStatus[] }> {
   try {
     const { data } = await api.get<{
@@ -568,15 +763,74 @@ export async function getJobRecommendations(params?: {
       {
         params: {
           keyword: params?.keyword,
+          company: params?.company,
+          industry: params?.industry,
+          locationQuery: params?.locationQuery,
           location: params?.location,
           category: params?.category,
           skills: params?.skills?.join(","),
+          experienceLevel: params?.experienceLevel,
+          employmentType: params?.employmentType,
+          salaryMin: params?.salaryMin,
+          salaryMax: params?.salaryMax,
+          salaryCurrency: params?.salaryCurrency,
+          salaryPeriod: params?.salaryPeriod,
         },
       }
     );
     return data;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Failed to fetch job recommendations."));
+  }
+}
+
+export async function getSavedJobs(): Promise<SavedJob[]> {
+  try {
+    const { data } = await api.get<{ success: boolean; jobs: SavedJob[] }>("/api/jobs/saved");
+    return data.jobs;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal memuat lowongan tersimpan."));
+  }
+}
+
+export async function saveJob(job: RecommendedJob): Promise<SavedJob> {
+  try {
+    const { data } = await api.post<{ success: boolean; job: SavedJob }>("/api/jobs/saved", {
+      externalId: job.id,
+      source: job.source,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      salary: job.salary,
+      salaryMin: job.salaryMin,
+      salaryMax: job.salaryMax,
+      salaryCurrency: job.salaryCurrency,
+      salaryPeriod: job.salaryPeriod,
+      type: job.type,
+      industry: job.industry,
+      experienceLevel: job.experienceLevel,
+      url: job.url,
+      description: job.description,
+      skills: job.skills,
+      matchingSkills: job.matchingSkills,
+      missingSkills: job.missingSkills,
+      matchReasons: job.matchReasons,
+      matchScore: job.matchScore,
+      applyRecommendation: job.applyRecommendation,
+      postedAtDate: job.postedAtDate,
+      applicationDeadline: job.applicationDeadline,
+    });
+    return data.job;
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal menyimpan lowongan."));
+  }
+}
+
+export async function removeSavedJob(externalId: string): Promise<void> {
+  try {
+    await api.delete(`/api/jobs/saved/${encodeURIComponent(externalId)}`);
+  } catch (err) {
+    throw new Error(extractErrorMessage(err, "Gagal menghapus lowongan tersimpan."));
   }
 }
 

@@ -16,11 +16,20 @@ const LoginPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((module) => ({ default: module.DashboardPage }))
 );
+const CareerProfilePage = lazy(() =>
+  import("./pages/CareerProfilePage").then((module) => ({ default: module.CareerProfilePage }))
+);
+const CareerDevelopmentPage = lazy(() =>
+  import("./pages/CareerDevelopmentPage").then((module) => ({ default: module.CareerDevelopmentPage }))
+);
 const ApplicationsPage = lazy(() =>
   import("./pages/ApplicationsPage").then((module) => ({ default: module.ApplicationsPage }))
 );
 const JobsPage = lazy(() =>
   import("./pages/JobsPage").then((module) => ({ default: module.JobsPage }))
+);
+const JobDetailPage = lazy(() =>
+  import("./pages/JobDetailPage").then((module) => ({ default: module.JobDetailPage }))
 );
 const InterviewPage = lazy(() =>
   import("./pages/InterviewPage").then((module) => ({ default: module.InterviewPage }))
@@ -79,6 +88,7 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/jobs" element={<JobsPage />} />
+              <Route path="/jobs/detail" element={<JobDetailPage />} />
               <Route path="/optimize" element={<OptimizePage />} />
               <Route path="/recruiter" element={<RecruiterPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
@@ -86,6 +96,8 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
               <Route element={<RequireAuth />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/profile" element={<CareerProfilePage />} />
+                <Route path="/career-development" element={<CareerDevelopmentPage />} />
                 <Route path="/vault" element={<VaultPage />} />
                 <Route path="/tracker" element={<ApplicationsPage />} />
                 <Route path="/interview" element={<InterviewPage />} />

@@ -36,7 +36,8 @@ async function main() {
     async (job: Job<AiJobData>) => {
       try {
         const request = decryptJobValue<AiJobRequest>(job.data.payload);
-        const result = await processAiJob(request);
+        if (!job.id) throw new Error("AI job is missing its id.");
+        const result = await processAiJob(request, job.data.userId, job.id);
         return encryptJobValue(result);
       } catch (error) {
         logger.error("ai_job_failed", {

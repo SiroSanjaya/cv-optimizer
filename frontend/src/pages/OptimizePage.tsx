@@ -27,6 +27,8 @@ import {
   downloadCoverLetterPdf,
   downloadCvFile,
   createApplication,
+  getCareerProfile,
+  getCvVersions,
   trackProductEvent,
   type JobApplicationContext,
 } from "../lib/api";
@@ -80,6 +82,7 @@ interface BatchTarget {
 interface PreparedBatchItem {
   target: BatchTarget;
   cv: StructuredCv;
+  cvVersionId: string;
   matchScore: number;
   coverLetter: CoverLetterResult;
 }
@@ -256,6 +259,7 @@ export function OptimizePage() {
   const [replaceCvMode, setReplaceCvMode] = useState(false);
   const [analysis, setAnalysis] = useState<CvAnalysis | null>(null);
   const [tailoredCv, setTailoredCv] = useState<StructuredCv | null>(null);
+  const [cvVersionId, setCvVersionId] = useState<string | null>(null);
   const [targetJob, setTargetJob] = useState<JobApplicationContext | null>(
     initialJobContext.targetJob
   );
@@ -347,7 +351,45 @@ export function OptimizePage() {
     if (saved?.cv && !structuredCv) {
       setStructuredCv(saved.cv);
       setCachedCvName(saved.fileName || "CV Terhubung");
+      return;
     }
+
+    if (!user?.id || structuredCv) return;
+
+    let active = true;
+    Promise.all([getCareerProfile(), getCvVersions()])
+      .then(([careerProfile, versions]) => {
+        if (!active) return;
+        const profileCv = careerProfile?.structuredCv;
+        const profileHasContent = Boolean(
+          profileCv &&
+          (profileCv.personalInfo.name.trim() ||
+            profileCv.skills.length ||
+            profileCv.experience.length ||
+            profileCv.education.length ||
+            profileCv.projects.length)
+        );
+        const cv = profileHasContent ? profileCv : versions[0]?.structured;
+        if (!cv) return;
+
+        const fileName = profileHasContent
+          ? "Profil karier"
+          : versions[0]?.label || "CV tersimpan";
+        setStructuredCv(cv);
+        setCvVersionId(versions[0]?.id ?? null);
+        setCachedCvName(fileName);
+        saveSessionStructuredCv(user.id, cv, fileName);
+        if (cv.skills.length > 0) saveSessionCvSkills(user.id, cv.skills);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setSubmitError(error instanceof Error ? error.message : "Gagal memuat CV tersimpan.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [user?.id, structuredCv]);
 
   const handleToggleSkill = (skill: string) => {
@@ -466,6 +508,7 @@ export function OptimizePage() {
           {
             target,
             cv: cvResult.cv,
+            cvVersionId: cvResult.cvVersionId,
             matchScore: analysisResult.analysis.matchScore,
             coverLetter: letterResult.coverLetter,
           },
@@ -510,6 +553,7 @@ export function OptimizePage() {
       const result = await analyzeCv(cvSource, values.jobDescription);
       await refreshUser();
       setStructuredCv(result.cv);
+      setCvVersionId(result.cvVersionId);
       setAnalysis(result.analysis);
       const uid = user?.id || "guest";
       saveSessionStructuredCv(uid, result.cv, file?.name || cachedCvName || undefined);
@@ -550,6 +594,7 @@ export function OptimizePage() {
       const result = await generateTailoredCv(structuredCv, jobDescription, enhancedAnalysis);
       await refreshUser();
       setTailoredCv(result.cv);
+      setCvVersionId(result.cvVersionId);
       setStage("tailored");
       setFeedbackVersion((version) => version + 1);
       void trackProductEvent("optimization_completed");
@@ -573,6 +618,7 @@ export function OptimizePage() {
       await createApplication({
         company: targetJob?.company || company,
         position: targetJob?.position || position,
+        ...(cvVersionId ? { cvVersionId } : {}),
         jobDescription,
         jobUrl: targetJob?.jobUrl,
         matchScore: targetJob?.matchScore ?? effectiveScore,
@@ -809,6 +855,7 @@ export function OptimizePage() {
       await createApplication({
         company: item.target.company,
         position: item.target.title,
+        cvVersionId: item.cvVersionId,
         jobDescription: item.target.jobDescription,
         jobUrl: item.target.url,
         matchScore: item.matchScore,

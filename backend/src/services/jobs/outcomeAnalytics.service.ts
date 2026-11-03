@@ -37,10 +37,15 @@ export interface ApplicationOutcomeMetrics {
 }
 
 const INTERVIEW_STATUSES = new Set([
+  "hr_screening",
+  "assessment_test",
   "hr_interview",
+  "technical_interview",
   "user_interview",
   "technical_test",
+  "final_interview",
   "offer",
+  "hired",
 ]);
 
 export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutcomeMetrics> {
@@ -70,7 +75,9 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
     };
   }
 
-  const submittedApps = apps.filter((app) => app.status !== "saved");
+  const submittedApps = apps.filter(
+    (app) => app.status !== "saved" && app.status !== "preparing_documents"
+  );
   const total = submittedApps.length;
 
   // Status distribution
@@ -80,7 +87,7 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
   }
 
   const interviewCount = apps.filter((a) => INTERVIEW_STATUSES.has(a.status)).length;
-  const offerCount = byStatus["offer"] || 0;
+  const offerCount = (byStatus["offer"] || 0) + (byStatus["hired"] || 0);
   if (total === 0) {
     return {
       total: 0,
@@ -176,7 +183,7 @@ export async function getOutcomeMetrics(userId: string): Promise<ApplicationOutc
       month,
       applied: monthApps.length,
       interviewed: monthApps.filter((a) => INTERVIEW_STATUSES.has(a.status)).length,
-      offered: monthApps.filter((a) => a.status === "offer").length,
+      offered: monthApps.filter((a) => a.status === "offer" || a.status === "hired").length,
     });
   }
 

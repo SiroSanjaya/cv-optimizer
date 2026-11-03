@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import { getAggregatedRecommendations } from "../services/jobs/jobAggregator";
+import {
+  getAggregatedRecommendations,
+  type JobCandidateContext,
+  type JobFilterOptions,
+} from "../services/jobs/jobAggregator";
 import {
   searchTalentByRequirements,
   bulkScreenCvs,
@@ -10,6 +14,8 @@ import {
 import { importJobFromUrl, importJobFromText } from "../services/jobs/jobImporter.service";
 import { getOutcomeMetrics } from "../services/jobs/outcomeAnalytics.service";
 import { prisma } from "../utils/prisma";
+import { structuredCvSchema } from "../schemas/cv.schemas";
+import { Errors } from "../utils/AppError";
 
 export async function getRecommendedJobs(
   req: Request,
@@ -17,46 +23,178 @@ export async function getRecommendedJobs(
   next: NextFunction
 ) {
   try {
-    const { keyword = "", skills = "", location = "all", category = "all" } = req.query;
+    const {
+      keyword = "",
+      skills = "",
+      location = "all",
+      category = "all",
+      company = "",
+      industry = "",
+      locationQuery = "",
+      experienceLevel = "",
+      employmentType = "",
+      salaryMin = "",
+      salaryMax = "",
+      salaryCurrency = "IDR",
+      salaryPeriod = "monthly",
+    } = req.query;
+
+    const readFilterText = (value: unknown, label: string, maxLength: number): string => {
+      if (value === undefined || value === "") return "";
+      if (typeof value !== "string" || value.trim().length > maxLength) {
+        throw Errors.validation(`Filter ${label} tidak valid.`);
+      }
+      return value.trim();
+    };
+    const searchKeyword = readFilterText(keyword, "kata kunci", 200);
+    const companyFilter = readFilterText(company, "perusahaan", 120);
+    const industryFilter = readFilterText(industry, "industri", 120);
+    const locationQueryFilter = readFilterText(locationQuery, "lokasi", 120);
+    const employmentTypeFilter = readFilterText(employmentType, "tipe pekerjaan", 80);
 
     let candidateSkills: string[] = [];
     let isPersonalized = false;
+    let candidateProfile: JobCandidateContext = {};
 
+    if (skills !== "" && skills !== undefined && typeof skills !== "string") {
+      throw Errors.validation("Daftar skill pencarian tidak valid.");
+    }
     if (typeof skills === "string" && skills.trim().length > 0) {
+      if (skills.length > 5_000) {
+        throw Errors.validation("Daftar skill pencarian terlalu panjang.");
+      }
       candidateSkills = skills.split(",").map((s) => s.trim()).filter(Boolean);
       isPersonalized = true;
     }
 
-    // If candidate skills weren't passed in query, try to get from user's latest CV version in DB
-    if (candidateSkills.length === 0 && req.userPayload?.userId) {
-      const latestCv = await prisma.cvVersion.findFirst({
+    if (req.userPayload?.userId) {
+      const profile = await prisma.careerProfile.findUnique({
         where: { userId: req.userPayload.userId },
-        orderBy: { createdAt: "desc" },
+        select: {
+          structuredCv: true,
+          targetRoles: true,
+          preferredIndustries: true,
+          preferredLocations: true,
+          employmentPreferences: true,
+        },
       });
-
-      if (latestCv && typeof latestCv.structured === "object" && latestCv.structured !== null) {
-        const struct = latestCv.structured as any;
-        if (Array.isArray(struct.skills)) {
-          candidateSkills = struct.skills.map((s: any) => (typeof s === "string" ? s : s.name || ""));
-          if (candidateSkills.length > 0) {
-            isPersonalized = true;
+      if (profile) {
+        candidateProfile = {
+          targetRoles: profile.targetRoles,
+          preferredIndustries: profile.preferredIndustries,
+          preferredLocations: profile.preferredLocations,
+          employmentPreferences: profile.employmentPreferences,
+        };
+        if (candidateSkills.length === 0) {
+          const parsedProfileCv = structuredCvSchema.safeParse(profile.structuredCv);
+          if (parsedProfileCv.success) {
+            candidateSkills = parsedProfileCv.data.skills;
+            isPersonalized = candidateSkills.length > 0;
           }
+        }
+      }
+
+      if (candidateSkills.length === 0) {
+        const latestCv = await prisma.cvVersion.findFirst({
+          where: { userId: req.userPayload.userId },
+          orderBy: { createdAt: "desc" },
+        });
+
+        const parsedLatestCv = latestCv
+          ? structuredCvSchema.safeParse(latestCv.structured)
+          : null;
+        if (parsedLatestCv?.success) {
+          candidateSkills = parsedLatestCv.data.skills;
+          isPersonalized = candidateSkills.length > 0;
         }
       }
     }
 
-    const searchKeyword = (typeof keyword === "string" && keyword.trim()) ? keyword.trim() : "";
     const supportedLocations = ["indonesia", "malaysia", "singapore", "australia", "remote", "all"] as const;
-    const locFilter = supportedLocations.includes(String(location) as (typeof supportedLocations)[number])
-      ? String(location) as (typeof supportedLocations)[number]
-      : "all";
-    const catFilter = (["frontend", "backend", "fullstack", "data", "devops", "mobile", "all"].includes(String(category)) ? String(category) : "all") as any;
+    if (
+      typeof location !== "string" ||
+      !supportedLocations.includes(location as (typeof supportedLocations)[number])
+    ) {
+      throw Errors.validation("Filter lokasi tidak valid.");
+    }
+    const locFilter = location as (typeof supportedLocations)[number];
+    const supportedCategories = ["frontend", "backend", "fullstack", "data", "devops", "mobile", "all"] as const;
+    if (
+      typeof category !== "string" ||
+      !supportedCategories.includes(category as (typeof supportedCategories)[number])
+    ) {
+      throw Errors.validation("Filter kategori tidak valid.");
+    }
+    const catFilter = category as (typeof supportedCategories)[number];
+    const supportedExperienceLevels = ["internship", "entry", "mid", "senior", "lead"] as const;
+    if (
+      experienceLevel !== "" &&
+      (typeof experienceLevel !== "string" ||
+        !supportedExperienceLevels.includes(experienceLevel as (typeof supportedExperienceLevels)[number]))
+    ) {
+      throw Errors.validation("Filter tingkat pengalaman tidak valid.");
+    }
+    const expFilter = experienceLevel
+      ? experienceLevel as (typeof supportedExperienceLevels)[number]
+      : undefined;
+    const parseSalaryFilter = (value: unknown, name: string): number | undefined => {
+      if (value === undefined || value === "") return undefined;
+      if (typeof value !== "string") throw Errors.validation(`Filter ${name} tidak valid.`);
+      if (!value.trim()) return undefined;
+      const parsed = Number(value.trim());
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 2_000_000_000) {
+        throw Errors.validation(`Filter ${name} tidak valid.`);
+      }
+      return parsed;
+    };
+    const salaryMinFilter = parseSalaryFilter(salaryMin, "gaji minimum");
+    const salaryMaxFilter = parseSalaryFilter(salaryMax, "gaji maksimum");
+    if (
+      salaryMinFilter !== undefined &&
+      salaryMaxFilter !== undefined &&
+      salaryMinFilter > salaryMaxFilter
+    ) {
+      throw Errors.validation("Gaji minimum tidak boleh melebihi gaji maksimum.");
+    }
+    const salaryCurrencies = ["IDR", "USD", "EUR", "GBP", "AUD", "SGD", "MYR"] as const;
+    if (
+      typeof salaryCurrency !== "string" ||
+      !salaryCurrencies.includes(salaryCurrency as (typeof salaryCurrencies)[number])
+    ) {
+      throw Errors.validation("Filter mata uang gaji tidak valid.");
+    }
+    const salaryCurrencyFilter = salaryCurrency;
+    const salaryPeriods = ["hourly", "monthly", "annual"] as const;
+    if (
+      typeof salaryPeriod !== "string" ||
+      !salaryPeriods.includes(salaryPeriod as (typeof salaryPeriods)[number])
+    ) {
+      throw Errors.validation("Filter periode gaji tidak valid.");
+    }
+    const salaryPeriodFilter = salaryPeriod as (typeof salaryPeriods)[number];
 
-    const recommendations = await getAggregatedRecommendations(candidateSkills, {
+    const filters: JobFilterOptions = {
       keyword: searchKeyword,
+      company: companyFilter,
+      industry: industryFilter,
+      locationQuery: locationQueryFilter,
       location: locFilter,
       category: catFilter,
-    });
+      experienceLevel: expFilter,
+      employmentType: employmentTypeFilter,
+      salaryMin: salaryMinFilter,
+      salaryMax: salaryMaxFilter,
+      salaryCurrency: salaryCurrencyFilter,
+      salaryPeriod: salaryPeriodFilter,
+    };
+    isPersonalized ||= candidateSkills.length > 0 ||
+      Object.values(candidateProfile).some((values) => (values?.length ?? 0) > 0);
+
+    const recommendations = await getAggregatedRecommendations(
+      candidateSkills,
+      filters,
+      candidateProfile
+    );
 
     res.json({
       success: true,
@@ -64,6 +202,9 @@ export async function getRecommendedJobs(
         keyword: searchKeyword,
         location: locFilter,
         category: catFilter,
+        company: filters.company,
+        industry: filters.industry,
+        locationQuery: filters.locationQuery,
         skillsCount: candidateSkills.length,
         skills: candidateSkills,
         isPersonalized,

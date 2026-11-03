@@ -13,6 +13,9 @@ export async function listApplications(
     if (!userId) throw Errors.unauthorized();
 
     const { status } = req.query;
+    if (status && !Object.values(ApplicationStatus).includes(status as ApplicationStatus)) {
+      throw Errors.validation("Status lamaran tidak valid.");
+    }
 
     const applications = await prisma.application.findMany({
       where: {
@@ -55,8 +58,12 @@ export async function getApplicationMetrics(
 
     const interviewing =
       (byStatus["hr_interview"] || 0) +
+      (byStatus["technical_interview"] || 0) +
       (byStatus["user_interview"] || 0) +
-      (byStatus["technical_test"] || 0);
+      (byStatus["technical_test"] || 0) +
+      (byStatus["hr_screening"] || 0) +
+      (byStatus["assessment_test"] || 0) +
+      (byStatus["final_interview"] || 0);
 
     const offers = byStatus["offer"] || 0;
     const rejected = byStatus["rejected"] || 0;
@@ -97,6 +104,7 @@ export async function createApplication(
     const {
       company,
       position,
+      cvVersionId,
       jobDescription,
       jobUrl,
       matchScore,
@@ -109,10 +117,27 @@ export async function createApplication(
     if (!jobDescription && !company && !position) {
       throw Errors.validation("Company, position, or job description is required.");
     }
+    if (status !== undefined && !Object.values(ApplicationStatus).includes(status as ApplicationStatus)) {
+      throw Errors.validation("Status lamaran tidak valid.");
+    }
+    if (cvVersionId !== undefined && typeof cvVersionId !== "string") {
+      throw Errors.validation("Versi CV tidak valid.");
+    }
+
+    let ownedCvVersionId: string | undefined;
+    if (cvVersionId) {
+      const cvVersion = await prisma.cvVersion.findFirst({
+        where: { id: cvVersionId, userId },
+        select: { id: true },
+      });
+      if (!cvVersion) throw Errors.validation("Versi CV tidak valid.");
+      ownedCvVersionId = cvVersion.id;
+    }
 
     const application = await prisma.application.create({
       data: {
         userId,
+        cvVersionId: ownedCvVersionId,
         company: company?.trim() || "Untitled Company",
         position: position?.trim() || "Untitled Role",
         jobDescription: jobDescription || "",
@@ -142,6 +167,9 @@ export async function updateApplication(
 
     const { id } = req.params;
     const { company, position, status, notes, jobUrl, hireProb, matchScore } = req.body;
+    if (status !== undefined && !Object.values(ApplicationStatus).includes(status as ApplicationStatus)) {
+      throw Errors.validation("Status lamaran tidak valid.");
+    }
 
     // Verify ownership
     const existing = await prisma.application.findFirst({

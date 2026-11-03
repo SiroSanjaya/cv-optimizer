@@ -11,11 +11,17 @@ datasource db {
 
 enum ApplicationStatus {
   saved
+  preparing_documents
   applied
+  hr_screening
+  assessment_test
   hr_interview
+  technical_interview
   user_interview
   technical_test
+  final_interview
   offer
+  hired
   rejected
   ghosted
   withdrawn
@@ -31,6 +37,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   cvVersions   CvVersion[]
+  careerProfile CareerProfile?
+  savedJobs SavedJob[]
   applications Application[]
   experienceVault ExperienceVaultItem[]
   usageCredit  UsageCredit?
@@ -39,6 +47,7 @@ model User {
   paymentTransactions PaymentTransaction[]
   aiCostLogs AiCostLog[]
   funnelEvents FunnelEvent[]
+  careerDevelopmentPlan CareerDevelopmentPlan?
 }
 
 model ExperienceVaultItem {
@@ -72,10 +81,77 @@ model CvVersion {
   userId      String?
   user        User?    @relation(fields: [userId], references: [id])
   label       String?
+  sourceJobId String?  @unique
   structured  Json // structured CV JSON (personalInfo, summary, skills, experience...)
   createdAt   DateTime @default(now())
 
   applications Application[]
+}
+
+model CareerProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  structuredCv          Json     @default("{}")
+  languages             String[] @default([])
+  targetRoles           String[] @default([])
+  preferredIndustries   String[] @default([])
+  preferredLocations    String[] @default([])
+  employmentPreferences String[] @default([])
+  expectedSalaryMin     Int?
+  expectedSalaryMax     Int?
+  salaryCurrency        String   @default("IDR")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model CareerDevelopmentPlan {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole             String
+  jobCount               Int
+  skillDemand            Json
+  skillGaps              Json
+  learningRecommendations Json
+  portfolioProjects      Json
+  certifications         Json
+  progress               Json     @default("{}")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model SavedJob {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalId          String
+  source              String
+  title               String
+  company             String
+  location            String
+  salary              String?
+  salaryMin           Float?
+  salaryMax           Float?
+  salaryCurrency      String?
+  salaryPeriod        String?
+  type                String?
+  industry            String?
+  experienceLevel     String?
+  url                 String
+  description         String    @db.Text
+  skills              String[]  @default([])
+  matchingSkills      String[]  @default([])
+  missingSkills       String[]  @default([])
+  matchReasons        String[]  @default([])
+  matchScore          Int?
+  applyRecommendation String?
+  applicationDeadline DateTime?
+  postedAtDate        DateTime?
+  savedAt             DateTime  @default(now())
+
+  @@unique([userId, externalId])
+  @@index([userId, savedAt])
 }
 
 model Application {

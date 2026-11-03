@@ -169,12 +169,19 @@ jumlah hop tepercaya.
 Schema Prisma saat ini meliputi:
 
 - `User`: identitas akun dan relasi.
-- `CvVersion`: CV terstruktur opsional yang terkait user.
+- `CareerProfile`: satu profil karier per user, termasuk CV terstruktur,
+  bahasa, target peran, industri, lokasi, preferensi kerja, dan ekspektasi gaji.
+- `CvVersion`: snapshot CV terstruktur milik user, dengan identitas job queue
+  untuk mencegah duplikasi saat worker mengulang task.
+- `SavedJob`: snapshot lowongan sumber eksternal, unik per user dan ID listing;
+  menyimpan metadata gaji, skill match, level pengalaman, dan deadline jika
+  disediakan sumber.
 - `Application`: lowongan, skor/analisis, status tracker, catatan, tanggal.
 - `UsageCredit`: pemakaian dan limit kuota bulanan user.
 - `AiJobReservation`: kaitan job queue dengan reservasi kuota.
-- `ApplicationStatus`: saved, applied, hr_interview, user_interview, technical_test,
-  offer, rejected, ghosted, withdrawn.
+- `ApplicationStatus`: saved, preparing_documents, applied, hr_screening,
+  assessment_test, hr_interview, technical_interview, technical_test, user_interview,
+  final_interview, offer, hired, rejected, ghosted, withdrawn.
 
 Gunakan file migration Prisma yang ter-commit sebagai sumber perubahan schema.
 Untuk rilis, migration perlu dijalankan sekali sebagai langkah release, bukan
@@ -239,7 +246,11 @@ proctoring; jangan menganggapnya dapat mencegah pengguna membuka contekan.
 
 ### Tracker, profil, dan lowongan
 
-- `/applications` - CRUD tracker dan metrik aplikasi.
+- `/profile` - **auth**; baca dan simpan profil karier.
+- `/profile/cv-versions` - **auth**; daftar versi CV milik user saat ini.
+- `/applications` - **auth**; CRUD tracker dan metrik aplikasi.
+- `/jobs/saved` - **auth**; daftar dan simpan snapshot lowongan; hapus melalui
+  `/jobs/saved/:externalId`.
 - `DELETE /profile/account` - hapus akun saat ini dan data terkait sesuai
   implementasi backend.
 - `/jobs/recommendations`, `/jobs/analyze-custom`,
@@ -251,24 +262,33 @@ Saat ini pencarian talent tidak boleh dipahami sebagai pencarian katalog
 kandidat nyata. Tidak ada database kandidat berizin/consent yang digunakan
 oleh fitur tersebut.
 
-Rekomendasi lowongan mengurutkan hingga 100 listing dengan kecocokan skill
-CV, kemudian memprioritaskan listing yang secara eksplisit menyebut visa
-sponsorship. Pencarian menerima kata kunci profesi atau keahlian lintas bidang;
-feed remote tidak lagi dibatasi ke pekerjaan software. Sumber lokal Indonesia
-mencakup Kalibrr; pencarian negara Malaysia, Singapura, dan Australia
-menggunakan `JOOBLE_API_KEY` opsional. Cakupan dan jumlah hasil tetap
-bergantung pada sumber yang tersedia dan bukan katalog lengkap semua pekerjaan.
+Rekomendasi lowongan mengurutkan hingga 100 listing dengan kecocokan skill CV,
+target peran, industri, lokasi, dan preferensi tipe kerja yang tersedia, lalu
+memprioritaskan listing yang secara eksplisit menyebut visa sponsorship.
+Pencarian mendukung posisi/keahlian, perusahaan, industri, dan lokasi; filter
+tambahan mencakup tingkat pengalaman, tipe pekerjaan, serta rentang gaji yang
+memiliki mata uang dan periode yang sama. Sumber lokal Indonesia mencakup
+Kalibrr; pencarian negara Malaysia, Singapura, dan Australia menggunakan
+`JOOBLE_API_KEY` opsional. Cakupan dan jumlah hasil tetap bergantung pada sumber
+yang tersedia dan bukan katalog lengkap semua pekerjaan.
 Halaman Jobs memulai pencarian dari Indonesia dan menampilkan status setiap
 sumber (merespons, tidak ada listing, gagal, atau Jooble belum dikonfigurasi).
 Jumlah yang ditampilkan adalah listing yang dikembalikan API sebelum filter
 lokasi, validasi tautan, dan deduplikasi; angka ini bukan jumlah lowongan yang
 pasti relevan atau masih aktif. Sumber gagal tidak membatalkan hasil dari
-sumber lain.
+sumber lain. Hasil hanya berasal dari integrasi API yang didukung; listing
+tanpa nama perusahaan, deskripsi, atau URL HTTPS tidak ditampilkan. Syarat
+pengalaman diinferensikan dari metadata/teks sumber dan kategori industri hanya
+ditampilkan jika tersedia dari sumber.
 Tanggal listing disimpan sebagai timestamp ISO bila disediakan sumber; tanggal
 tidak valid atau lebih dari 24 jam di masa depan diabaikan. Listing tanpa
 tanggal ditandai, dan listing berumur lebih dari 30 hari diberi peringatan agar
 kandidat memeriksa ulang statusnya di situs sumber. Ini bukan verifikasi bahwa
 lowongan masih aktif.
+Halaman detail menampilkan alasan kecocokan, skill cocok/gap, dan saran prioritas
+apply berbasis aturan yang transparan; skor bukan probabilitas diterima. Deadline
+lamaran hanya disimpan dan dihitung mundur jika field deadline diberikan oleh
+API sumber. Jika tidak ada, pengguna diarahkan untuk memeriksa halaman sumber.
 Status visa adalah deteksi teks sederhana: “belum disebut” tidak berarti
 sponsorship tersedia, dan kandidat tetap harus memverifikasi syarat dengan
 perusahaan.

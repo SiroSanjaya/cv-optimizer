@@ -155,6 +155,10 @@ export class GeminiProvider implements AIProvider {
     throw Errors.aiFailed();
   }
 
+  async generateJsonResponse(prompt: string): Promise<string> {
+    return this.generate(prompt);
+  }
+
   async extractStructuredCv(rawCvText: string): Promise<StructuredCv> {
     const prompt = buildExtractionPrompt(rawCvText);
     const raw = await this.generate(prompt);

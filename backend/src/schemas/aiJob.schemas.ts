@@ -53,6 +53,26 @@ const bulkScreenInputSchema = z.object({
   })).min(1).max(20),
 });
 
+const careerDevelopmentInputSchema = z.object({
+  targetRole: z.string().trim().min(2).max(120),
+  jobCount: z.number().int().min(1).max(200),
+  skillDemand: z.array(z.object({
+    skill: z.string().trim().min(1).max(100),
+    count: z.number().int().min(1).max(200),
+  })).max(40),
+  skillGaps: z.array(z.string().max(100)).max(40),
+  currentSkills: z.array(z.string().max(100)).max(100),
+  experienceSummary: z.array(z.string().max(500)).max(10),
+  existingProjects: z.array(z.string().max(300)).max(10),
+  certificationCatalog: z.array(z.object({
+    id: z.string().max(100),
+    name: z.string().max(200),
+    issuer: z.string().max(100),
+    officialUrl: z.string().url().max(500),
+    relatedSkills: z.array(z.string().max(100)).max(20),
+  })).max(20),
+});
+
 export const aiJobRequestSchema = z.discriminatedUnion("task", [
   z.object({ task: z.literal("cv.analyze"), input: analyzeCvJobInputSchema }),
   z.object({ task: z.literal("cv.generate"), input: generateRequestSchema }),
@@ -62,6 +82,7 @@ export const aiJobRequestSchema = z.discriminatedUnion("task", [
   z.object({ task: z.literal("cv.interview-evaluate"), input: interviewEvaluateInputSchema }),
   z.object({ task: z.literal("profile.import"), input: profileImportInputSchema }),
   z.object({ task: z.literal("jobs.bulk-screen"), input: bulkScreenInputSchema }),
+  z.object({ task: z.literal("career-development.plan"), input: careerDevelopmentInputSchema }),
 ]);
 
 export type AiJobRequest = z.infer<typeof aiJobRequestSchema>;

@@ -22,12 +22,24 @@ materials while keeping the candidate in control of the final content.
   questions, microphone answers, conversational AI follow-ups, and feedback.
 - Track applications through stages such as applied, interview, offer,
   rejected, no response, and withdrawn.
-- Search up to 100 job listings by profession or skill across available
-  sources for Indonesia, Malaysia, Singapore, Australia, and eligible remote
-  roles. Coverage depends on each source and is not exhaustive. Visa
-  sponsorship is flagged only when the listing text explicitly mentions it;
-  review tailored materials and submit each application through the employer's
-  official site.
+- Maintain a saved career profile with education, experience, projects,
+  skills, certifications, languages, and job preferences; keep source-linked
+  job listings in a personal saved list.
+- Search live job listings by position, company, industry, and location, with
+  experience, employment type, and comparable salary filters. Results come
+  from integrated job APIs only; entries without a named employer, description,
+  or HTTPS application link are excluded. Coverage depends on each source and
+  is not exhaustive.
+- Review a job detail page with profile-fit reasons, matching and missing
+  skills, and an apply-priority suggestion. The transparent score is an estimate,
+  not a hiring probability. Application deadlines are shown and saved only when
+  the source API provides one; verify the current listing on its source site.
+  Visa sponsorship is flagged only when the listing text explicitly mentions it.
+- Analyze skill demand from current verified job listings, generate a
+  personalized learning and portfolio roadmap with AI, review curated official
+  certification links, and track milestone progress in the career development
+  page. Skill frequencies describe the current search results, not the entire
+  labor market.
 - Select several listings and prepare separate tailored CVs plus cover letters
   in one sequential batch, capped by the account's remaining AI task quota.
 - Use the optional local Chrome/Edge helper for supported Greenhouse and Lever

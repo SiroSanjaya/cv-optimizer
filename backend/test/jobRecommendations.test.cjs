@@ -4,7 +4,11 @@ const {
   calculateJobMatch,
   detectVisaSponsorship,
   extractSkillsFromText,
+  filterJobListings,
   formatPostedAt,
+  inferExperienceLevel,
+  isVerifiedJobListing,
+  parseSalaryDetails,
 } = require("../dist/services/jobs/jobAggregator");
 const {
   analyzeCustomJobText,
@@ -59,6 +63,123 @@ test("professional job skills can be matched against a candidate CV", () => {
   assert.equal(result.matchScore, 67);
   assert.deepEqual(result.matchingSkills, ["Excel", "Accounting"]);
   assert.deepEqual(result.missingSkills, ["Payroll"]);
+});
+
+test("profile match explains role preferences and recommends from the recorded evidence", () => {
+  const job = {
+    id: "listing-analyst",
+    title: "Product Analyst",
+    company: "Example Co",
+    location: "Jakarta",
+    source: "Kalibrr",
+    url: "https://jobs.example.com/analyst",
+    description: "Analyze product performance with SQL and Excel.",
+    skills: ["SQL", "Excel"],
+    industry: "Finance",
+    type: "Hybrid, full-time",
+  };
+
+  const result = calculateJobMatch(
+    ["SQL", "Excel"],
+    job,
+    {
+      targetRoles: ["Product Analyst"],
+      preferredIndustries: ["Finance"],
+      preferredLocations: ["Jakarta"],
+      employmentPreferences: ["hybrid"],
+    }
+  );
+
+  assert.equal(result.matchScore, 100);
+  assert.equal(result.applyRecommendation, "apply");
+  assert.equal(result.matchReasons.length, 5);
+  assert.match(result.recommendationReason, /persyaratan lengkap/);
+});
+
+test("job filters compare verified salary metadata in the selected currency and period", () => {
+  const job = {
+    id: "listing-filter",
+    title: "Senior Data Analyst",
+    company: "Example Co",
+    location: "Jakarta",
+    salary: "Rp 8.000.000 - Rp 12.000.000 /bln",
+    salaryMin: 8_000_000,
+    salaryMax: 12_000_000,
+    salaryCurrency: "IDR",
+    salaryPeriod: "monthly",
+    type: "Full-time",
+    industry: "Finance",
+    experienceLevel: "senior",
+    source: "Kalibrr",
+    url: "https://jobs.example.com/data",
+    description: "Build reports with SQL and Excel.",
+    skills: ["SQL", "Excel"],
+  };
+
+  assert.deepEqual(
+    filterJobListings([job], {
+      keyword: "analyst",
+      company: "example",
+      industry: "finance",
+      locationQuery: "jakarta",
+      experienceLevel: "senior",
+      employmentType: "full-time",
+      salaryMin: 10_000_000,
+      salaryMax: 13_000_000,
+      salaryCurrency: "IDR",
+      salaryPeriod: "monthly",
+    }),
+    [job]
+  );
+  assert.deepEqual(
+    filterJobListings([job], {
+      salaryMin: 1_000,
+      salaryCurrency: "USD",
+      salaryPeriod: "monthly",
+    }),
+    []
+  );
+});
+
+test("experience filters use explicit level indicators and leave ambiguous listings unclassified", () => {
+  assert.equal(inferExperienceLevel("Senior Product Designer"), "senior");
+  assert.equal(inferExperienceLevel("Fresh graduate - entry level"), "entry");
+  assert.equal(inferExperienceLevel("Product Specialist"), undefined);
+});
+
+test("salary metadata is parsed only with an explicit currency and period", () => {
+  assert.deepEqual(parseSalaryDetails("$50,000 - $60,000 /year"), {
+    salaryMin: 50_000,
+    salaryMax: 60_000,
+    salaryCurrency: "USD",
+    salaryPeriod: "annual",
+  });
+  assert.deepEqual(parseSalaryDetails("Rp 5.000.000 - 7.000.000 /bln"), {
+    salaryMin: 5_000_000,
+    salaryMax: 7_000_000,
+    salaryCurrency: "IDR",
+    salaryPeriod: "monthly",
+  });
+  assert.deepEqual(parseSalaryDetails("Competitive"), {});
+});
+
+test("only complete HTTPS listings with a named employer pass source validation", () => {
+  const listing = {
+    id: "listing-verified",
+    title: "Support Specialist",
+    company: "Example Co",
+    location: "Jakarta",
+    source: "Kalibrr",
+    url: "https://jobs.example.com/123",
+    description: "Resolve customer support requests.",
+    skills: ["Customer Service"],
+  };
+
+  assert.equal(isVerifiedJobListing(listing), true);
+  assert.equal(isVerifiedJobListing({ ...listing, url: "http://jobs.example.com/123" }), false);
+  assert.equal(isVerifiedJobListing({ ...listing, company: "Perusahaan Tidak Diketahui" }), false);
+  assert.equal(isVerifiedJobListing({ ...listing, description: "" }), false);
+  assert.equal(isVerifiedJobListing({ ...listing, source: "Curated" }), false);
 });
 
 test("skill matching does not award points for partial-word overlaps", () => {

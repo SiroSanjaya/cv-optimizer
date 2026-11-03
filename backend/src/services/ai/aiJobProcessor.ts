@@ -18,19 +18,57 @@ import {
   evaluateInterviewAnswer,
   generateInterviewSession,
 } from "./interview.service";
+import { prisma } from "../../utils/prisma";
+import { structuredCvSchema } from "../../schemas/cv.schemas";
+import type { Prisma } from "@prisma/client";
+import { saveCareerDevelopmentPlan } from "../careerDevelopment.service";
 
-export async function processAiJob(request: AiJobRequest): Promise<unknown> {
+async function saveCvVersion(
+  userId: string,
+  jobId: string,
+  label: string,
+  cv: unknown
+): Promise<string> {
+  const parsedCv = structuredCvSchema.safeParse(cv);
+  if (!parsedCv.success) {
+    throw new Error("Cannot persist an invalid structured CV version.");
+  }
+
+  const version = await prisma.cvVersion.upsert({
+    where: { sourceJobId: jobId },
+    create: {
+      userId,
+      sourceJobId: jobId,
+      label,
+      structured: parsedCv.data as Prisma.InputJsonValue,
+    },
+    update: {
+      userId,
+      label,
+      structured: parsedCv.data as Prisma.InputJsonValue,
+    },
+  });
+  return version.id;
+}
+
+export async function processAiJob(
+  request: AiJobRequest,
+  userId: string,
+  jobId: string
+): Promise<unknown> {
   switch (request.task) {
     case "cv.analyze": {
       const cv = request.input.cvData ??
         await getAIProvider().extractStructuredCv(request.input.rawCvText!);
       const analysis = await analyzeCvAgainstJob(cv, request.input.jobDescription);
-      return { success: true, cv, analysis };
+      const cvVersionId = await saveCvVersion(userId, jobId, "CV asli", cv);
+      return { success: true, cv, analysis, cvVersionId };
     }
     case "cv.generate": {
       const { cvData, jobDescription, analysis } = request.input;
       const cv = await generateTailoredCv(cvData, jobDescription, analysis);
-      return { success: true, cv };
+      const cvVersionId = await saveCvVersion(userId, jobId, "CV disesuaikan", cv);
+      return { success: true, cv, cvVersionId };
     }
     case "cv.cover-letter": {
       const { cvData, jobDescription, ...options } = request.input;
@@ -60,7 +98,8 @@ export async function processAiJob(request: AiJobRequest): Promise<unknown> {
       const analysis = jobDescription && jobDescription.trim().length >= 20
         ? await analyzeCvAgainstJob(cv, jobDescription.trim())
         : null;
-      return { success: true, cv, analysis };
+      const cvVersionId = await saveCvVersion(userId, jobId, "CV impor", cv);
+      return { success: true, cv, analysis, cvVersionId };
     }
     case "jobs.bulk-screen": {
       const results = await bulkScreenCvs(
@@ -68,6 +107,14 @@ export async function processAiJob(request: AiJobRequest): Promise<unknown> {
         request.input.rawCvs
       );
       return { success: true, results };
+    }
+    case "career-development.plan": {
+      const plan = await saveCareerDevelopmentPlan(
+        userId,
+        request.input,
+        request.input.skillGaps
+      );
+      return { success: true, plan };
     }
   }
 }

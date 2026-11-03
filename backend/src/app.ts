@@ -9,6 +9,7 @@ import profileRoutes from "./routes/profile.routes";
 import vaultRoutes from "./routes/vault.routes";
 import feedbackRoutes from "./routes/feedback.routes";
 import aiJobsRoutes from "./routes/aiJobs.routes";
+import careerDevelopmentRoutes from "./routes/careerDevelopment.routes";
 import { apiRateLimiter } from "./middleware/rateLimiter";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { prisma } from "./utils/prisma";
@@ -63,6 +64,7 @@ export function createApp() {
   app.use("/api/applications", applicationsRoutes);
   app.use("/api/jobs", jobsRoutes);
   app.use("/api/profile", profileRoutes);
+  app.use("/api/career-development", careerDevelopmentRoutes);
   app.use("/api/vault", vaultRoutes);
   app.use("/api/feedback", feedbackRoutes);
 
