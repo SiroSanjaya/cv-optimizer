@@ -67,16 +67,25 @@ async function reserveMonthlyAction(userId: string, jobId: string): Promise<void
       data: { used: 0, limit, periodStart: monthStart },
     });
 
-    const reservation = await tx.usageCredit.updateMany({
+    const monthlyReservation = await tx.usageCredit.updateMany({
       where: { userId, periodStart: monthStart, used: { lt: limit } },
       data: { used: { increment: 1 }, limit },
     });
-    if (reservation.count !== 1) {
-      throw Errors.quotaExceeded();
+    let creditSource: "monthly" | "bonus" = "monthly";
+
+    if (monthlyReservation.count !== 1) {
+      const bonusReservation = await tx.usageCredit.updateMany({
+        where: { userId, bonusCredits: { gt: 0 } },
+        data: { bonusCredits: { decrement: 1 } },
+      });
+      if (bonusReservation.count !== 1) {
+        throw Errors.quotaExceeded();
+      }
+      creditSource = "bonus";
     }
 
     await tx.aiJobReservation.create({
-      data: { jobId, userId, periodStart: monthStart },
+      data: { jobId, userId, periodStart: monthStart, creditSource },
     });
   });
 }
@@ -97,14 +106,21 @@ export async function settleMonthlyAction(
     });
     if (claimed.count !== 1 || outcome !== "released") return;
 
-    await tx.usageCredit.updateMany({
-      where: {
-        userId: reservation.userId,
-        periodStart: reservation.periodStart,
-        used: { gt: 0 },
-      },
-      data: { used: { decrement: 1 } },
-    });
+    if (reservation.creditSource === "bonus") {
+      await tx.usageCredit.updateMany({
+        where: { userId: reservation.userId },
+        data: { bonusCredits: { increment: 1 } },
+      });
+    } else {
+      await tx.usageCredit.updateMany({
+        where: {
+          userId: reservation.userId,
+          periodStart: reservation.periodStart,
+          used: { gt: 0 },
+        },
+        data: { used: { decrement: 1 } },
+      });
+    }
   });
 }
 

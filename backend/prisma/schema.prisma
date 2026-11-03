@@ -48,6 +48,7 @@ model User {
   paymentTransactions PaymentTransaction[]
   aiCostLogs AiCostLog[]
   funnelEvents FunnelEvent[]
+  betaFeedbackReward BetaFeedbackReward?
   careerDevelopmentPlan CareerDevelopmentPlan?
 }
 
@@ -189,6 +190,7 @@ model UsageCredit {
   user        User     @relation(fields: [userId], references: [id])
   used        Int      @default(0)
   limit       Int      @default(10)
+  bonusCredits Int     @default(0)
   periodStart DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -200,10 +202,19 @@ model AiJobReservation {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   periodStart DateTime
   status      String   @default("reserved")
+  creditSource String  @default("monthly")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId, periodStart])
+}
+
+model BetaFeedbackReward {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credits   Int      @default(2)
+  createdAt DateTime @default(now())
 }
 
 enum LedgerEntryType {

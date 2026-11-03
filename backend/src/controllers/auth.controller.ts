@@ -51,6 +51,7 @@ export async function getCurrentUser(
           ))
             ? user.usageCredit.used
             : 0,
+        bonusCredits: user.usageCredit?.bonusCredits ?? 0,
       },
     });
   } catch (err) {

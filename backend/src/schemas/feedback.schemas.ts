@@ -15,6 +15,8 @@ export const productEventSchema = z.object({
 
 export const betaFeedbackSchema = z.object({
   sessionId: z.string().uuid(),
+  feedbackDetail: z.string().trim().min(30).max(1200),
+  qualityReviewConsent: z.literal(true),
   applicationFrequency: z.enum(["three_plus_weekly", "one_to_two_weekly", "monthly", "exploring"]),
   valueRating: z.number().int().min(1).max(5),
   mainValue: z.enum([

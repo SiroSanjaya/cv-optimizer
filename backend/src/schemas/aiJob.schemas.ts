@@ -27,6 +27,7 @@ const profileImportInputSchema = z.object({
 
 const interviewStartInputSchema = z.object({
   role: z.string().max(200).optional(),
+  companyName: z.string().trim().max(160).optional(),
   level: z.string().max(100).optional(),
   type: z.enum(["technical", "behavioral", "system_design", "mixed"]).optional(),
   language: z.enum(["id", "en"]).default("id"),
@@ -38,9 +39,17 @@ const interviewStartInputSchema = z.object({
 const interviewEvaluateInputSchema = z.object({
   question: z.string().min(1).max(10_000),
   answer: z.string().max(20_000),
-  category: z.string().max(100).optional(),
+  category: z.enum(["technical", "behavioral", "system_design"]).optional(),
   targetSkillOrTopic: z.string().max(200).optional(),
   role: z.string().max(200).optional(),
+  companyName: z.string().trim().max(160).optional(),
+  jobDescription: z.string().max(30_000).optional(),
+  conversationHistory: z.array(z.object({
+    question: z.string().max(1_000),
+    answer: z.string().max(3_000),
+  })).max(8).optional(),
+  remainingTurns: z.number().int().min(0).max(9).optional(),
+  consecutiveProbeCount: z.number().int().min(0).max(2).optional(),
   language: z.enum(["id", "en"]).default("id"),
 });
 

@@ -177,8 +177,11 @@ Schema Prisma saat ini meliputi:
   menyimpan metadata gaji, skill match, level pengalaman, dan deadline jika
   disediakan sumber.
 - `Application`: lowongan, skor/analisis, status tracker, catatan, tanggal.
-- `UsageCredit`: pemakaian dan limit kuota bulanan user.
-- `AiJobReservation`: kaitan job queue dengan reservasi kuota.
+- `UsageCredit`: pemakaian dan limit kuota bulanan user, ditambah saldo kredit
+  bonus yang tetap tersedia setelah kuota bulanan di-reset.
+- `AiJobReservation`: kaitan job queue dengan reservasi kuota bulanan atau kredit
+  bonus; kredit bonus dikembalikan jika task gagal.
+- `BetaFeedbackReward`: klaim bonus feedback satu kali per akun.
 - `ApplicationStatus`: saved, preparing_documents, applied, hr_screening,
   assessment_test, hr_interview, technical_interview, technical_test, user_interview,
   final_interview, offer, hired, rejected, ghosted, withdrawn.
@@ -218,6 +221,9 @@ tertentu.
 
 ### CV dan tugas AI
 
+- `POST /feedback` - **auth**; simpan feedback beta dan nilai kelayakannya dengan AI.
+- `POST /feedback/events` - event penggunaan anonim dengan persetujuan analitik.
+- `DELETE /feedback/:sessionId` - hapus feedback/event perangkat terkait.
 - `POST /cv/analyze` - **auth**; upload `cv` dan `jobDescription`, antrekan
   ekstraksi dan analisis.
 - `POST /cv/generate` - **auth**; antrekan CV yang disesuaikan.
@@ -240,9 +246,19 @@ suara, SpeechSynthesis pada browser membacakan pertanyaan dan respons AI;
 SpeechRecognition browser mengubah jawaban lisan menjadi transkrip. Hanya
 transkrip yang dikirim aplikasi ke Gemini untuk evaluasi, tetapi pemrosesan
 audio oleh browser/perangkat mengikuti kebijakan penyedia masing-masing.
-Respons AI dapat menghasilkan pertanyaan lanjutan berdasarkan jawaban. Ini
-latihan suara bergiliran, bukan streaming percakapan real-time atau sistem
-proctoring; jangan menganggapnya dapat mencegah pengguna membuka contekan.
+MediaRecorder untuk pemutaran ulang bersifat opsional, default mati, dan hanya
+diaktifkan melalui pilihan pengguna. Jika aktif, rekaman hanya berada di memori
+halaman selama sesi; tidak diunggah atau disimpan server, serta dibuang saat
+sesi direset atau halaman ditutup. Pertanyaan dibuat satu per satu; pada setiap
+giliran, AI menerima pertanyaan/jawaban sebelumnya dan memilih untuk menggali
+jawaban, beralih topik, atau menyelesaikan sesi dalam batas giliran yang dipilih
+pengguna. AI memakai posisi, nama perusahaan, dan deskripsi lowongan yang
+diberikan, serta tidak boleh mengarang fakta perusahaan yang tidak ada di
+deskripsi.
+Tempo kata per menit, kata pengisi, dan jeda panjang adalah perkiraan lokal
+untuk latihan, bukan penilaian aksen, emosi, atau peluang diterima; deteksi jeda
+dapat keliru akibat noise. Ini latihan suara bergiliran, bukan streaming
+percakapan real-time atau sistem proctoring.
 
 ### Tracker, profil, dan lowongan
 
@@ -462,6 +478,29 @@ Build dan unit test bukan load test. Jumlah pengguna yang dapat ditangani
 bergantung pada request mix, latensi dan batas provider, concurrency worker,
 ukuran database/Redis, serta konfigurasi hosting.
 
+### Metodologi skor kecocokan CV
+
+Skor analisis CV bukan angka probabilitas dari model. Backend mengekstrak
+kebutuhan kerja yang eksplisit dari deskripsi pekerjaan, menilai bukti CV
+sebagai `Supported`, `Partial`, atau `Gap`, lalu menghitung rata-rata dengan
+bobot sama: `Supported` = 100%, `Partial` = 50%, dan `Gap` = 0%. Persyaratan
+duplikat digabungkan; bila status duplikat berbeda, status yang lebih rendah
+yang dipakai agar skor tidak meningkat karena keluaran ganda.
+
+Data nama, kontak, lokasi, dan tautan personal dikecualikan dari prompt analisis.
+Model juga diminta mengabaikan karakteristik pribadi/protected dan tidak
+menyimpulkannya dari riwayat pendidikan atau tanggal kerja. Skor tidak
+menentukan kelayakan kerja, bukan skor ATS, tidak memprediksi peluang diterima,
+dan belum dikalibrasi terhadap keputusan perekrut. Skill yang diklaim pengguna
+tidak mengubah skor lama; analisis ulang diperlukan setelah draft CV diperbarui.
+
+Skor rekomendasi lowongan adalah ukuran terpisah: skill 70%, target peran 15%,
+industri 10%, dan lokasi 5%. Hanya faktor yang tersedia dari profil yang ikut
+dihitung, lalu bobotnya dinormalisasi. Pencocokan skill menggunakan kesamaan
+teks yang dinormalisasi, bukan kemiripan semantik. Ini membantu mengurutkan
+listing sesuai profil, bukan menilai kualitas kandidat atau peluang kerja.
+Skor rekomendasi ini tidak disimpan sebagai skor analisis CV pada tracker.
+
 ### Beta Rp0 jika trial hosting tidak tersedia
 
 Pada 3 November 2026, halaman Railway untuk akun baru menunjukkan bahwa trial
@@ -518,20 +557,29 @@ dan percobaan/fallback model. Karena itu, jangan menjanjikan layanan gratis
 tanpa batas hanya berdasarkan kuota aplikasi atau free tier; pantau pemakaian
 dan biaya pada project Google, pasang alert, dan tetapkan kuota aplikasi yang
 sesuai dengan anggaran operator.
+Penilaian kualitas feedback memakai panggilan Gemini tambahan yang tidak
+mengurangi kuota task pengguna, tetapi tetap menambah biaya operator; endpoint
+dibatasi tiga pengiriman per jam per akun.
 
 ## 10. Validasi beta dan feedback
 
-Setelah CV berhasil dibuat, pengguna dapat mengirim survei singkat yang opsional.
-Jawabannya hanya kategori terstruktur (frekuensi melamar, nilai manfaat, fitur
-yang paling membantu, niat menggunakan lagi, rentang harga, dan hambatan); CV,
-deskripsi lowongan, nama, email, serta akun tidak dikirim. Data disimpan sebagai
-`FunnelEvent` tanpa migrasi baru. Jawaban harga adalah riset, bukan pembayaran
-atau bukti kesediaan membayar.
+Setelah CV berhasil dibuat, pengguna dapat mengirim survei opsional dan saran
+teks yang spesifik. Saran dikirim ke Google Gemini untuk menilai kelayakan bonus;
+jangan memasukkan CV, deskripsi lowongan, nama, email, atau informasi rahasia.
+Feedback disimpan sebagai `FunnelEvent` yang terkait akun dan ID perangkat.
+Feedback yang lolos penilaian memberi dua kredit AI bonus satu kali per akun.
+Jawaban yang belum cukup spesifik tetap disimpan tanpa bonus, disertai saran
+perbaikan. Penilaian AI dapat keliru; ini bukan verifikasi objektif atas kebenaran
+laporan atau ukuran nilai pengguna. Klaim disimpan dalam `BetaFeedbackReward`,
+sedangkan saldo bonus tetap tersedia melewati reset kuota bulanan dan digunakan
+setelah kuota bulan berjalan habis. Task yang gagal mengembalikan kredit bonus.
+Jawaban harga adalah riset, bukan pembayaran atau bukti kesediaan membayar.
 
 Persetujuan analitik terpisah dan opsional. Jika disetujui, event penggunaan
 berikutnya memakai ID acak yang tersimpan di browser, tidak ditautkan ke akun.
-Pengguna dapat menghapus semua event dan feedback dengan ID perangkat tersebut
-dari halaman Privasi. Feedback dikirim ke `POST /api/feedback`, event yang
+Pengguna dapat menghapus feedback dan event dengan ID perangkat tersebut dari
+halaman Privasi. Catatan klaim bonus tetap ada untuk mencegah klaim ulang dan
+dihapus saat akun dihapus. Feedback dikirim ke `POST /api/feedback`, event yang
 diizinkan ke `POST /api/feedback/events`, dan penghapusan ke
 `DELETE /api/feedback/:sessionId`.
 

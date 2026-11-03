@@ -3,8 +3,9 @@ const test = require("node:test");
 
 process.env.NODE_ENV = "test";
 const { createApp } = require("../dist/app");
+const { signToken } = require("../dist/services/auth/jwt");
 
-test("feedback routes reject invalid payloads before database writes", async (t) => {
+test("feedback submission requires auth and rejects invalid payloads before database writes", async (t) => {
   const server = createApp().listen(0, "127.0.0.1");
   await new Promise((resolve, reject) => {
     server.once("listening", resolve);
@@ -20,9 +21,20 @@ test("feedback routes reject invalid payloads before database writes", async (t)
   const address = server.address();
   assert.ok(address && typeof address === "object");
   const baseUrl = `http://127.0.0.1:${address.port}/api/feedback`;
-  const invalidFeedback = await fetch(baseUrl, {
+  const unauthenticated = await fetch(baseUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ valueRating: 10 }),
+  });
+  assert.equal(unauthenticated.status, 401);
+
+  const token = signToken({ userId: "test-user", email: "test@example.com" });
+  const invalidFeedback = await fetch(baseUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ valueRating: 10 }),
   });
   assert.equal(invalidFeedback.status, 400);

@@ -1,7 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
+import { LedgerEntryType, Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { Errors } from "../utils/AppError";
 import { betaFeedbackSchema, productEventSchema } from "../schemas/feedback.schemas";
+import { getMonthlyQuota } from "../services/ai/aiTasks";
+import { assessFeedbackQuality } from "../services/feedbackQuality.service";
 
 export async function recordProductEventController(
   req: Request,
@@ -32,20 +35,124 @@ export async function submitBetaFeedbackController(
   next: NextFunction
 ) {
   try {
+    const userId = req.userPayload?.userId;
+    if (!userId) throw Errors.unauthorized();
+
     const parsed = betaFeedbackSchema.safeParse(req.body);
     if (!parsed.success) {
       throw Errors.validation("Invalid beta feedback.");
     }
 
     const { sessionId, ...answers } = parsed.data;
+    const existingReward = await prisma.betaFeedbackReward.findUnique({
+      where: { userId },
+    });
+
+    if (existingReward) {
+      await prisma.funnelEvent.create({
+        data: {
+          eventName: "beta_feedback",
+          sessionId,
+          userId,
+          metadata: answers,
+        },
+      });
+      const usage = await prisma.usageCredit.findUnique({ where: { userId } });
+      return res.status(201).json({
+        success: true,
+        feedbackEligible: false,
+        alreadyRewarded: true,
+        bonusGranted: 0,
+        bonusCredits: usage?.bonusCredits ?? 0,
+        tip: "Bonus feedback sudah pernah diklaim di akun ini. Terima kasih untuk masukan tambahannya.",
+      });
+    }
+
+    const assessment = await assessFeedbackQuality(answers.feedbackDetail);
     await prisma.funnelEvent.create({
       data: {
         eventName: "beta_feedback",
         sessionId,
+        userId,
         metadata: answers,
       },
     });
-    res.status(201).json({ success: true });
+
+    if (!assessment.eligible) {
+      return res.status(201).json({
+        success: true,
+        feedbackEligible: false,
+        alreadyRewarded: false,
+        bonusGranted: 0,
+        tip: assessment.tip,
+      });
+    }
+
+    const monthStart = new Date();
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
+    const monthlyQuota = getMonthlyQuota();
+    let reward;
+
+    try {
+      reward = await prisma.$transaction(async (tx) => {
+        const createdReward = await tx.betaFeedbackReward.create({
+          data: { userId, credits: 2 },
+        });
+        const usage = await tx.usageCredit.upsert({
+          where: { userId },
+          create: {
+            userId,
+            used: 0,
+            limit: monthlyQuota,
+            bonusCredits: createdReward.credits,
+            periodStart: monthStart,
+          },
+          update: { bonusCredits: { increment: createdReward.credits } },
+        });
+        const monthlyRemaining =
+          usage.periodStart >= monthStart
+            ? Math.max(0, usage.limit - usage.used)
+            : monthlyQuota;
+
+        await tx.creditLedgerEntry.create({
+          data: {
+            userId,
+            amount: createdReward.credits,
+            balanceAfter: monthlyRemaining + usage.bonusCredits,
+            type: LedgerEntryType.GRANT,
+            reason: "Beta feedback reward",
+            referenceId: createdReward.id,
+          },
+        });
+
+        return { granted: createdReward.credits, bonusCredits: usage.bonusCredits };
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const concurrentReward = await prisma.betaFeedbackReward.findUnique({
+          where: { userId },
+        });
+        if (!concurrentReward) throw error;
+
+        const usage = await prisma.usageCredit.findUnique({ where: { userId } });
+        reward = { granted: 0, bonusCredits: usage?.bonusCredits ?? 0 };
+      } else {
+        throw error;
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      feedbackEligible: true,
+      alreadyRewarded: reward.granted === 0,
+      bonusGranted: reward.granted,
+      bonusCredits: reward.bonusCredits,
+      tip: assessment.tip,
+    });
   } catch (error) {
     next(error);
   }

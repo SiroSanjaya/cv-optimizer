@@ -24,6 +24,7 @@ function sharedStore(prefix: string) {
 const apiStore = sharedStore("rate:api:");
 const aiStore = sharedStore("rate:ai:");
 const feedbackStore = sharedStore("rate:feedback:");
+const betaFeedbackStore = sharedStore("rate:beta-feedback:");
 
 export const apiRateLimiter = rateLimit({
   windowMs: windowMinutes * 60 * 1000,
@@ -60,5 +61,19 @@ export const feedbackRateLimiter = rateLimit({
   message: {
     success: false,
     error: "Too many feedback requests. Please try again later.",
+  },
+});
+
+export const betaFeedbackRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => req.userPayload?.userId ?? "unauthenticated",
+  ...(betaFeedbackStore ? { store: betaFeedbackStore } : {}),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Kamu sudah mengirim beberapa feedback. Coba lagi nanti.",
+    code: "RATE_LIMITED",
   },
 });

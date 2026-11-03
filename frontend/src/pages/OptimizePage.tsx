@@ -10,7 +10,7 @@ import { MatchAnalysis } from "../components/MatchAnalysis";
 import { CvPreview } from "../components/CvPreview";
 import { QuotaBanner } from "../components/QuotaBanner";
 import { Button } from "../components/Button";
-import { HireProbabilityGauge } from "../components/HireProbabilityGauge";
+import { MatchScoreCard } from "../components/HireProbabilityGauge";
 import { ProfileImportModal } from "../components/ProfileImportModal";
 import { CoverLetterSection } from "../components/CoverLetterSection";
 import { ShareableScoreModal } from "../components/ShareableScoreModal";
@@ -419,18 +419,7 @@ export function OptimizePage() {
   };
 
   const baseScore = analysis?.matchScore ?? 0;
-  const missingCount = analysis?.missingSkills?.length ?? 0;
-  const partialCount = analysis?.partialMatches?.length ?? 0;
-  const totalClaimable = missingCount + partialCount;
-
-  const effectiveScore = (() => {
-    if (!analysis) return 0;
-    if (claimedSkills.length === 0) return baseScore;
-    const remainingGap = Math.max(0, 100 - baseScore);
-    const weightPerSkill = totalClaimable > 0 ? remainingGap / totalClaimable : 8;
-    const boost = Math.round(claimedSkills.length * Math.max(5, weightPerSkill));
-    return Math.min(100, Math.max(baseScore, baseScore + boost));
-  })();
+  const effectiveScore = baseScore;
 
   const onPrepareBatch = async (firstJobDescription: string) => {
     if (!user) {
@@ -448,7 +437,8 @@ export function OptimizePage() {
         : target
     );
     const requiredTasks = targets.length * 3;
-    const remainingTasks = Math.max(0, user.credits - user.usedCredits);
+    const remainingTasks =
+      Math.max(0, user.credits - user.usedCredits) + (user.bonusCredits ?? 0);
     if (remainingTasks < requiredTasks) {
       setSubmitError(
         `Batch ini perlu ${requiredTasks} task AI untuk ${targets.length} paket CV + cover letter, tetapi kuota tersisa ${remainingTasks}. Kurangi pilihan atau lanjutkan setelah kuota tersedia.`
@@ -621,7 +611,7 @@ export function OptimizePage() {
         ...(cvVersionId ? { cvVersionId } : {}),
         jobDescription,
         jobUrl: targetJob?.jobUrl,
-        matchScore: targetJob?.matchScore ?? effectiveScore,
+        matchScore: effectiveScore,
         status: "saved",
         notes: [
           "Disimpan dari analisis satsetCV; belum menandakan lamaran sudah terkirim.",
@@ -901,7 +891,11 @@ export function OptimizePage() {
 
         {user && typeof user.credits === "number" && typeof user.usedCredits === "number" && (
           <div className="mt-6">
-            <QuotaBanner used={user.usedCredits} limit={user.credits} />
+            <QuotaBanner
+              used={user.usedCredits}
+              limit={user.credits}
+              bonusCredits={user.bonusCredits}
+            />
           </div>
         )}
 
@@ -1333,10 +1327,11 @@ export function OptimizePage() {
 
         {stage === "results" && analysis && (
           <div className="mt-8 space-y-6">
-            <HireProbabilityGauge
+            <MatchScoreCard
               score={effectiveScore}
-              matchedSkillsCount={(analysis.matchedSkills?.length || 0) + claimedSkills.length}
-              missingSkillsCount={Math.max(0, (analysis.missingSkills?.length || 0) - claimedSkills.length)}
+              matchedSkillsCount={analysis.matchedSkills?.length || 0}
+              missingSkillsCount={analysis.missingSkills?.length || 0}
+              requirementCount={analysis.jobMatchAnalysis?.length || 0}
             />
 
             {/* Detailed Skills & Experience Breakdown */}
@@ -1375,7 +1370,7 @@ export function OptimizePage() {
                   className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-gradient-to-r from-amber-50 to-amber-100/80 px-4 py-2.5 text-xs font-bold text-amber-900 shadow-xs hover:border-amber-400 hover:scale-105 transition-all"
                 >
                   <Award className="h-4 w-4 text-amber-600" />
-                  <span>Pamerkan Skor LinkedIn 🚀</span>
+                  <span>Bagikan Ringkasan Kecocokan</span>
                 </button>
               </div>
 

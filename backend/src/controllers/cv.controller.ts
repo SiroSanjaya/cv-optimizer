@@ -282,7 +282,7 @@ export async function getInterviewPrepController(
 
 /**
  * POST /api/cv/interview/start
- * Body: { role, level, type, cvSkills, jobDescription, questionCount }
+ * Body: { role, companyName, level, type, cvSkills, jobDescription, questionCount }
  */
 export async function startMockInterviewSession(
   req: Request,
@@ -290,9 +290,10 @@ export async function startMockInterviewSession(
   next: NextFunction
 ) {
   try {
-    const { role, level, type, cvSkills, jobDescription, questionCount } = req.body;
+    const { role, companyName, level, type, cvSkills, jobDescription, questionCount } = req.body;
     const questions = await generateInterviewSession({
       role,
+      companyName,
       level,
       type,
       cvSkills,
@@ -308,7 +309,7 @@ export async function startMockInterviewSession(
 
 /**
  * POST /api/cv/interview/evaluate
- * Body: { question, answer, category, targetSkillOrTopic, role }
+ * Body: { question, answer, category, targetSkillOrTopic, role, companyName, jobDescription, conversationHistory, remainingTurns, consecutiveProbeCount, language }
  */
 export async function evaluateMockInterviewAnswerController(
   req: Request,
@@ -316,7 +317,19 @@ export async function evaluateMockInterviewAnswerController(
   next: NextFunction
 ) {
   try {
-    const { question, answer, category, targetSkillOrTopic, role } = req.body;
+    const {
+      question,
+      answer,
+      category,
+      targetSkillOrTopic,
+      role,
+      companyName,
+      jobDescription,
+      conversationHistory,
+      remainingTurns,
+      consecutiveProbeCount,
+      language,
+    } = req.body;
     if (!question || typeof question !== "string") {
       throw Errors.validation("Pertanyaan wawancara wajib disertakan.");
     }
@@ -327,6 +340,12 @@ export async function evaluateMockInterviewAnswerController(
       category,
       targetSkillOrTopic,
       role,
+      companyName,
+      jobDescription,
+      conversationHistory,
+      remainingTurns,
+      consecutiveProbeCount,
+      language,
     });
 
     res.json({ success: true, evaluation });

@@ -5,8 +5,11 @@ import {
   submitBetaFeedback,
   type BetaFeedback,
 } from "../lib/api";
+import { useAuth } from "../context/AuthContextValue";
 
 type FeedbackFields = {
+  feedbackDetail: string;
+  qualityReviewConsent: boolean;
   applicationFrequency: BetaFeedback["applicationFrequency"] | "";
   valueRating: number | "";
   mainValue: BetaFeedback["mainValue"] | "";
@@ -16,6 +19,8 @@ type FeedbackFields = {
 };
 
 const initialFeedback: FeedbackFields = {
+  feedbackDetail: "",
+  qualityReviewConsent: false,
   applicationFrequency: "",
   valueRating: "",
   mainValue: "",
@@ -25,15 +30,19 @@ const initialFeedback: FeedbackFields = {
 };
 
 export function BetaFeedbackCard() {
+  const { refreshUser } = useAuth();
   const [feedback, setFeedback] = useState(initialFeedback);
   const [analyticsConsent, setAnalyticsConsent] = useState(hasProductAnalyticsConsent);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<Awaited<ReturnType<typeof submitBetaFeedback>> | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (
+      feedback.feedbackDetail.trim().length < 30 ||
+      !feedback.qualityReviewConsent ||
       !feedback.applicationFrequency ||
       feedback.valueRating === "" ||
       !feedback.mainValue ||
@@ -45,6 +54,8 @@ export function BetaFeedbackCard() {
     }
 
     const answers: BetaFeedback = {
+      feedbackDetail: feedback.feedbackDetail.trim(),
+      qualityReviewConsent: true,
       applicationFrequency: feedback.applicationFrequency,
       valueRating: feedback.valueRating,
       mainValue: feedback.mainValue,
@@ -54,9 +65,12 @@ export function BetaFeedbackCard() {
     };
     setIsSubmitting(true);
     setError(null);
+    setSubmissionResult(null);
     try {
-      await submitBetaFeedback(answers, analyticsConsent);
-      setSubmitted(true);
+      const result = await submitBetaFeedback(answers, analyticsConsent);
+      setSubmissionResult(result);
+      setSubmitted(result.bonusGranted > 0 || result.alreadyRewarded);
+      if (result.bonusGranted > 0) await refreshUser();
     } catch (submitError) {
       setError(
         submitError instanceof Error ? submitError.message : "Gagal mengirim feedback."
@@ -73,10 +87,22 @@ export function BetaFeedbackCard() {
     <section className="rounded-2xl border border-line bg-paper-raised p-4 sm:p-6">
       {submitted ? (
         <div role="status">
-          <h2 className="font-semibold text-ink">Makasih, feedback-mu tersimpan.</h2>
+          <h2 className="font-semibold text-ink">
+            {submissionResult?.bonusGranted
+              ? `Feedback memenuhi syarat—${submissionResult.bonusGranted} kredit bonus ditambahkan!`
+              : submissionResult?.alreadyRewarded
+                ? "Makasih, feedback tambahanmu tersimpan."
+                : "Makasih, feedback-mu tersimpan."}
+          </h2>
           <p className="mt-1 text-sm leading-6 text-ink-soft">
-            Pilihan harga hanya untuk riset; belum ada transaksi atau langganan.
-            Kamu bisa menghapus jawaban dan data penggunaan berbasis ID acak dari{" "}
+            {submissionResult?.tip}{" "}
+            {submissionResult?.feedbackEligible && !submissionResult.alreadyRewarded
+              ? `Sisa kredit bonus: ${submissionResult.bonusCredits ?? 0}.`
+              : submissionResult?.alreadyRewarded
+                ? "Bonus 2 kredit hanya diberikan satu kali per akun."
+                : "Feedback tetap tersimpan, tetapi belum mendapat bonus. Kamu bisa memperbaiki masukan dan mengirim lagi."}{" "}
+            Pilihan harga hanya untuk riset, bukan pembayaran atau langganan.
+            Kamu bisa menghapus feedback dan data penggunaan dari{" "}
             <Link to="/privacy" className="font-semibold text-forest underline">
               halaman privasi
             </Link>
@@ -93,12 +119,22 @@ export function BetaFeedbackCard() {
               Bantu kami bikin alur lamar kerja lebih berguna
             </h2>
             <p className="mt-1 text-sm leading-6 text-ink-soft">
-              Jawab singkat setelah mencoba hasilnya. Jangan kirim nama perusahaan,
-              CV, atau informasi pribadi.
+              Ceritakan hal spesifik yang kamu coba, masalah/kebutuhan yang muncul,
+              dan perubahan yang kamu harapkan. Feedback konkret yang lolos penilaian
+              AI mendapat 2 kredit bonus satu kali per akun.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-2">
+            {submissionResult && !submissionResult.feedbackEligible && !submissionResult.alreadyRewarded && (
+              <p
+                role="status"
+                className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:col-span-2"
+              >
+                Feedback tersimpan, tetapi belum memenuhi syarat bonus. {submissionResult.tip}
+                {" "}Kamu bisa perbaiki masukan lalu kirim lagi.
+              </p>
+            )}
             <label className="text-sm font-semibold text-ink">
               Seberapa sering kamu melamar?
               <select
@@ -216,6 +252,44 @@ export function BetaFeedbackCard() {
               </select>
             </label>
 
+            <label className="text-sm font-semibold text-ink sm:col-span-2">
+              Masukan spesifik untuk kami (minimal 30 karakter)
+              <textarea
+                className={`${fieldClassName} min-h-28`}
+                required
+                minLength={30}
+                maxLength={1200}
+                rows={4}
+                value={feedback.feedbackDetail}
+                onChange={(event) =>
+                  setFeedback({ ...feedback, feedbackDetail: event.target.value })
+                }
+                placeholder="Contoh: Saat mengedit CV hasil optimasi, perubahan bullet tidak ikut tersimpan ketika saya kembali. Saya berharap draft terakhir tetap tersimpan agar tidak perlu mengulang."
+              />
+              <span className="mt-1 block text-xs font-normal text-ink-soft">
+                {feedback.feedbackDetail.trim().length}/1200 karakter. Penilai AI
+                akan menolak masukan terlalu umum seperti “CV perlu diperbaiki” dan
+                memberi tahu detail yang perlu ditambahkan.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-2 text-sm leading-5 text-ink-soft sm:col-span-2">
+              <input
+                type="checkbox"
+                required
+                checked={feedback.qualityReviewConsent}
+                onChange={(event) =>
+                  setFeedback({ ...feedback, qualityReviewConsent: event.target.checked })
+                }
+                className="mt-1 h-4 w-4 shrink-0 accent-forest"
+              />
+              <span>
+                Saya setuju masukan teks ini dikirim ke Google Gemini untuk penilaian
+                kualitas dan disimpan bersama akun saya. Saya tidak akan memasukkan
+                nama, email, CV, atau informasi rahasia.
+              </span>
+            </label>
+
             <label className="flex items-start gap-2 text-sm leading-5 text-ink-soft sm:col-span-2">
               <input
                 type="checkbox"
@@ -235,8 +309,8 @@ export function BetaFeedbackCard() {
             </label>
 
             <p className="text-xs leading-5 text-ink-soft sm:col-span-2">
-              Feedback tidak menyertakan CV, deskripsi lowongan, nama, atau email.
-              Pilihan harga hanya riset, bukan penawaran atau pembayaran.
+              Bonus hanya bisa diklaim sekali per akun dan tidak dapat diuangkan.
+              Pilihan harga hanya untuk riset; belum ada transaksi atau langganan.
             </p>
 
             {error && (
@@ -247,10 +321,14 @@ export function BetaFeedbackCard() {
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !feedback.qualityReviewConsent || feedback.feedbackDetail.trim().length < 30}
               className="min-h-11 rounded-lg bg-forest px-4 py-2 text-sm font-bold text-white transition hover:bg-forest-dark disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2 sm:justify-self-start"
             >
-              {isSubmitting ? "Mengirim..." : "Kirim feedback"}
+              {isSubmitting
+                ? "Menilai dan mengirim..."
+                : submissionResult && !submissionResult.feedbackEligible
+                  ? "Kirim ulang feedback setelah diperbaiki"
+                  : "Kirim feedback"}
             </button>
           </form>
         </>

@@ -12,7 +12,15 @@ const {
 
 // Document generator
 const { generateCvPdf } = require("../dist/services/document/pdfGenerator.js");
-const { buildCoverLetterPrompt } = require("../dist/services/ai/prompts.js");
+const {
+  buildAnalysisPrompt,
+  buildCoverLetterPrompt,
+  buildGenerationPrompt,
+} = require("../dist/services/ai/prompts.js");
+const {
+  calculateEvidenceMatchScore,
+  deduplicateJobRequirements,
+} = require("../dist/services/cv/matchScore.js");
 
 // Monetization Cost Estimator
 const { estimateCostUsd } = require("../dist/services/monetization/creditLedger.service.js");
@@ -226,9 +234,50 @@ describe("Quality Test Suite: Evidence-Based Job Matching", () => {
     assert.equal(gapItem?.status, "Gap");
     assert.notEqual(gapItem?.status, "Supported");
   });
+
+  it("calculates an equal-weighted, deduplicated evidence score", () => {
+    const requirements = [
+      { requirement: "Node.js", evidence: "Used in work", status: "Supported" },
+      { requirement: "Database design", evidence: "Related work", status: "Partial" },
+      { requirement: "Kubernetes", evidence: "No evidence", status: "Gap" },
+      { requirement: " node.js ", evidence: "Conflicting duplicate", status: "Gap" },
+    ];
+
+    const unique = deduplicateJobRequirements(requirements);
+    assert.equal(unique.length, 3);
+    assert.equal(unique[0].status, "Gap");
+    assert.equal(calculateEvidenceMatchScore(requirements), 17);
+    assert.equal(calculateEvidenceMatchScore([]), null);
+  });
+
+  it("keeps analysis criteria explicit and excludes personal traits", () => {
+    const prompt = buildAnalysisPrompt("{}", "Backend developer role");
+
+    assert.match(prompt, /Do not use names, contact details, location, photos, age, gender/i);
+    assert.match(prompt, /Do not add a requirement that is not stated/i);
+    assert.match(prompt, /application calculates matchScore from jobMatchAnalysis/i);
+  });
+
+  it("maps Unsupported to Gap rather than Supported", () => {
+    const parsed = jobRequirementMatchSchema.parse({
+      requirement: "Kubernetes",
+      evidence: "No evidence",
+      status: "Unsupported",
+    });
+
+    assert.equal(parsed.status, "Gap");
+  });
 });
 
 describe("Quality Test Suite: AI Rewriting Truthfulness & Anti-Hallucination", () => {
+  it("does not turn job keywords or partial matches into CV skill claims", () => {
+    const prompt = buildGenerationPrompt("{}", "Role requiring Kubernetes", "{}");
+
+    assert.match(prompt, /Do not add skills or tools merely because they appear in the job description/i);
+    assert.match(prompt, /Never turn a transferable competency into a claim of proficiency/i);
+    assert.doesNotMatch(prompt, /achieve a top ATS match score/i);
+  });
+
   it("does not require or fabricate metrics in cover letters", () => {
     const prompt = buildCoverLetterPrompt("{}", "Customer service role");
 

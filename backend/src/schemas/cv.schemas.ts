@@ -127,12 +127,12 @@ export const jobRequirementMatchSchema = z.object({
   evidence: nullableString(),
   status: z
     .preprocess((val) => {
-      const s = String(val || "").toLowerCase();
-      if (s.includes("support") || s.includes("match") || s.includes("ada") || s.includes("sesuai")) {
-        return "Supported";
-      }
-      if (s.includes("part") || s.includes("sebagian")) {
+      const s = String(val || "").trim().toLowerCase();
+      if (["partial", "partially supported", "sebagian", "didukung sebagian"].includes(s)) {
         return "Partial";
+      }
+      if (["supported", "matched", "match", "ada", "sesuai"].includes(s)) {
+        return "Supported";
       }
       return "Gap";
     }, z.enum(["Supported", "Partial", "Gap"]))

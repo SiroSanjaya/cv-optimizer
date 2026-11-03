@@ -255,7 +255,7 @@ export function Header() {
                           {Math.max(
                             0,
                             (user.credits ?? 0) - (user.usedCredits ?? 0)
-                          )}{" "}
+                          ) + (user.bonusCredits ?? 0)}{" "}
                           tersisa
                         </span>
                       </div>

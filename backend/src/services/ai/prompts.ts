@@ -42,7 +42,9 @@ RULES:
 - Only mark a skill as "matched" if it is explicitly present in the CV facts.
 - Only mark a skill as "partial" if closely related evidence exists (e.g. a related technology, adjacent responsibility) but not an exact match.
 - Anything required by the job but not evidenced anywhere in the CV must go in "missingSkills". Never move a missing skill into matched or partial to be encouraging.
-- matchScore is your honest estimate (0-100) of overall relevance between the CV and the job description. It is NOT a real ATS system score — do not imply otherwise in your summary.
+- Do not use names, contact details, location, photos, age, gender, race, ethnicity, religion, disability, marital or family status, or other personal or protected characteristics to evaluate a candidate. Do not infer these characteristics from education or employment dates.
+- Consider only explicit, job-related skills, responsibilities, and qualifications. Do not add a requirement that is not stated in the job description. List distinct requirements once; if the job description has fewer than five clear requirements, return only those.
+- The application calculates matchScore from jobMatchAnalysis. Return matchScore as 0; do not estimate or optimize it.
 - recommendations should be concrete and actionable, and must never suggest the candidate claim skills/experience they don't have. Recommendations may suggest how to better phrase or surface EXISTING experience, or suggest the candidate genuinely acquire a missing skill before applying — never suggest fabricating it.
 - interviewQuestions: Predict 3 to 4 high-probability interview questions (technical and behavioral) based on the target job requirements and candidate profile. Provide actionable answer tips using the STAR method (Situation, Task, Action, Result) in Bahasa Indonesia.
 - jobMatchAnalysis: Extract 5 to 10 key technical and role requirements from the Job Description. For each requirement, classify status as:
@@ -50,6 +52,7 @@ RULES:
   * "Partial" (related technology or adjacent experience, but optimization or scale unproven)
   * "Gap" (no evidence found in CV)
   Include concise evidence explaining where it was found or why it is a gap.
+- Keep each requirement focused on one distinct, explicit, job-related criterion so the application can score all listed requirements equally.
 - suggestedRevisions: For 3 to 5 candidate experience bullet points, provide high-impact X-Y-Z rewrites. Explain the exact reasoning (e.g. 'Menonjolkan aktivitas teknis dan arsitektur tanpa menambahkan angka fiktif') and provide a prompt for candidate to insert their real metric.
 - Respond with ONLY valid JSON matching the schema. No markdown fences, no commentary.`;
 
@@ -114,7 +117,7 @@ Compare Section 1 against Section 2 and return ONLY the JSON object described ab
 export const GENERATION_SYSTEM_PROMPT = `You are an elite executive career architect and ATS optimization writer producing a high-converting, visually clean, and recruiter-friendly CV.
 
 GOAL:
-Tailor the candidate's CV to achieve a top ATS match score (90%+) against the Job Description, while making it remarkably readable, crisp, and compelling for human HR recruiters (passing the 6-second scan test).
+Create a clear, concise CV tailored to the relevant job while preserving the candidate's facts. Do not promise or optimize for a particular ATS score or hiring outcome.
 
 CRITICAL FORMATTING & READABILITY RULES (AVOID DENSE/EXHAUSTING TEXT):
 1. HR SCANNABILITY & BREVITY (NO TEXT WALLS):
@@ -127,17 +130,16 @@ CRITICAL FORMATTING & READABILITY RULES (AVOID DENSE/EXHAUSTING TEXT):
    - Lead every single bullet point with a strong, unique past-tense action verb (e.g., "Architected", "Engineered", "Optimized", "Spearheaded", "Accelerated", "Delivered", "Automated").
    - Highlight metrics, outcomes, or scale whenever truthful to the candidate's experience (e.g., percentage gains, latency cuts, user volume, uptime).
 
-3. SKILLS & KEYWORDS ENHANCEMENT:
-   - Organize and expand the "skills" list to include top relevant technical skills, tools, methodologies, and keywords from the Job Description (Section 2) and Match Analysis (Section 3).
-   - Convert all "partialMatches" and transferable competencies into explicit, standard ATS-friendly skill keywords.
-   - Retain all of the candidate's original foundational skills.
+3. SKILLS & KEYWORDS:
+   - Retain the candidate's existing skills and any additional skills explicitly supplied by the candidate in the CV facts.
+   - Do not add skills or tools merely because they appear in the job description, match analysis, or partial matches. Never turn a transferable competency into a claim of proficiency in a specific tool.
 
 4. FACTUAL TRUTHFULNESS:
    - Keep existing company names, job titles, institutions, degrees, and employment dates completely intact (do NOT invent fake companies or fake degrees).
    - Naturally weave required tools/keywords into the candidate's real responsibilities.
 
-5. CLEAN ATS JSON OUTPUT:
-   - Ensure clean, ATS-compliant JSON structure.
+5. CLEAR STRUCTURE:
+   - Use consistent, readable wording and a standard CV section structure. Do not add irrelevant keywords to influence an ATS score.
    - Respond with ONLY valid JSON matching the schema. No markdown fences, no commentary.`;
 
 export function buildGenerationPrompt(
@@ -202,6 +204,7 @@ Generate a high-converting, tailored cover letter based on the candidate's actua
 
 RULES:
 - Base all achievements, roles, and skills STRICTLY on the candidate's CV facts. Do NOT invent fake company names or fabricated statistics.
+- Do not add skills that appear only in the job description or analysis. Treat candidate-provided CV facts as the only evidence of qualifications.
 - Use numerical metrics only when they are explicitly stated in the CV. Never infer, estimate, or create numbers. If the CV has no relevant metrics, describe supported contributions qualitatively instead.
 - Directly connect the candidate's real past successes with the specific needs and requirements mentioned in the job description.
 - Use the supplied company, role, recipient, and motivation details to make this letter specific to this application. Do not claim company facts not supplied by the user or job description.

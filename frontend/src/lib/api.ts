@@ -39,6 +39,7 @@ export interface User {
   cvVersionCount?: number;
   credits?: number;
   usedCredits?: number;
+  bonusCredits?: number;
 }
 
 export interface CareerDevelopmentAnalysis {
@@ -141,6 +142,8 @@ export type ProductEventName =
   | "optimization_restarted";
 
 export interface BetaFeedback {
+  feedbackDetail: string;
+  qualityReviewConsent: true;
   applicationFrequency:
     | "three_plus_weekly"
     | "one_to_two_weekly"
@@ -205,9 +208,15 @@ export async function trackProductEvent(eventName: ProductEventName): Promise<vo
 export async function submitBetaFeedback(
   feedback: BetaFeedback,
   analyticsConsent: boolean
-): Promise<void> {
+): Promise<{
+  feedbackEligible: boolean;
+  alreadyRewarded: boolean;
+  bonusGranted: number;
+  bonusCredits?: number;
+  tip: string;
+}> {
   try {
-    await publicApi.post("/api/feedback", {
+    const response = await api.post("/api/feedback", {
       ...feedback,
       sessionId: getProductSessionId(),
     });
@@ -216,6 +225,7 @@ export async function submitBetaFeedback(
     } else {
       localStorage.removeItem(PRODUCT_ANALYTICS_CONSENT_KEY);
     }
+    return response.data;
   } catch (error) {
     throw new Error(extractErrorMessage(error, "Gagal mengirim feedback."));
   }
@@ -863,11 +873,13 @@ export interface InterviewEvaluation {
   improvements: string[];
   idealAnswer: string;
   interviewerResponse?: string;
-  followUpQuestion?: string;
+  nextTurnType: "probe" | "new_topic" | "complete";
+  nextQuestion: Omit<MockInterviewQuestion, "id"> | null;
 }
 
 export async function startMockInterviewSession(params: {
   role?: string;
+  companyName?: string;
   level?: string;
   type?: "technical" | "behavioral" | "system_design" | "mixed";
   language?: "id" | "en";
@@ -892,6 +904,11 @@ export async function evaluateMockInterviewAnswer(params: {
   category?: string;
   targetSkillOrTopic?: string;
   role?: string;
+  companyName?: string;
+  jobDescription?: string;
+  conversationHistory?: Array<{ question: string; answer: string }>;
+  remainingTurns?: number;
+  consecutiveProbeCount?: number;
   language?: "id" | "en";
 }): Promise<InterviewEvaluation> {
   try {

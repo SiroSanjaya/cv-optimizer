@@ -515,7 +515,11 @@ export function DashboardPage() {
                             to="/interview"
                             onClick={() => {
                               sessionStorage.setItem("interview_target_role", job.title);
-                              sessionStorage.setItem("interview_target_job", `Posisi: ${job.title} di ${job.company}\nSkills: ${job.skills.join(", ")}`);
+                              sessionStorage.setItem("interview_target_company", job.company);
+                              sessionStorage.setItem(
+                                "interview_target_job",
+                                `Posisi: ${job.title} di ${job.company}\nSkills: ${job.skills.join(", ")}\nDeskripsi lowongan: ${job.description}`
+                              );
                             }}
                             className="flex items-center gap-1 text-forest font-semibold hover:underline text-[11px]"
                           >

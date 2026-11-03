@@ -4,13 +4,15 @@ interface MatchScoreCardProps {
   score: number;
   matchedSkillsCount?: number;
   missingSkillsCount?: number;
+  requirementCount?: number;
   className?: string;
 }
 
-export function HireProbabilityGauge({
+export function MatchScoreCard({
   score,
   matchedSkillsCount = 0,
   missingSkillsCount = 0,
+  requirementCount = 0,
   className = "",
 }: MatchScoreCardProps) {
   const validScore = Math.min(100, Math.max(0, Math.round(score)));
@@ -35,8 +37,8 @@ export function HireProbabilityGauge({
             Kecocokan CV dengan lowongan
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-            Estimasi relevansi berdasarkan informasi yang terbaca pada CV dan deskripsi pekerjaan.
-            Bukan skor ATS perusahaan atau prediksi peluang diterima.
+            Persentase bukti kecocokan: kebutuhan yang didukung = 100%, parsial = 50%, dan gap = 0%,
+            dengan bobot sama. Bukan skor ATS atau peluang diterima.
           </p>
         </div>
         <p className={`shrink-0 text-2xl font-bold ${scoreColor}`}>
@@ -61,6 +63,7 @@ export function HireProbabilityGauge({
       </div>
 
       <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs text-ink-soft">
+        <span>{requirementCount} kebutuhan dinilai</span>
         <span className="inline-flex items-center gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5 text-forest" aria-hidden="true" />
           {matchedSkillsCount} skill cocok

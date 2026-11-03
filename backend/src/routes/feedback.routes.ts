@@ -4,13 +4,17 @@ import {
   recordProductEventController,
   submitBetaFeedbackController,
 } from "../controllers/feedback.controller";
-import { feedbackRateLimiter } from "../middleware/rateLimiter";
+import { requireAuth } from "../middleware/auth.middleware";
+import {
+  betaFeedbackRateLimiter,
+  feedbackRateLimiter,
+} from "../middleware/rateLimiter";
 
 const router = Router();
 
 router.use(feedbackRateLimiter);
 router.post("/events", recordProductEventController);
-router.post("/", submitBetaFeedbackController);
+router.post("/", requireAuth, betaFeedbackRateLimiter, submitBetaFeedbackController);
 router.delete("/:sessionId", deleteBetaFeedbackController);
 
 export default router;

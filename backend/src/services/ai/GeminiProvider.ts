@@ -18,6 +18,10 @@ import { extractJson } from "./jsonExtractor";
 import { structuredCvSchema, cvAnalysisSchema } from "../../schemas/cv.schemas";
 import { Errors } from "../../utils/AppError";
 import { logger } from "../../utils/logger";
+import {
+  calculateEvidenceMatchScore,
+  deduplicateJobRequirements,
+} from "../cv/matchScore";
 
 const AI_TIMEOUT_MS = 45_000;
 const RETRY_DELAYS_MS = [1_000, 2_000];
@@ -178,7 +182,18 @@ export class GeminiProvider implements AIProvider {
     cv: StructuredCv,
     jobDescription: string
   ): Promise<CvAnalysis> {
-    const prompt = buildAnalysisPrompt(JSON.stringify(cv), jobDescription);
+    const cvFactsForMatching = {
+      summary: cv.summary,
+      skills: cv.skills,
+      experience: cv.experience,
+      projects: cv.projects,
+      education: cv.education,
+      certifications: cv.certifications,
+    };
+    const prompt = buildAnalysisPrompt(
+      JSON.stringify(cvFactsForMatching),
+      jobDescription
+    );
     const raw = await this.generate(prompt);
     const json = extractJson<unknown>(raw);
     const parsed = cvAnalysisSchema.safeParse(json);
@@ -189,7 +204,20 @@ export class GeminiProvider implements AIProvider {
       });
       throw Errors.malformedAiResponse();
     }
-    return parsed.data;
+
+    const jobMatchAnalysis = deduplicateJobRequirements(
+      parsed.data.jobMatchAnalysis ?? []
+    );
+    const matchScore = calculateEvidenceMatchScore(jobMatchAnalysis);
+    if (matchScore === null) {
+      logger.error("schema_validation_failed", {
+        stage: "analyzeMatch",
+        reason: "missing_scoreable_job_requirements",
+      });
+      throw Errors.malformedAiResponse();
+    }
+
+    return { ...parsed.data, jobMatchAnalysis, matchScore };
   }
 
   async generateTailoredCv(

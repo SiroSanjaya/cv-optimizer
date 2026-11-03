@@ -12,6 +12,11 @@ import {
   type InterviewEvaluation,
 } from "../lib/api";
 import {
+  calculateAnswerDeliveryMetrics,
+  countLongPauses,
+  type AnswerDeliveryMetrics,
+} from "../lib/interviewDelivery";
+import {
   Sparkles,
   Mic,
   MicOff,
@@ -69,6 +74,9 @@ export function InterviewPage() {
   const [role, setRole] = useState(
     () => sessionStorage.getItem("interview_target_role") || "Software Engineer"
   );
+  const [companyName, setCompanyName] = useState(
+    () => sessionStorage.getItem("interview_target_company") || ""
+  );
   const [level, setLevel] = useState("Mid-Senior");
   const [interviewType, setInterviewType] = useState<"technical" | "behavioral" | "system_design" | "mixed">("mixed");
   const [questionCount, setQuestionCount] = useState(3);
@@ -79,6 +87,7 @@ export function InterviewPage() {
   const [customJobDesc, setCustomJobDesc] = useState(
     () => sessionStorage.getItem("interview_target_job") || ""
   );
+  const [recordAudioLocally, setRecordAudioLocally] = useState(false);
 
   // Flow state
   const [step, setStep] = useState<"setup" | "interviewing" | "completed">("setup");
@@ -89,28 +98,100 @@ export function InterviewPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeQuestion, setActiveQuestion] = useState<MockInterviewQuestion | null>(null);
   const [isFollowUp, setIsFollowUp] = useState(false);
+  const [followUpDepth, setFollowUpDepth] = useState(0);
   const [showQuestionText, setShowQuestionText] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
   // Answering state
   const [userAnswer, setUserAnswer] = useState("");
   const [currentEvaluation, setCurrentEvaluation] = useState<InterviewEvaluation | null>(null);
-  const [evaluationsHistory, setEvaluationsHistory] = useState<{ question: MockInterviewQuestion; answer: string; evaluation: InterviewEvaluation }[]>([]);
+  const [evaluationsHistory, setEvaluationsHistory] = useState<{
+    question: MockInterviewQuestion;
+    answer: string;
+    evaluation: InterviewEvaluation;
+    audioUrl?: string;
+    deliveryMetrics?: AnswerDeliveryMetrics;
+  }[]>([]);
 
   // Audio / Speech-to-text
   const [isRecording, setIsRecording] = useState(false);
+  const [isStartingRecording, setIsStartingRecording] = useState(false);
+  const [isFinalizingRecording, setIsFinalizingRecording] = useState(false);
+  const [isFinalizingTranscript, setIsFinalizingTranscript] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
+  const [recordedDurationMs, setRecordedDurationMs] = useState(0);
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
+  const [deliveryMetrics, setDeliveryMetrics] = useState<AnswerDeliveryMetrics | null>(null);
+  const [deliveryWarning, setDeliveryWarning] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const speechAnswerRef = useRef("");
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioBlobRef = useRef<Blob | null>(null);
+  const audioUrlsRef = useRef(new Set<string>());
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const recordedDurationMsRef = useRef(0);
+  const discardActiveRecordingRef = useRef(false);
+  const recordingAttemptRef = useRef(0);
   const speechSupported =
     typeof window !== "undefined" && Boolean(getSpeechRecognitionConstructor());
   const speechOutputSupported =
     typeof window !== "undefined" && "speechSynthesis" in window;
+  const audioRecordingSupported =
+    typeof window !== "undefined" &&
+    typeof navigator !== "undefined" &&
+    typeof MediaRecorder !== "undefined" &&
+    Boolean(navigator.mediaDevices?.getUserMedia);
+
+  const discardCurrentRecording = () => {
+    recordingAttemptRef.current += 1;
+    discardActiveRecordingRef.current = true;
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+    audioStreamRef.current = null;
+    recorderRef.current = null;
+    audioChunksRef.current = [];
+    audioBlobRef.current = null;
+    recordingStartedAtRef.current = null;
+    recordedDurationMsRef.current = 0;
+    if (recordingUrl) {
+      URL.revokeObjectURL(recordingUrl);
+      audioUrlsRef.current.delete(recordingUrl);
+    }
+    setRecordingUrl(null);
+    setRecordedDurationMs(0);
+    setRecordingElapsedSeconds(0);
+    setIsStartingRecording(false);
+    setIsFinalizingRecording(false);
+    setIsFinalizingTranscript(false);
+    setDeliveryMetrics(null);
+    setDeliveryWarning(null);
+  };
+
+  const discardSessionRecordings = () => {
+    discardCurrentRecording();
+    for (const url of audioUrlsRef.current) URL.revokeObjectURL(url);
+    audioUrlsRef.current.clear();
+  };
+
+  const clearCurrentAnswerAudio = () => {
+    setRecordingUrl(null);
+    setRecordedDurationMs(0);
+    setRecordingElapsedSeconds(0);
+    setDeliveryMetrics(null);
+    setDeliveryWarning(null);
+    audioBlobRef.current = null;
+    recordedDurationMsRef.current = 0;
+  };
 
   // Check if target job description was passed from JobsPage
   useEffect(() => {
     sessionStorage.removeItem("interview_target_job");
     sessionStorage.removeItem("interview_target_role");
+    sessionStorage.removeItem("interview_target_company");
   }, []);
 
   const handleStartSession = async (e?: React.FormEvent) => {
@@ -133,20 +214,23 @@ export function InterviewPage() {
 
       const generated = await startMockInterviewSession({
         role,
+        companyName: companyName.trim() || undefined,
         level,
         type: interviewType,
         language,
         cvSkills,
         jobDescription: customJobDesc || undefined,
-        questionCount,
+        questionCount: 1,
       });
 
       if (generated && generated.length > 0) {
+        discardSessionRecordings();
         speechAnswerRef.current = "";
         setQuestions(generated);
         setCurrentIndex(0);
         setActiveQuestion(generated[0]);
         setIsFollowUp(false);
+        setFollowUpDepth(0);
         setShowQuestionText(false);
         setShowTranscript(false);
         setCurrentEvaluation(null);
@@ -162,8 +246,8 @@ export function InterviewPage() {
     }
   };
 
-  // Toggle Speech-to-Text
-  const toggleSpeechRecognition = () => {
+  // Toggle local audio recording and speech-to-text.
+  const toggleSpeechRecognition = async () => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!SpeechRecognition) {
       setSessionError(
@@ -174,13 +258,85 @@ export function InterviewPage() {
       setVoiceMode(false);
       return;
     }
+    if (!isRecording && recordAudioLocally && !audioRecordingSupported) {
+      setSessionError(
+        language === "id"
+          ? "Perekaman audio lokal tidak didukung browser ini. Gunakan jawaban teks."
+          : "Local audio recording is not supported by this browser. Use text answers."
+      );
+      return;
+    }
 
     if (isRecording) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
+      setIsFinalizingTranscript(true);
+      recognitionRef.current?.stop();
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        setIsFinalizingRecording(true);
+        recorder.stop();
+      } else {
+        setIsRecording(false);
       }
     } else {
+      discardCurrentRecording();
+      const recordingAttempt = ++recordingAttemptRef.current;
+      setIsStartingRecording(true);
       try {
+        discardActiveRecordingRef.current = false;
+        const stream = recordAudioLocally
+          ? await navigator.mediaDevices.getUserMedia({ audio: true })
+          : null;
+        if (recordingAttempt !== recordingAttemptRef.current) {
+          stream?.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        if (stream) {
+          const preferredMimeType = [
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/mp4",
+          ].find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+          const recorder = preferredMimeType
+            ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+            : new MediaRecorder(stream);
+          audioStreamRef.current = stream;
+          audioChunksRef.current = [];
+          recordingStartedAtRef.current = Date.now();
+          recorderRef.current = recorder;
+          recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) audioChunksRef.current.push(event.data);
+          };
+          recorder.onstop = () => {
+            const durationMs = recordingStartedAtRef.current
+              ? Date.now() - recordingStartedAtRef.current
+              : 0;
+            recordingStartedAtRef.current = null;
+            audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+            audioStreamRef.current = null;
+            if (!discardActiveRecordingRef.current && audioChunksRef.current.length) {
+              const blob = new Blob(audioChunksRef.current, {
+                type: recorder.mimeType || "audio/webm",
+              });
+              if (blob.size > 0) {
+                const url = URL.createObjectURL(blob);
+                audioUrlsRef.current.add(url);
+                audioBlobRef.current = blob;
+                setRecordingUrl(url);
+                setRecordedDurationMs(durationMs);
+                recordedDurationMsRef.current = durationMs;
+                setRecordingElapsedSeconds(Math.ceil(durationMs / 1000));
+                setDeliveryMetrics(null);
+                setDeliveryWarning(null);
+              }
+            }
+            audioChunksRef.current = [];
+            if (recorderRef.current === recorder) recorderRef.current = null;
+            if (!discardActiveRecordingRef.current) setIsFinalizingRecording(false);
+          };
+          recorder.start(250);
+        }
+
         const recognition = new SpeechRecognition();
         recognition.lang = language === "id" ? "id-ID" : "en-US";
         recognition.continuous = true;
@@ -221,6 +377,12 @@ export function InterviewPage() {
           if (recognitionRef.current !== recognition) return;
           recognitionRef.current = null;
           setIsRecording(false);
+          setIsFinalizingTranscript(false);
+          const activeRecorder = recorderRef.current;
+          if (activeRecorder && activeRecorder.state !== "inactive") {
+            setIsFinalizingRecording(true);
+            activeRecorder.stop();
+          }
           setSessionError(
             event.error === "not-allowed"
               ? language === "id"
@@ -236,16 +398,28 @@ export function InterviewPage() {
           if (recognitionRef.current === recognition) {
             recognitionRef.current = null;
             setIsRecording(false);
+            setIsFinalizingTranscript(false);
+            const activeRecorder = recorderRef.current;
+            if (activeRecorder && activeRecorder.state !== "inactive") {
+              setIsFinalizingRecording(true);
+              activeRecorder.stop();
+            }
           }
         };
 
         recognitionRef.current = recognition;
         setUserAnswer(speechAnswerRef.current);
         recognition.start();
+        setIsStartingRecording(false);
         setIsRecording(true);
       } catch (err) {
+        if (recordingAttempt !== recordingAttemptRef.current) return;
         recognitionRef.current = null;
+        setIsStartingRecording(false);
+        setIsFinalizingTranscript(false);
         setIsRecording(false);
+        setIsFinalizingRecording(false);
+        discardCurrentRecording();
         setSessionError(
           err instanceof Error
             ? err.message
@@ -260,6 +434,7 @@ export function InterviewPage() {
   const resetSpokenAnswer = () => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
+    discardCurrentRecording();
     speechAnswerRef.current = "";
     setIsRecording(false);
     setUserAnswer("");
@@ -301,14 +476,31 @@ export function InterviewPage() {
   useEffect(() => {
     if (!currentEvaluation || !voiceMode || !speechOutputSupported) return;
     const response = currentEvaluation.interviewerResponse?.trim();
-    const followUp = !isFollowUp ? currentEvaluation.followUpQuestion?.trim() : undefined;
-    const spokenResponse = [response, followUp].filter(Boolean).join(" ");
-    if (spokenResponse) speakText(spokenResponse);
-  }, [currentEvaluation, isFollowUp, speakText, speechOutputSupported, voiceMode]);
+    if (response) speakText(response);
+  }, [currentEvaluation, speakText, speechOutputSupported, voiceMode]);
+
+  useEffect(() => {
+    if (!isRecording) return;
+    const timer = window.setInterval(() => {
+      const startedAt = recordingStartedAtRef.current;
+      if (startedAt) setRecordingElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [isRecording]);
 
   useEffect(
     () => () => {
-      recognitionRef.current?.stop();
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      recognition?.stop();
+      recordingAttemptRef.current += 1;
+      discardActiveRecordingRef.current = true;
+      audioChunksRef.current = [];
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") recorder.stop();
+      audioStreamRef.current?.getTracks().forEach((track) => track.stop());
+      for (const url of audioUrlsRef.current) URL.revokeObjectURL(url);
+      audioUrlsRef.current.clear();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     },
     []
@@ -344,19 +536,55 @@ export function InterviewPage() {
     }
 
     try {
+      let answerMetrics: AnswerDeliveryMetrics | undefined;
+      let answerDeliveryWarning: string | null = null;
+      const audioBlob = audioBlobRef.current;
+      if (audioBlob) {
+        let longPauses: number | null = null;
+        try {
+          longPauses = await countLongPauses(audioBlob);
+        } catch {
+          answerDeliveryWarning =
+            language === "id"
+              ? "Deteksi jeda tidak tersedia di browser ini; metrik lain tetap dihitung secara lokal."
+              : "Pause detection is unavailable in this browser; other metrics are still calculated locally.";
+        }
+        answerMetrics = calculateAnswerDeliveryMetrics(
+          userAnswer,
+          recordedDurationMsRef.current,
+          longPauses
+        );
+      }
+
       const evaluation = await evaluateMockInterviewAnswer({
         question: currentQ.question,
-        answer: userAnswer,
+        answer: userAnswer.trim(),
         category: currentQ.category,
         targetSkillOrTopic: currentQ.targetSkillOrTopic,
         role,
+        companyName: companyName.trim() || undefined,
+        jobDescription: customJobDesc.trim() || undefined,
+        conversationHistory: evaluationsHistory.slice(-8).map((item) => ({
+          question: item.question.question.slice(0, 1000),
+          answer: item.answer.slice(0, 3000),
+        })),
+        remainingTurns: Math.max(0, questionCount - currentIndex - 1),
+        consecutiveProbeCount: followUpDepth,
         language,
       });
 
       setCurrentEvaluation(evaluation);
+      setDeliveryMetrics(answerMetrics ?? null);
+      setDeliveryWarning(answerDeliveryWarning);
       setEvaluationsHistory((prev) => [
         ...prev,
-        { question: currentQ, answer: userAnswer, evaluation },
+        {
+          question: currentQ,
+          answer: userAnswer.trim(),
+          evaluation,
+          audioUrl: recordingUrl ?? undefined,
+          deliveryMetrics: answerMetrics,
+        },
       ]);
     } catch (err: any) {
       setSessionError(err instanceof Error ? err.message : "Gagal mengevaluasi jawaban. Coba lagi.");
@@ -365,42 +593,28 @@ export function InterviewPage() {
     }
   };
 
-  // Move to Next Question or Complete
-  const handleNext = () => {
-    if (currentIndex + 1 < questions.length) {
-      const nextIndex = currentIndex + 1;
-      speechAnswerRef.current = "";
-      setCurrentIndex(nextIndex);
-      setActiveQuestion(questions[nextIndex]);
-      setIsFollowUp(false);
-      setUserAnswer("");
-      setCurrentEvaluation(null);
-      setShowQuestionText(false);
-      setShowTranscript(false);
-    } else {
+  const handleContinueInterview = () => {
+    const nextTurn = currentEvaluation?.nextQuestion;
+    if (!nextTurn) {
       if (speechOutputSupported) window.speechSynthesis.cancel();
       setIsSpeaking(false);
       setStep("completed");
+      return;
     }
-  };
 
-  const handleFollowUp = () => {
-    const followUpQuestion = currentEvaluation?.followUpQuestion?.trim();
-    if (!followUpQuestion || !activeQuestion || isFollowUp) return;
-
+    const nextQuestion: MockInterviewQuestion = {
+      ...nextTurn,
+      id: `adaptive-${currentIndex + 2}-${Date.now()}`,
+    };
+    clearCurrentAnswerAudio();
     speechAnswerRef.current = "";
-    setActiveQuestion({
-      ...activeQuestion,
-      id: `${activeQuestion.id}-follow-up`,
-      question: followUpQuestion,
-      context:
-        language === "id"
-          ? "Pertanyaan lanjutan berdasarkan jawabanmu barusan."
-          : "A follow-up based on your previous answer.",
-      hint: "",
-      keyConceptsExpected: [],
-    });
-    setIsFollowUp(true);
+    setQuestions((previous) => [...previous, nextQuestion]);
+    setCurrentIndex((index) => index + 1);
+    setActiveQuestion(nextQuestion);
+    setIsFollowUp(currentEvaluation.nextTurnType === "probe");
+    setFollowUpDepth((depth) =>
+      currentEvaluation.nextTurnType === "probe" ? depth + 1 : 0
+    );
     setUserAnswer("");
     setCurrentEvaluation(null);
     setShowQuestionText(false);
@@ -431,6 +645,7 @@ export function InterviewPage() {
                 if (confirm("Keluar dari sesi wawancara saat ini? Progress akan direset.")) {
                   recognitionRef.current?.stop();
                   recognitionRef.current = null;
+                  discardSessionRecordings();
                   if (speechOutputSupported) window.speechSynthesis.cancel();
                   setIsRecording(false);
                   setIsSpeaking(false);
@@ -441,6 +656,7 @@ export function InterviewPage() {
                   setUserAnswer("");
                   setCurrentIndex(0);
                   setIsFollowUp(false);
+                  setFollowUpDepth(0);
                   setStep("setup");
                 }
               }}
@@ -470,7 +686,7 @@ export function InterviewPage() {
                 Latihan Wawancara Kerja Berbasis AI
               </h1>
               <p className="mt-2 text-sm text-ink-soft leading-relaxed">
-                Latih jawaban untuk posisi yang dituju. AI memberi umpan balik berdasarkan jawaban yang kamu masukkan; hasilnya adalah bahan latihan, bukan prediksi hasil wawancara.
+                AI berperan sebagai interviewer: menyusun pertanyaan dari role dan job description, menanggapi jawabanmu, lalu menggali detailnya dengan follow-up kontekstual. Hasilnya bahan latihan, bukan prediksi rekrutmen.
               </p>
             </div>
 
@@ -487,6 +703,19 @@ export function InterviewPage() {
                     placeholder="Contoh: Senior Frontend Engineer, Backend Go/Node, DevOps"
                     className="w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wider">
+                    Perusahaan Target (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={(event) => setCompanyName(event.target.value)}
+                    placeholder="Nama perusahaan yang kamu lamar"
+                    className="w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-forest"
                   />
                 </div>
 
@@ -552,7 +781,7 @@ export function InterviewPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wider">
-                    Jumlah Pertanyaan
+                    Batas Giliran Interview
                   </label>
                   <div className="flex items-center gap-3">
                     {[3, 5, 7].map((cnt) => (
@@ -566,10 +795,13 @@ export function InterviewPage() {
                             : "border-line bg-paper text-ink hover:bg-paper-raised"
                         }`}
                       >
-                        {cnt} Pertanyaan
+                        {cnt} Giliran
                       </button>
                     ))}
                   </div>
+                  <p className="text-[11px] text-ink-soft">
+                    Jumlah ini batas maksimum termasuk pertanyaan penggalian. AI menentukan tiap giliran berikutnya dan boleh mengakhiri lebih awal.
+                  </p>
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-forest/20 bg-forest-tint/40 p-3">
@@ -584,27 +816,57 @@ export function InterviewPage() {
                       Mode wawancara suara
                     </span>
                     <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
-                      Pewawancara membacakan pertanyaan dan merespons jawabanmu. Browser dapat memproses audio untuk membuat transkrip; transkrip dikirim ke AI untuk evaluasi.
+                      AI membacakan pertanyaan dan responsnya. Browser mengubah ucapan menjadi teks; hanya transkrip yang dikirim ke AI aplikasi. Pemrosesan suara oleh browser mengikuti kebijakannya. Rekaman lokal opsional di bawah default-nya mati.
                     </span>
                   </span>
                 </label>
-                {voiceMode && (!speechSupported || !speechOutputSupported) && (
+                {voiceMode &&
+                  (!speechSupported || !speechOutputSupported) && (
                   <p className="text-xs text-amber-800">
-                    Dukungan suara bergantung pada browser. Jika mikrofon atau audio tidak tersedia, sesi akan memakai kontrol yang didukung browser.
+                    Dukungan suara bergantung pada browser. Jika input suara tidak tersedia, kamu tetap bisa menjawab dengan teks.
                   </p>
+                )}
+                {voiceMode && (
+                  <label
+                    className={`flex items-start gap-3 rounded-xl border p-3 ${
+                      audioRecordingSupported
+                        ? "cursor-pointer border-line bg-paper"
+                        : "border-amber-200 bg-amber-50/60"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={recordAudioLocally}
+                      disabled={!audioRecordingSupported}
+                      onChange={(event) => setRecordAudioLocally(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-[var(--color-forest)]"
+                    />
+                    <span>
+                      <span className="block text-xs font-semibold text-ink">
+                        Rekam audio di browser untuk diputar ulang (opsional)
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-relaxed text-ink-soft">
+                        Default mati. Jika diaktifkan, audio hanya ada sementara di browser dan tidak dikirim ke AI/server.
+                        {!audioRecordingSupported && " Browser ini belum mendukung rekaman lokal."}
+                      </span>
+                    </span>
+                  </label>
                 )}
 
                 <div>
                   <label className="block text-xs font-bold text-ink mb-1.5 uppercase tracking-wider">
-                    Deskripsi Pekerjaan / Job Requirements (Opsional)
+                    Deskripsi Pekerjaan / Job Requirements (Opsional, Disarankan)
                   </label>
                   <textarea
                     rows={4}
                     value={customJobDesc}
                     onChange={(e) => setCustomJobDesc(e.target.value)}
-                    placeholder="Tempel deskripsi lowongan atau spesifikasi teknologi yang Anda targetkan agar pertanyaan lebih spesifik..."
+                    placeholder="Tempel job description lengkap agar pertanyaan dan follow-up AI spesifik ke tanggung jawab, skill, dan kualifikasi..."
                     className="w-full rounded-lg border border-line bg-paper p-3 text-xs text-ink outline-none focus:border-forest"
                   />
+                  <p className="mt-1 text-[11px] text-ink-soft">
+                    Untuk konteks perusahaan yang akurat, sertakan detail yang tercantum di lowongan. AI tidak akan mengarang budaya atau produk perusahaan.
+                  </p>
                 </div>
               </div>
 
@@ -613,7 +875,7 @@ export function InterviewPage() {
                   <div className="flex flex-wrap items-center gap-3 text-xs text-ink-soft">
                     <span className="flex items-center gap-1">
                       {voiceMode ? <Mic className="h-4 w-4 text-forest" /> : <MessageSquare className="h-4 w-4 text-forest" />}
-                      {voiceMode ? "Pertanyaan & jawaban suara" : "Jawaban teks"}
+                      {voiceMode ? "Interviewer AI suara" : "Interviewer AI teks"}
                     </span>
                     <span>•</span>
                     <span className="flex items-center gap-1">
@@ -642,7 +904,7 @@ export function InterviewPage() {
                   </button>
                 </div>
                 <p className="text-xs text-ink-soft">
-                  Membuat sesi dan mengevaluasi setiap jawaban (termasuk follow-up) memakai kuota AI.
+                  AI membuat pertanyaan satu per satu, membaca konteks jawaban sebelumnya, dan memilih untuk menggali atau pindah topik. Setiap jawaban memakai kuota AI.
                 </p>
               </div>
             </form>
@@ -661,11 +923,14 @@ export function InterviewPage() {
                 <div>
                   <span className="text-xs font-semibold text-ink">
                     {isFollowUp
-                      ? "Pertanyaan lanjutan"
-                      : `Pertanyaan ${currentIndex + 1} dari ${questions.length}`}
+                      ? `Menggali jawaban · giliran ${currentIndex + 1} dari ${questionCount}`
+                      : `Giliran ${currentIndex + 1} dari ${questionCount}`}
                   </span>
                   <p className="text-[11px] text-ink-soft">
                     Kategori: <span className="font-semibold uppercase text-forest">{activeQuestion.category}</span> • Topik: {activeQuestion.targetSkillOrTopic}
+                  </p>
+                  <p className="text-[11px] text-ink-soft">
+                    Target: {role}{companyName.trim() ? ` • ${companyName.trim()}` : ""}
                   </p>
                 </div>
               </div>
@@ -675,11 +940,11 @@ export function InterviewPage() {
                 <div className="w-32 h-2 rounded-full bg-paper overflow-hidden border border-line">
                   <div
                     className="h-full bg-forest transition-all duration-300"
-                    style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+                    style={{ width: `${((currentIndex + 1) / questionCount) * 100}%` }}
                   />
                 </div>
                 <span className="text-[11px] font-bold text-forest">
-                  {Math.round(((currentIndex + 1) / questions.length) * 100)}%
+                  {Math.round(((currentIndex + 1) / questionCount) * 100)}%
                 </span>
               </div>
             </div>
@@ -777,7 +1042,9 @@ export function InterviewPage() {
                     {voiceMode && (
                       <p className="mt-1 text-[11px] text-ink-soft">
                         {isRecording
-                          ? "Mendengarkan jawabanmu..."
+                          ? recordAudioLocally
+                            ? `Mendengarkan dan merekam lokal... ${Math.floor(recordingElapsedSeconds / 60)}:${String(recordingElapsedSeconds % 60).padStart(2, "0")}`
+                            : "Mendengarkan jawabanmu; audio tidak disimpan."
                           : userAnswer.trim()
                             ? "Transkrip tersimpan. Kamu bisa lanjut bicara atau rekam ulang."
                             : "Jawab dengan suaramu seperti sedang berbicara dengan interviewer."}
@@ -800,7 +1067,12 @@ export function InterviewPage() {
                       <button
                         type="button"
                         onClick={toggleSpeechRecognition}
-                        disabled={isSpeaking}
+                        disabled={
+                          isSpeaking ||
+                          isStartingRecording ||
+                          isFinalizingRecording ||
+                          isFinalizingTranscript
+                        }
                         aria-pressed={isRecording}
                         className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
                           isRecording
@@ -826,15 +1098,17 @@ export function InterviewPage() {
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold text-ink-soft" role="status" aria-live="polite">
                         {isRecording
-                          ? "Sedang mendengarkan — tekan selesai setelah jawabanmu tuntas."
+                          ? recordAudioLocally
+                            ? `Sedang mendengarkan dan merekam lokal — ${Math.floor(recordingElapsedSeconds / 60)}:${String(recordingElapsedSeconds % 60).padStart(2, "0")}.`
+                            : "Sedang mendengarkan. SatsetCV tidak menyimpan audio; pemrosesan browser mengikuti kebijakannya."
                           : userAnswer.trim()
                             ? `${userAnswer.trim().split(/\s+/).filter(Boolean).length} kata tertangkap`
-                            : "Transkrip jawaban akan digunakan untuk evaluasi. Audio mentah tidak dikirim ke AI."}
+                            : "Transkrip jawaban akan digunakan untuk evaluasi. Rekaman lokal opsional dan default-nya mati."}
                       </p>
                       {isRecording && (
                         <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-700">
                           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-600" />
-                          REKAM
+                          {recordAudioLocally ? "REKAM LOKAL" : "MENDENGARKAN"}
                         </span>
                       )}
                     </div>
@@ -851,6 +1125,18 @@ export function InterviewPage() {
                       <p className="mt-3 min-h-16 whitespace-pre-wrap rounded-lg border border-line bg-paper-raised p-3 text-sm leading-relaxed text-ink">
                         {userAnswer}
                       </p>
+                    )}
+                    {recordingUrl && (
+                      <div className="mt-3 rounded-lg border border-line bg-paper-raised p-3">
+                        <p className="mb-2 text-xs font-semibold text-ink">
+                          Rekaman lokal · {Math.floor(recordedDurationMs / 60000)}:
+                          {String(Math.floor(recordedDurationMs / 1000) % 60).padStart(2, "0")}
+                        </p>
+                        <audio controls src={recordingUrl} className="w-full" />
+                        <p className="mt-2 text-[11px] text-ink-soft">
+                          Audio hanya tersimpan sementara di browser dan tidak dikirim ke AI.
+                        </p>
+                      </div>
                     )}
                     {!speechSupported && (
                       <p className="mt-2 text-xs text-rust">
@@ -892,7 +1178,14 @@ export function InterviewPage() {
                   <button
                     type="button"
                     onClick={handleSubmitAnswer}
-                    disabled={evaluating || isRecording || !userAnswer.trim()}
+                    disabled={
+                      evaluating ||
+                      isRecording ||
+                      isStartingRecording ||
+                      isFinalizingRecording ||
+                      isFinalizingTranscript ||
+                      !userAnswer.trim()
+                    }
                     className="flex items-center gap-2 rounded-xl bg-forest px-6 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-forest-dark hover:shadow disabled:opacity-50 cursor-pointer"
                   >
                     {evaluating ? (
@@ -934,26 +1227,52 @@ export function InterviewPage() {
                       <p className="text-xs text-ink-soft">
                         Umpan balik AI adalah panduan latihan, bukan penilaian dari perusahaan.
                       </p>
+                      {recordingUrl && (
+                        <div className="mt-3 max-w-md rounded-lg border border-line bg-paper p-3">
+                          <p className="mb-2 text-xs font-semibold text-ink">
+                            Putar ulang rekaman jawaban · {Math.floor(recordedDurationMs / 60000)}:
+                            {String(Math.floor(recordedDurationMs / 1000) % 60).padStart(2, "0")}
+                          </p>
+                          <audio controls src={recordingUrl} className="w-full" />
+                        </div>
+                      )}
+                      {deliveryMetrics && (
+                        <div className="mt-3 rounded-lg border border-line bg-paper p-3 text-xs text-ink-soft">
+                          <p className="font-semibold text-ink">Indikator penyampaian (perkiraan)</p>
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                            <span>Durasi: {deliveryMetrics.durationSeconds} dtk</span>
+                            <span>
+                              Tempo: {deliveryMetrics.wordsPerMinute ?? "—"} kata/menit
+                            </span>
+                            <span>Kata pengisi terdeteksi: {deliveryMetrics.fillerWords}</span>
+                            <span>
+                              Jeda &gt;0,6 dtk: {deliveryMetrics.longPauses ?? "tidak tersedia"}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-[11px]">
+                            Dihitung di browser dari transkrip dan audio. Deteksi jeda dapat keliru akibat noise; aksen dan emosi tidak dinilai.
+                          </p>
+                          {deliveryWarning && (
+                            <p className="mt-1 text-[11px] text-amber-800">{deliveryWarning}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {!isFollowUp && currentEvaluation.followUpQuestion && (
-                      <button
-                        type="button"
-                        onClick={handleFollowUp}
-                        className="flex items-center gap-2 rounded-xl border border-forest px-4 py-2.5 text-xs font-bold text-forest transition-colors hover:bg-forest-tint"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        Jawab follow-up pewawancara
-                      </button>
-                    )}
                     <button
                       type="button"
-                      onClick={handleNext}
+                      onClick={handleContinueInterview}
                       className="flex items-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-forest-dark"
                     >
-                      <span>{currentIndex + 1 < questions.length ? "Pertanyaan Berikutnya" : "Lihat Hasil Akhir"}</span>
+                      <span>
+                        {currentEvaluation.nextQuestion
+                          ? currentEvaluation.nextTurnType === "probe"
+                            ? "Lanjut jawab interviewer"
+                            : "Lanjut ke topik berikutnya"
+                          : "Lihat Hasil Akhir"}
+                      </span>
                       <ArrowRight className="h-4 w-4" />
                     </button>
                   </div>
@@ -975,7 +1294,6 @@ export function InterviewPage() {
                         onClick={() => {
                           const spokenText = [
                             currentEvaluation.interviewerResponse,
-                            !isFollowUp ? currentEvaluation.followUpQuestion : undefined,
                           ].filter(Boolean).join(" ");
                           speakText(spokenText);
                         }}
@@ -1098,18 +1416,21 @@ export function InterviewPage() {
                 <div className="rounded-xl border border-forest/20 bg-forest-tint/30 p-4">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-forest mb-1.5">
                     <Award className="h-4 w-4" />
-                    <span>Contoh Jawaban Ideal (Senior Level):</span>
+                    <span>Contoh Jawaban Referensi:</span>
                   </div>
                   <p className="text-xs text-ink leading-relaxed italic">
                     "{currentEvaluation.idealAnswer}"
                   </p>
                 </div>
 
-                {/* Follow-up question if any */}
-                {currentEvaluation.followUpQuestion && !isFollowUp && (
+                {currentEvaluation.nextQuestion && (
                   <div className="rounded-lg bg-paper p-3 text-xs text-ink border border-line">
-                    <span className="font-bold text-ink block mb-0.5">Pewawancara ingin menggali:</span>
-                    <p className="text-ink-soft">{currentEvaluation.followUpQuestion}</p>
+                    <span className="font-bold text-ink block mb-0.5">
+                      {currentEvaluation.nextTurnType === "probe"
+                        ? "Interviewer memilih menggali jawabanmu:"
+                        : "Interviewer akan beralih ke topik lain:"}
+                    </span>
+                    <p className="text-ink-soft">{currentEvaluation.nextQuestion.question}</p>
                   </div>
                 )}
               </div>
@@ -1128,19 +1449,20 @@ export function InterviewPage() {
                 Simulasi Wawancara Selesai!
               </h2>
               <p className="mt-2 text-xs text-ink-soft">
-                Berikut ringkasan latihan dan masukan AI untuk posisi <b>{role} ({level})</b>. Ringkasan ini bukan prediksi hasil seleksi.
+                Berikut ringkasan latihan dan masukan AI untuk posisi <b>{role} ({level})</b>
+                {companyName.trim() ? <> di <b>{companyName.trim()}</b></> : ""}. Ringkasan ini bukan prediksi hasil seleksi.
               </p>
             </div>
 
             {/* Score Stats Grid */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-line bg-paper p-5 text-center">
-                <span className="text-xs font-medium text-ink-soft">Skor Rata-Rata Jawaban</span>
+                <span className="text-xs font-medium text-ink-soft">Skor Latihan Rata-Rata</span>
                 <p className="mt-2 font-serif text-4xl font-bold text-forest">
                   {avgScore} <span className="text-sm font-normal text-ink-soft">/ 100</span>
                 </p>
                 <span className="mt-1 block text-[11px] text-ink-soft">
-                  {avgScore >= 80 ? "Tingkat Kesiapan Tinggi" : "Perlu Tambahan Latihan"}
+                  Indikator latihan, bukan proyeksi kesiapan kerja
                 </span>
               </div>
 
@@ -1181,6 +1503,25 @@ export function InterviewPage() {
                     <div className="text-[11px] text-forest">
                       <b>Poin Peningkatan Utama:</b> {item.evaluation.improvements[0] || "Pertahankan akurasi penjelasan."}
                     </div>
+                    {item.audioUrl && (
+                      <div className="max-w-md rounded-lg border border-line bg-paper-raised p-3">
+                        <p className="mb-2 text-[11px] font-semibold text-ink">
+                          Rekaman lokal{item.deliveryMetrics
+                            ? ` · ${item.deliveryMetrics.durationSeconds} dtk`
+                            : ""}
+                        </p>
+                        <audio controls src={item.audioUrl} className="w-full" />
+                      </div>
+                    )}
+                    {item.deliveryMetrics && (
+                      <p className="text-[11px] text-ink-soft">
+                        Indikator perkiraan: {item.deliveryMetrics.wordsPerMinute ?? "—"} kata/menit,
+                        {" "}{item.deliveryMetrics.fillerWords} kata pengisi
+                        {item.deliveryMetrics.longPauses === null
+                          ? ""
+                          : `, ${item.deliveryMetrics.longPauses} jeda panjang`}.
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1189,7 +1530,13 @@ export function InterviewPage() {
             {/* Bottom Actions */}
             <div className="pt-4 border-t border-line flex flex-wrap items-center justify-between gap-4">
               <button
-                onClick={() => setStep("setup")}
+                onClick={() => {
+                  discardSessionRecordings();
+                  setEvaluationsHistory([]);
+                  setCurrentEvaluation(null);
+                  setUserAnswer("");
+                  setStep("setup");
+                }}
                 className="flex items-center gap-1.5 rounded-xl border border-line bg-paper-raised px-5 py-2.5 text-xs font-semibold text-ink hover:border-forest"
               >
                 <RotateCcw className="h-4 w-4" />

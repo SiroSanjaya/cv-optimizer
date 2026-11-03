@@ -1,10 +1,12 @@
 interface QuotaBannerProps {
   used: number;
   limit: number;
+  bonusCredits?: number;
 }
 
-export function QuotaBanner({ used, limit }: QuotaBannerProps) {
-  const remaining = Math.max(0, limit - used);
+export function QuotaBanner({ used, limit, bonusCredits = 0 }: QuotaBannerProps) {
+  const monthlyRemaining = Math.max(0, limit - used);
+  const remaining = monthlyRemaining + bonusCredits;
   const exhausted = remaining === 0;
 
   return (
@@ -21,11 +23,12 @@ export function QuotaBanner({ used, limit }: QuotaBannerProps) {
         </span>
       ) : (
         <span>
-          Sisa kuota AI:{" "}
+          Sisa kredit AI:{" "}
           <span className="font-semibold text-ink">
-            {remaining} dari {limit}
+            {remaining}
           </span>{" "}
-          penggunaan.
+          penggunaan ({monthlyRemaining}/{limit} kuota bulanan
+          {bonusCredits > 0 ? ` + ${bonusCredits} bonus` : ""}).
         </span>
       )}
     </div>

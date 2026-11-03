@@ -187,8 +187,6 @@ export function MatchAnalysis({
   const interviewQuestions: InterviewQuestion[] = analysis?.interviewQuestions || [];
 
   const displayScore = score ?? analysis?.matchScore ?? 0;
-  const initialScore = analysis?.matchScore ?? 0;
-  const scoreBoost = Math.max(0, displayScore - initialScore);
 
   const isClaimed = (skillName: string) =>
     claimedSkills.some((c) => c.toLowerCase() === skillName.toLowerCase());
@@ -216,12 +214,12 @@ export function MatchAnalysis({
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">
-              Job Match Score
+              Estimasi Bukti Kecocokan
             </p>
             {claimedSkills.length > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 shadow-xs">
                 <Sparkles className="h-3 w-3 text-emerald-600" />
-                Simulasi Aktif (+{claimedSkills.length} skill{scoreBoost > 0 ? ` · Skor +${scoreBoost}%` : ""})
+                {claimedSkills.length} skill diklaim pengguna
               </span>
             )}
           </div>
@@ -229,7 +227,7 @@ export function MatchAnalysis({
             {analysis?.summary}
           </p>
           <p className="mt-2 text-xs text-ink-soft/80">
-            Skor ini mengestimasi relevansi CV kamu dengan lowongan ini — bukan nilai mutlak dari sistem ATS internal perusahaan.
+            Skor dihitung dari kebutuhan kerja yang ditemukan: bukti didukung = 100%, parsial = 50%, gap = 0%, dengan bobot sama. Bukan skor ATS atau peluang diterima.
           </p>
         </div>
       </div>
@@ -242,13 +240,13 @@ export function MatchAnalysis({
             Tambahkan Skill yang Memang Kamu Kuasai
           </p>
           <p className="mt-0.5 text-ink-soft text-[11px] leading-relaxed">
-            Klik skill di bawah yang sebenarnya kamu kuasai namun belum tercatat di CV. Skor kecocokan akan otomatis naik secara real-time, dan skill tersebut langsung disertakan saat kamu klik Generate CV!
+            Pilih hanya skill yang memang kamu kuasai. Skill itu ditambahkan ke draft CV; skor analisis ini tidak berubah sampai kamu menganalisis ulang CV yang sudah diperbarui.
           </p>
           {claimedSkills.length > 0 && (
             <div className="mt-2.5 flex items-center gap-2 text-emerald-800 font-bold text-xs bg-emerald-100/70 px-3 py-1.5 rounded-lg border border-emerald-300">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
               <span>
-                {claimedSkills.length} skill ditambahkan: skor match naik dari <strong>{initialScore}%</strong> menjadi <strong>{displayScore}%</strong> (+{scoreBoost}%)!
+                {claimedSkills.length} skill yang kamu pilih akan ditambahkan ke draft. Tinjau kebenarannya sebelum memakai CV.
               </span>
             </div>
           )}
@@ -273,7 +271,7 @@ export function MatchAnalysis({
             <span>Skill Cocok Sempurna</span>
             {claimedSkills.length > 0 && (
               <span className="text-[10px] text-emerald-700 font-bold">
-                +{claimedSkills.length} dari simulasi
+                {claimedSkills.length} diklaim pengguna
               </span>
             )}
           </h4>
@@ -293,7 +291,7 @@ export function MatchAnalysis({
                 <Sparkles className="h-3 w-3 text-emerald-600" />
                 <span>{c}</span>
                 <span className="text-[9px] bg-emerald-200 px-1 rounded text-emerald-950 font-normal">
-                  +Ditambahkan
+                  Klaim pengguna
                 </span>
               </span>
             ))}

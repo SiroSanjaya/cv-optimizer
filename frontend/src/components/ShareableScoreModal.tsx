@@ -99,7 +99,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
     ctx.fillStyle = "#10B981";
     ctx.font = "bold 16px 'Plus Jakarta Sans', sans-serif";
     ctx.letterSpacing = "2px";
-    ctx.fillText("✦ CV OPTIMIZER AI  |  OFFICIAL ATS READINESS REPORT ✦", 70, 80);
+    ctx.fillText("✦ SATSETCV  |  ESTIMASI BUKTI KECOCOKAN CV ✦", 70, 80);
 
     // 5. Draw Left Circle Score Ring
     const centerX = 260;
@@ -134,7 +134,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
     ctx.fillStyle = "#A7F3D0";
     ctx.font = "bold 15px 'Plus Jakarta Sans', sans-serif";
     ctx.letterSpacing = "1.5px";
-    ctx.fillText("MATCH SCORE", centerX, centerY + 48);
+    ctx.fillText("BUKTI KECOCOKAN", centerX, centerY + 48);
 
     // 6. Right Side Candidate Info
     ctx.textAlign = "left";
@@ -150,7 +150,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
     ctx.fillText(`Target Role: ${targetRole}`, 460, 240);
 
     // Status Badge Pill
-    const badgeText = validScore >= 80 ? "STATUS: TOP CANDIDATE (HIGH PROBABILITY)" : "STATUS: COMPETITIVE CANDIDATE";
+    const badgeText = "Estimasi, bukan penilaian perekrut";
     ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
     ctx.strokeStyle = "rgba(16, 185, 129, 0.5)";
     ctx.lineWidth = 1.5;
@@ -166,7 +166,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
     // 7. Top Matched Skills Section
     ctx.fillStyle = "#E2E8F0";
     ctx.font = "bold 16px 'Plus Jakarta Sans', sans-serif";
-    ctx.fillText("VERIFIED QUALIFICATIONS & CORE SKILLS:", 460, 360);
+    ctx.fillText("SKILL YANG TERCANTUM DI CV:", 460, 360);
 
     let skillX = 460;
     let skillY = 385;
@@ -200,7 +200,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
       month: "long",
       year: "numeric",
     });
-    ctx.fillText(`Audited on ${dateStr}  •  Tested against Workday, Taleo & Greenhouse ATS algorithms`, 70, H - 55);
+    ctx.fillText(`Dibuat ${dateStr}  •  Bukan skor ATS dan tidak memprediksi peluang diterima`, 70, H - 55);
 
     ctx.textAlign = "right";
     ctx.fillStyle = "#10B981";
@@ -268,13 +268,13 @@ Coba siapkan CV-mu untuk posisi yang dituju:
         {/* Header */}
         <div className="flex items-center gap-2 text-forest font-bold text-xs uppercase tracking-wider">
           <Award className="h-4 w-4 text-forest" />
-          <span>Viral Social Readiness Card</span>
+          <span>Kartu Ringkasan Kecocokan</span>
         </div>
         <h3 className="mt-1 font-serif text-2xl font-bold text-ink">
-          Pamerkan Skor Kesiapan Kerjamu di LinkedIn! 🚀
+          Bagikan Ringkasan Kecocokan CV
         </h3>
         <p className="mt-1 text-xs text-ink-soft">
-          Download kartu skor bersertifikat beresolusi tinggi ini atau bagikan langsung dengan template viral siap pakai.
+          Bagikan estimasi bukti kecocokan CV dengan lowongan. Ini bukan penilaian ATS atau prediksi hasil rekrutmen.
         </p>
 
         {/* Canvas Visual Card Preview */}

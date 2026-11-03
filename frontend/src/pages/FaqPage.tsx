@@ -55,7 +55,7 @@ const faqSections = [
     items: [
       {
         q: "Apa itu Job Match Score?",
-        a: "Job Match Score adalah estimasi relevansi informasi CV yang terbaca terhadap deskripsi pekerjaan. Skor bukan nilai dari ATS perusahaan dan tidak memprediksi peluang lolos seleksi.",
+        a: "Skor adalah estimasi bukti kecocokan pada kebutuhan kerja yang diekstrak dari deskripsi: Supported bernilai 100%, Partial 50%, dan Gap 0%, dengan bobot sama. Skor bukan nilai ATS perusahaan atau prediksi peluang lolos seleksi.",
       },
       {
         q: "Kenapa skor saya rendah padahal saya berpengalaman?",
@@ -63,11 +63,11 @@ const faqSections = [
       },
       {
         q: "Apakah skor ini sama dengan ATS internal perusahaan?",
-        a: "Tidak. Setiap perusahaan menggunakan sistem ATS berbeda (Workday, Greenhouse, dll) dengan algoritma sendiri. Skor kami adalah estimasi berbasis AI yang memberi gambaran seberapa relevan CV kamu — bukan jaminan pasti lolos/tidak.",
+        a: "Tidak. Skor kami merangkum bukti CV terhadap kebutuhan kerja yang diekstrak AI dengan formula yang sama untuk tiap kebutuhan. Kami belum mengkalibrasikannya terhadap keputusan perekrut atau ATS perusahaan.",
       },
       {
         q: "Bagaimana cara menaikkan skor saya?",
-        a: "Tiga cara cepat: (1) Klik skill yang kamu kuasai tapi belum ada di CV (Skill Parsial/Belum Ditemukan). (2) Klik 'Generate CV Tailored' agar AI otomatis menyesuaikan semua keyword. (3) Pastikan job description yang kamu masukkan adalah versi lengkap dari perusahaan target.",
+        a: "Tinjau hasil ekstraksi CV, tambahkan hanya keterampilan yang benar-benar kamu kuasai, dan analisis ulang CV terbaru. Jangan menambah klaim yang tidak akurat demi mengejar skor; AI tidak boleh memasukkan keyword yang tidak didukung fakta CV.",
       },
     ] as FaqItem[],
   },
@@ -149,17 +149,17 @@ const faqSections = [
   },
   {
     icon: Award,
-    label: "Viral Score Card & Share",
+    label: "Kartu Kecocokan & Share",
     color: "bg-orange-50 text-orange-700 border-orange-200",
     iconColor: "text-orange-600",
     items: [
       {
-        q: "Apa itu Kartu Skor LinkedIn?",
-        a: "Fitur 'Pamerkan Skor LinkedIn' membuat kartu visual berdesain premium (resolusi 1200×630 piksel) yang menampilkan nama, posisi, Job Match Score, dan skill terbaikmu. Cocok untuk dibagikan ke LinkedIn, Instagram, atau WhatsApp sebagai bukti kesiapanmu melamar.",
+        q: "Apa itu Kartu Ringkasan Kecocokan?",
+        a: "Kartu visual 1200×630 menampilkan nama, posisi, estimasi bukti kecocokan CV, dan skill yang tercantum di draft. Ini bukan sertifikat, skor ATS, atau bukti kesiapan kerja; tinjau informasi pribadi sebelum membagikannya.",
       },
       {
-        q: "Bagaimana cara share scorecard?",
-        a: "Klik tombol 'Pamerkan Skor LinkedIn 🚀' di halaman hasil. Kamu bisa mengunduh PNG atau membagikan tautannya. Tambahkan hashtag #satsetCV jika ingin.",
+        q: "Bagaimana cara membagikan kartu kecocokan?",
+        a: "Klik tombol 'Bagikan Ringkasan Kecocokan' di halaman hasil untuk mengunduh PNG atau membagikan tautannya. Kartu dapat memuat nama dan posisi target, jadi tinjau dulu sebelum membagikannya.",
       },
     ] as FaqItem[],
   },

@@ -89,13 +89,16 @@ export function PrivacyPage() {
         <section className="mt-6 space-y-3">
           <h2 className="font-serif text-xl font-bold">Feedback beta dan analitik</h2>
           <p className="text-sm leading-relaxed text-ink-soft">
-            Jawaban survei beta disimpan di database bersama ID acak yang tersimpan
-            di browser ini agar feedback dari perangkat yang sama dapat dihapus.
-            Jawaban tidak berisi nama, email, CV, atau deskripsi lowongan. Aktivitas
-            penggunaan seperti membuka alur optimasi, menyelesaikan analisis,
-            mengunduh CV, dan menyimpan tracker hanya dicatat jika kamu menyetujuinya
-            di survei. Aktivitas tersebut memakai ID acak yang sama dan tidak
-            dihubungkan dengan akun.
+            Jawaban survei dan saran teks beta disimpan bersama akunmu. Jika kamu
+            menyetujui penilaian bonus, saran teks dikirim ke Google Gemini untuk
+            memeriksa apakah masukan cukup konkret; jangan sertakan nama, email, CV,
+            deskripsi lowongan, atau informasi rahasia. Klaim bonus dicatat terpisah
+            di akun agar bonus satu kali tidak dapat diklaim berulang. Menghapus
+            feedback perangkat tidak menghapus catatan klaim bonus; menghapus akun
+            menghapus keduanya. Aktivitas penggunaan seperti membuka alur optimasi,
+            menyelesaikan analisis, mengunduh CV, dan menyimpan tracker hanya dicatat
+            jika kamu menyetujuinya di survei. Aktivitas tersebut memakai ID acak
+            perangkat dan tidak dihubungkan dengan akun.
           </p>
           <button
             type="button"

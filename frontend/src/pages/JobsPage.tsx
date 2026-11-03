@@ -147,7 +147,7 @@ export function JobsPage() {
   const [autoApplyMinScore, setAutoApplyMinScore] = useState(50);
   const [cvPanelOpen, setCvPanelOpen] = useState(false);
   const [newSkillInput, setNewSkillInput] = useState("");
-  const [scoreBoostToast, setScoreBoostToast] = useState<string | null>(null);
+  const [profileSkillToast, setProfileSkillToast] = useState<string | null>(null);
 
   // Custom Job Import Modal state (original panel)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -399,46 +399,18 @@ export function JobsPage() {
       setSavedCvSession({ ...session, cv: updatedCv });
     }
 
-    // Instantly recalculate matchingSkills, missingSkills, and matchScore locally for all jobs
-    const normCandidate = newSkills.map((s) => s.toLowerCase().trim());
-
-    setJobs((prevJobs) =>
-      prevJobs.map((job) => {
-        const matching: string[] = [];
-        const missing: string[] = [];
-        for (const js of job.skills) {
-          const jsl = js.toLowerCase();
-          const isMatch = normCandidate.some(
-            (cs) => cs === jsl || cs.includes(jsl) || jsl.includes(cs)
-          );
-          if (isMatch) {
-            if (!matching.includes(js)) matching.push(js);
-          } else {
-            if (!missing.includes(js)) missing.push(js);
-          }
-        }
-        const newScore = job.skills.length
-          ? Math.round((matching.length / job.skills.length) * 100)
-          : job.matchScore;
-
-        return {
-          ...job,
-          matchingSkills: matching.slice(0, 6),
-          missingSkills: missing.slice(0, 5),
-          matchScore: newScore,
-        };
-      })
+    setProfileSkillToast(
+      `Skill "${trimmed}" ditambahkan ke profil. Kecocokan lowongan sedang dihitung ulang.`
     );
-
-    setIsPersonalized(true);
-    setScoreBoostToast(
-      `Skill "${trimmed}" ditambahkan! Persentase kesesuaian pada lowongan langsung bertambah.`
-    );
-    setTimeout(() => setScoreBoostToast(null), 3500);
+    setTimeout(() => setProfileSkillToast(null), 3500);
+    setLoading(true);
+    setRetryKey((key) => key + 1);
   };
 
   const handleToggleBatchJob = (job: RecommendedJob) => {
-    const remainingCredits = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
+    const remainingCredits = user
+      ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) + (user.bonusCredits ?? 0)
+      : 15;
     const maxBatchSize = Math.min(100, Math.floor(remainingCredits / 3));
     setSelectedBatchJobs((selected) => {
       if (selected.some((item) => item.id === job.id)) {
@@ -456,7 +428,9 @@ export function JobsPage() {
   );
 
   const handleSelectAutoApplyJobs = () => {
-    const remainingCredits = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
+    const remainingCredits = user
+      ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) + (user.bonusCredits ?? 0)
+      : 15;
     const packageLimit = Math.min(100, Math.floor(remainingCredits / 3));
     const selectedJobs = eligibleJobs
       .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
@@ -491,7 +465,7 @@ export function JobsPage() {
 
   const handlePrepareAutoApplyBatch = () => {
     const remainingCredits = user
-      ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0))
+      ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) + (user.bonusCredits ?? 0)
       : 15;
     const packageLimit = Math.min(100, Math.floor(remainingCredits / 3));
     const selectedJobs = eligibleJobs
@@ -503,6 +477,7 @@ export function JobsPage() {
 
   const handleStartInterviewForJob = (job: RecommendedJob) => {
     sessionStorage.setItem("interview_target_role", job.title);
+    sessionStorage.setItem("interview_target_company", job.company);
     sessionStorage.setItem(
       "interview_target_job",
       `Posisi: ${job.title} di ${job.company}\nKeahlian Utama: ${job.skills.join(", ")}\nKonteks: ${job.description}`
@@ -518,7 +493,6 @@ export function JobsPage() {
         position: job.title,
         jobDescription: `${job.title} at ${job.company}\nLocation: ${job.location}\n\n${job.description}`,
         jobUrl: job.url,
-        matchScore: job.matchScore,
         status: "saved",
         notes: `Sumber: ${job.source}. Lokasi: ${job.location}. Gaji: ${job.salary || "N/A"}`,
       });
@@ -614,7 +588,9 @@ export function JobsPage() {
     "Product Manager",
     "Software Engineer",
   ];
-  const remainingBatchTasks = user ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) : 15;
+  const remainingBatchTasks = user
+    ? Math.max(0, (user.credits ?? 0) - (user.usedCredits ?? 0)) + (user.bonusCredits ?? 0)
+    : 15;
   const availableBatchPackages = Math.min(100, Math.floor(remainingBatchTasks / 3));
   const allConfiguredSourcesUnavailable =
     jobSources.length > 0 &&
@@ -779,11 +755,10 @@ export function JobsPage() {
                 )}
               </div>
 
-              {/* Toast for real-time score boost feedback */}
-              {scoreBoostToast && (
+              {profileSkillToast && (
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-300 px-4 py-2 text-xs font-bold text-emerald-900 shadow-xs animate-pulse">
                   <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>{scoreBoostToast}</span>
+                  <span>{profileSkillToast}</span>
                 </div>
               )}
 
@@ -1193,8 +1168,8 @@ export function JobsPage() {
             </p>
             <span className="text-[11px] text-ink-soft">
               {!showSavedJobs && isPersonalized
-                ? "Urut berdasarkan skill CV · status visa dari teks"
-                : !showSavedJobs ? "CV opsional untuk skor skill · status visa dari teks" : ""}
+                ? "Skor: skill 70%, target peran 15%, industri 10%, lokasi 5% (faktor yang diisi saja); bukan peluang diterima"
+                : !showSavedJobs ? "CV opsional untuk skor skill; skor bukan peluang diterima" : ""}
             </span>
           </div>
           {savedJobsError && (
@@ -1701,6 +1676,7 @@ export function JobsPage() {
                   <button
                     onClick={() => {
                       sessionStorage.setItem("interview_target_role", customJobResult.title);
+                      sessionStorage.setItem("interview_target_company", customJobResult.company || "");
                       sessionStorage.setItem("interview_target_job", importText);
                       navigate("/interview");
                     }}
