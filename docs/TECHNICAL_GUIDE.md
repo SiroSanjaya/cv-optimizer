@@ -462,52 +462,46 @@ Build dan unit test bukan load test. Jumlah pengguna yang dapat ditangani
 bergantung pada request mix, latensi dan batas provider, concurrency worker,
 ukuran database/Redis, serta konfigurasi hosting.
 
-### Railway Free Trial untuk beta terbatas
+### Beta Rp0 jika trial hosting tidak tersedia
 
-Konfigurasi berikut menggunakan Vercel untuk frontend, Railway untuk API,
-worker, dan Redis, serta Supabase untuk PostgreSQL. Railway saat ini menawarkan
-kredit trial satu kali sebesar $5 selama 30 hari tanpa kartu kredit. Setelah
-trial, paket gratis mencakup kredit pemakaian $1 per bulan; layanan yang
-melewati kredit dapat berhenti atau membutuhkan upgrade. Ini bukan jaminan
-uptime production. Periksa [harga Railway](https://railway.com/pricing) dan
-pantau pemakaian sebelum mengundang pengguna.
+Pada 3 November 2026, halaman Railway untuk akun baru menunjukkan bahwa trial
+sedang dijeda dan meminta upgrade berbayar. Jangan mengandalkan langkah
+Railway trial sampai provider mengaktifkannya kembali. Jika anggaran harus
+tetap Rp0 dan frontend sudah di Vercel, pilihan sementara adalah menjalankan
+API, worker, dan Redis di komputer sendiri, memakai Supabase untuk PostgreSQL,
+lalu membuka API lewat [Cloudflare Quick Tunnel](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
+Ini hanya untuk beta kecil: Quick Tunnel tidak punya uptime guarantee,
+hostname berubah setiap dijalankan, dan API mati saat komputer, proses backend,
+atau tunnel berhenti. Jangan anggap ini production.
 
-1. Hubungkan repository GitHub ke project Railway. Buat service API dari
-   repository tersebut dan atur **Root Directory** ke `/backend`; Railway
-   akan menggunakan `backend/Dockerfile`.
-2. Tambahkan Redis private di project yang sama. Jangan membuat Redis dapat
-   diakses publik. Gunakan URL internal Redis Railway sebagai `REDIS_URL`.
-3. Isi variable API di Railway:
-   `NODE_ENV=production`, `FRONTEND_URL` dengan origin frontend Vercel,
-   `DATABASE_URL` dan `DIRECT_URL` dari Supabase, `REDIS_URL`,
-   `JWT_SECRET`, `AI_JOB_ENCRYPTION_KEY`, dan `GEMINI_API_KEY`. Tambahkan
-   `GOOGLE_CLIENT_ID` jika login Google digunakan. `DATABASE_URL` dipakai
-   aplikasi; `DIRECT_URL` dipakai Prisma saat migration. Simpan nilai rahasia
-   hanya di dashboard secret provider, jangan di Git atau chat.
-4. Pada service API, set **Pre-deploy Command** ke
-   `npx prisma migrate deploy`, lalu set health check path ke
-   `/api/ready`. Jalankan migration hanya dari satu service. Start command
-   API adalah `node dist/server.js` (default pada Dockerfile). Buat public
-   domain HTTPS setelah deployment berhasil.
-5. Buat service worker kedua dari repository yang sama, juga dengan **Root
-   Directory** `/backend`, dan set start command `npm run worker`. Berikan
-   worker `DATABASE_URL`, `REDIS_URL`, `AI_JOB_ENCRYPTION_KEY`, dan
-   `GEMINI_API_KEY` yang sama seperti API. Worker tidak memerlukan public
-   domain dan tidak menjalankan migration.
-6. Di Vercel, atur `VITE_API_URL` ke public origin API Railway, tanpa akhiran
-   `/api` (contoh bentuk: `https://nama-service.up.railway.app`). Atur
-   `VITE_GOOGLE_CLIENT_ID` jika login Google digunakan, lalu redeploy
-   frontend. Pastikan Google OAuth mengizinkan origin Vercel dan ID client
-   yang sama dipakai backend.
-7. Verifikasi `https://<domain-api>/api/health` dan
-   `https://<domain-api>/api/ready`; keduanya harus merespons API, dan
-   `/api/ready` harus menunjukkan `ready`. Uji login, simpan data, antrean AI,
-   serta hasilnya dari frontend live sebelum mengundang beta tester.
+1. Pastikan Docker Desktop aktif. Dari root repository, jalankan
+   `docker compose up -d redis` untuk menyalakan Redis lokal saja.
+2. Di `backend/.env`, isi `DATABASE_URL` dan `DIRECT_URL` Supabase,
+   `REDIS_URL=redis://localhost:6379`, `FRONTEND_URL` dengan origin Vercel,
+   serta `JWT_SECRET`, `AI_JOB_ENCRYPTION_KEY`, dan `GEMINI_API_KEY`.
+   Gunakan `NODE_ENV=development`. Jangan commit atau membagikan file `.env`.
+3. Dari folder `backend`, jalankan `npm ci`, `npm run prisma:generate`,
+   `npm run dev`, dan pada terminal backend kedua `npm run worker:dev`.
+   Pertahankan kedua proses tersebut tetap berjalan.
+4. Pasang `cloudflared` dari dokumentasi Cloudflare. Pada terminal lain,
+   jalankan `cloudflared tunnel --url http://localhost:4000` dan catat URL
+   `https://....trycloudflare.com` yang tercetak. Siapa pun yang mengetahui
+   URL ini dapat mengakses API; bagikan hanya kepada beta tester tepercaya.
+5. Di Vercel, set `VITE_API_URL` ke URL tunnel tersebut tanpa akhiran `/api`,
+   lalu redeploy frontend. Setiap kali Quick Tunnel dibuat ulang dan hostname
+   berubah, perbarui variable ini dan redeploy lagi. Backend `FRONTEND_URL`
+   harus tetap origin frontend Vercel, bukan URL tunnel.
+6. Pastikan `https://<hostname-tunnel>/api/health` merespons JSON status `ok`
+   dan `/api/ready` merespons `ready`. Setelah itu uji login, penyimpanan,
+   antrean AI, dan hasil AI dari frontend sebelum mengundang tester.
 
-Sebelum memasukkan credential database yang pernah dibagikan di percakapan,
-rotasi password Supabase dan credential terkait. Jangan gunakan lagi nilai
-yang terekspos. Kredensial baru harus dimasukkan langsung ke dashboard
-provider, bukan dikirim lewat chat.
+Untuk akses stabil diperlukan hosting backend/worker dan Redis yang tersedia
+terus-menerus, biasanya layanan berbayar. Railway trial yang sedang dijeda,
+Quick Tunnel, build frontend Vercel, dan database Supabase sendiri tidak
+menjadikan backend ini layanan production 24/7. Sebelum memasukkan credential
+database yang pernah dibagikan di percakapan, rotasi password Supabase dan
+credential terkait; masukkan credential baru hanya di file lokal atau secret
+manager provider.
 
 ### Biaya Gemini jika aplikasi dibuat gratis
 
