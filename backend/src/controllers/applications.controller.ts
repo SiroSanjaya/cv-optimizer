@@ -111,6 +111,7 @@ export async function createApplication(
       hireProb,
       status,
       notes,
+      nextFollowUpAt,
       analysis,
     } = req.body;
 
@@ -122,6 +123,11 @@ export async function createApplication(
     }
     if (cvVersionId !== undefined && typeof cvVersionId !== "string") {
       throw Errors.validation("Versi CV tidak valid.");
+    }
+    if (nextFollowUpAt !== undefined && nextFollowUpAt !== null) {
+      if (typeof nextFollowUpAt !== "string" || Number.isNaN(new Date(nextFollowUpAt).getTime())) {
+        throw Errors.validation("Tanggal follow-up tidak valid.");
+      }
     }
 
     let ownedCvVersionId: string | undefined;
@@ -146,6 +152,9 @@ export async function createApplication(
         hireProb: typeof hireProb === "number" ? hireProb : null,
         status: (status as ApplicationStatus) || ApplicationStatus.applied,
         notes: notes?.trim() || null,
+        nextFollowUpAt: nextFollowUpAt
+          ? new Date(nextFollowUpAt)
+          : null,
         analysis: analysis || undefined,
       },
     });
@@ -166,7 +175,7 @@ export async function updateApplication(
     if (!userId) throw Errors.unauthorized();
 
     const { id } = req.params;
-    const { company, position, status, notes, jobUrl, hireProb, matchScore } = req.body;
+    const { company, position, status, notes, jobUrl, hireProb, matchScore, nextFollowUpAt } = req.body;
     if (status !== undefined && !Object.values(ApplicationStatus).includes(status as ApplicationStatus)) {
       throw Errors.validation("Status lamaran tidak valid.");
     }
@@ -179,6 +188,11 @@ export async function updateApplication(
     if (!existing) {
       throw Errors.notFound("Application not found");
     }
+    if (nextFollowUpAt !== undefined && nextFollowUpAt !== null) {
+      if (typeof nextFollowUpAt !== "string" || Number.isNaN(new Date(nextFollowUpAt).getTime())) {
+        throw Errors.validation("Tanggal follow-up tidak valid.");
+      }
+    }
 
     const updated = await prisma.application.update({
       where: { id },
@@ -190,6 +204,9 @@ export async function updateApplication(
         ...(jobUrl !== undefined && { jobUrl: jobUrl?.trim() || null }),
         ...(hireProb !== undefined && { hireProb }),
         ...(matchScore !== undefined && { matchScore }),
+        ...(nextFollowUpAt !== undefined && {
+          nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null,
+        }),
       },
     });
 

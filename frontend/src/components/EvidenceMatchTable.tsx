@@ -234,6 +234,11 @@ export function EvidenceMatchTable({
 
                       <td className="px-4 py-3.5 text-ink-soft leading-relaxed align-top">
                         <p>{item.evidence}</p>
+                        {item.cvEvidenceQuote && (
+                          <blockquote className="mt-2 border-l-2 border-forest/40 pl-2.5 text-[11px] italic text-ink">
+                            “{item.cvEvidenceQuote}”
+                          </blockquote>
+                        )}
                       </td>
 
                       <td className="px-4 py-3.5 text-center align-top whitespace-nowrap">

@@ -1,10 +1,12 @@
 import { validateJwtConfiguration } from "../services/auth/jwt";
 import { validateJobEncryptionKey } from "../services/ai/jobEncryption";
 import { getMonthlyQuota } from "../services/ai/aiTasks";
+import { getAiCostRates } from "../services/monetization/creditLedger.service";
 
 export function validateProductionConfiguration(): void {
   validateJwtConfiguration();
   getMonthlyQuota();
+  getAiCostRates();
   const proxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 1);
   if (!Number.isInteger(proxyHops) || proxyHops < 0 || proxyHops > 5) {
     throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 5.");
@@ -20,6 +22,12 @@ export function validateProductionConfiguration(): void {
   }
   if (!process.env.REDIS_URL) {
     throw new Error("REDIS_URL is required in production.");
+  }
+  if (!process.env.AI_COST_INPUT_USD_PER_MILLION ||
+      !process.env.AI_COST_OUTPUT_USD_PER_MILLION) {
+    throw new Error(
+      "AI_COST_INPUT_USD_PER_MILLION and AI_COST_OUTPUT_USD_PER_MILLION are required in production."
+    );
   }
   let redisUrl: URL;
   try {

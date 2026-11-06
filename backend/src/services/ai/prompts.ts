@@ -52,6 +52,7 @@ RULES:
   * "Partial" (related technology or adjacent experience, but optimization or scale unproven)
   * "Gap" (no evidence found in CV)
   Include concise evidence explaining where it was found or why it is a gap.
+  For Supported or Partial statuses, also include cvEvidenceQuote: a short, verbatim quote (maximum 240 characters) copied exactly from the candidate's experience, project, summary, or skills. For Gap, use an empty string.
 - Keep each requirement focused on one distinct, explicit, job-related criterion so the application can score all listed requirements equally.
 - suggestedRevisions: For 3 to 5 candidate experience bullet points, provide high-impact X-Y-Z rewrites. Explain the exact reasoning (e.g. 'Menonjolkan aktivitas teknis dan arsitektur tanpa menambahkan angka fiktif') and provide a prompt for candidate to insert their real metric.
 - Respond with ONLY valid JSON matching the schema. No markdown fences, no commentary.`;
@@ -75,6 +76,7 @@ JSON schema:
     {
       "requirement": "e.g. RESTful API Development",
       "evidence": "e.g. Ditemukan pada project backend di CV: Express & Node.js",
+      "cvEvidenceQuote": "Membangun API REST menggunakan Express.js dan Node.js untuk 20.000 pengguna.",
       "status": "Supported|Partial|Gap",
       "category": "technical|architecture|leadership"
     }

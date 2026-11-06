@@ -46,6 +46,9 @@ const FaqPage = lazy(() =>
 const VaultPage = lazy(() =>
   import("./pages/VaultPage").then((module) => ({ default: module.VaultPage }))
 );
+const AdminDashboardPage = lazy(() =>
+  import("./pages/AdminDashboardPage").then((module) => ({ default: module.AdminDashboardPage }))
+);
 
 function RequireAuth() {
   const { user, isLoading } = useAuth();
@@ -95,6 +98,7 @@ function App() {
               <Route path="/faq" element={<FaqPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
               <Route element={<RequireAuth />}>
+                <Route path="/admin" element={<AdminDashboardPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/profile" element={<CareerProfilePage />} />
                 <Route path="/career-development" element={<CareerDevelopmentPage />} />

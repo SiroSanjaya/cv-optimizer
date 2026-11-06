@@ -46,4 +46,12 @@ test("product events are limited to the explicit allowlist", () => {
     productEventSchema.safeParse({ sessionId, eventName: "unknown_event" }).success,
     false
   );
+  assert.equal(
+    productEventSchema.safeParse({
+      sessionId,
+      eventName: "analysis_completed",
+      metadata: { durationMs: 42000, matchScore: 75 },
+    }).success,
+    true
+  );
 });

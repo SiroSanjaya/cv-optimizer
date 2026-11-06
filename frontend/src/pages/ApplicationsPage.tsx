@@ -9,6 +9,7 @@ import {
   createApplication,
   updateApplication,
   deleteApplication,
+  trackProductEvent,
   type ApplicationStatus,
   type ApplicationItem,
   type ImportedJob,
@@ -49,6 +50,7 @@ export function ApplicationsPage() {
   const [jobUrl, setJobUrl] = useState("");
   const [status, setStatus] = useState<ApplicationStatus>("saved");
   const [notes, setNotes] = useState("");
+  const [nextFollowUpAt, setNextFollowUpAt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load applications
@@ -96,6 +98,10 @@ export function ApplicationsPage() {
         jobUrl,
         status,
         notes,
+        nextFollowUpAt: nextFollowUpAt || undefined,
+      });
+      void trackProductEvent(status === "applied" ? "application_submitted" : "tracker_saved", {
+        status,
       });
       setIsModalOpen(false);
       // Reset form
@@ -103,6 +109,7 @@ export function ApplicationsPage() {
       setPosition("");
       setJobUrl("");
       setNotes("");
+      setNextFollowUpAt("");
       await loadApps();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal menambahkan lamaran");
@@ -120,6 +127,7 @@ export function ApplicationsPage() {
         jobUrl: job.sourceUrl || undefined,
         status: "saved",
       });
+      void trackProductEvent("tracker_saved", { source: "importer" });
       await loadApps();
     } catch {
       // silent fail
@@ -143,9 +151,40 @@ export function ApplicationsPage() {
       setApplications((prev) =>
         prev.map((app) => app.id === id ? updatedApplication : app)
       );
+      if (newStatus === "applied") {
+        void trackProductEvent("application_submitted", { status: newStatus });
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal memperbarui status");
     }
+  };
+
+  const handleFollowUpChange = async (id: string, value: string) => {
+    try {
+      const updatedApplication = await updateApplication(id, {
+        nextFollowUpAt: value ? new Date(`${value}T09:00:00`).toISOString() : null,
+      });
+      setApplications((prev) =>
+        prev.map((app) => app.id === id ? updatedApplication : app)
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal memperbarui follow-up.");
+    }
+  };
+
+  const getFollowUpLabel = (value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    const today = new Date();
+    const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const days = Math.round((startDate.getTime() - startToday.getTime()) / 86_400_000);
+    if (days < 0) return { text: "Follow-up terlambat", tone: "bg-rose-100 text-rose-800 border-rose-200" };
+    if (days === 0) return { text: "Follow-up hari ini", tone: "bg-amber-100 text-amber-900 border-amber-200" };
+    return {
+      text: `Follow-up ${date.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`,
+      tone: "bg-sky-100 text-sky-800 border-sky-200",
+    };
   };
 
   const handleDelete = async (id: string) => {
@@ -398,6 +437,11 @@ export function ApplicationsPage() {
                       )}
                     </div>
                     {app.notes && <p className="mt-3 break-words text-xs text-ink-soft">{app.notes}</p>}
+                    {getFollowUpLabel(app.nextFollowUpAt) && (
+                      <span className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getFollowUpLabel(app.nextFollowUpAt)?.tone}`}>
+                        {getFollowUpLabel(app.nextFollowUpAt)?.text}
+                      </span>
+                    )}
                     <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3">
                       <label htmlFor={`mobile-status-${app.id}`} className="text-[11px] font-semibold text-ink-soft">
                         Perbarui tahap
@@ -410,6 +454,16 @@ export function ApplicationsPage() {
                       >
                         {stages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
                       </select>
+                      <label htmlFor={`mobile-followup-${app.id}`} className="text-[11px] font-semibold text-ink-soft">
+                        Next follow-up
+                      </label>
+                      <input
+                        id={`mobile-followup-${app.id}`}
+                        type="date"
+                        value={app.nextFollowUpAt ? app.nextFollowUpAt.slice(0, 10) : ""}
+                        onChange={(event) => void handleFollowUpChange(app.id, event.target.value)}
+                        className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink"
+                      />
                       {app.jobUrl && (
                         <a
                           href={app.jobUrl}
@@ -577,6 +631,20 @@ export function ApplicationsPage() {
                             Buka Link Loker <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
+                        <div className="mt-2">
+                          {getFollowUpLabel(app.nextFollowUpAt) && (
+                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getFollowUpLabel(app.nextFollowUpAt)?.tone}`}>
+                              {getFollowUpLabel(app.nextFollowUpAt)?.text}
+                            </span>
+                          )}
+                          <input
+                            aria-label={`Tanggal follow-up ${app.position}`}
+                            type="date"
+                            value={app.nextFollowUpAt ? app.nextFollowUpAt.slice(0, 10) : ""}
+                            onChange={(event) => void handleFollowUpChange(app.id, event.target.value)}
+                            className="mt-1 block rounded border border-line bg-paper px-2 py-1 text-[11px] text-ink"
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-ink-soft">
                         {new Date(app.appliedAt).toLocaleDateString("id-ID")}
@@ -687,6 +755,21 @@ export function ApplicationsPage() {
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink focus:border-forest focus:outline-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-ink mb-1">
+                    Next follow-up
+                  </label>
+                  <input
+                    type="date"
+                    value={nextFollowUpAt}
+                    onChange={(event) => setNextFollowUpAt(event.target.value)}
+                    className="w-full rounded-md border border-line bg-paper px-3 py-2 text-xs text-ink focus:border-forest focus:outline-none"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-soft">
+                    Tambahkan tanggal untuk mengirim pesan lanjutan atau cek status aplikasi.
+                  </p>
                 </div>
 
                 <div className="mt-6 flex justify-end gap-2 pt-2 border-t border-line">

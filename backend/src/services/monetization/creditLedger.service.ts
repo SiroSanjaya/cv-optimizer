@@ -4,15 +4,52 @@ import { logger } from "../../utils/logger";
 import type { Prisma } from "@prisma/client";
 import { LedgerEntryType, PaymentStatus } from "@prisma/client";
 
-// Gemini 3.5 Flash cost benchmark (approx $0.075 per 1M input tokens, $0.30 per 1M output tokens)
-const INPUT_TOKEN_COST_PER_MILLION = 0.075;
-const OUTPUT_TOKEN_COST_PER_MILLION = 0.30;
-const USD_TO_IDR_RATE = 16_000;
+export interface AiCostRates {
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+}
+
+export function getAiCostRates(): AiCostRates | null {
+  const input = process.env.AI_COST_INPUT_USD_PER_MILLION?.trim();
+  const output = process.env.AI_COST_OUTPUT_USD_PER_MILLION?.trim();
+  if (!input && !output) return null;
+  if (!input || !output) {
+    throw new Error(
+      "AI_COST_INPUT_USD_PER_MILLION and AI_COST_OUTPUT_USD_PER_MILLION must be configured together."
+    );
+  }
+
+  const inputUsdPerMillion = Number(input);
+  const outputUsdPerMillion = Number(output);
+  if (
+    !Number.isFinite(inputUsdPerMillion) ||
+    inputUsdPerMillion < 0 ||
+    !Number.isFinite(outputUsdPerMillion) ||
+    outputUsdPerMillion < 0
+  ) {
+    throw new Error("AI cost rates must be finite non-negative numbers.");
+  }
+  return { inputUsdPerMillion, outputUsdPerMillion };
+}
 
 export function estimateCostUsd(promptTokens: number, completionTokens: number): number {
-  const promptCost = (promptTokens / 1_000_000) * INPUT_TOKEN_COST_PER_MILLION;
-  const completionCost = (completionTokens / 1_000_000) * OUTPUT_TOKEN_COST_PER_MILLION;
+  const rates = getAiCostRates();
+  if (!rates) return 0;
+  const promptCost =
+    (promptTokens / 1_000_000) * rates.inputUsdPerMillion;
+  const completionCost =
+    (completionTokens / 1_000_000) * rates.outputUsdPerMillion;
   return Number((promptCost + completionCost).toFixed(6));
+}
+
+function getUsdToIdrRate(): number {
+  const configured = process.env.USD_TO_IDR_RATE?.trim();
+  if (!configured) return 16_000;
+  const rate = Number(configured);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error("USD_TO_IDR_RATE must be a positive finite number.");
+  }
+  return rate;
 }
 
 /**
@@ -179,7 +216,7 @@ export async function logAiCost(entry: {
         userId: entry.userId || null,
         jobId: entry.jobId || null,
         taskType: entry.taskType,
-        model: entry.model || "gemini-3.5-flash-lite",
+        model: entry.model || "unknown",
         promptTokens: pTokens,
         completionTokens: cTokens,
         totalTokens,
@@ -187,7 +224,7 @@ export async function logAiCost(entry: {
         latencyMs: entry.latencyMs || 0,
         retryCount: entry.retryCount || 0,
         status: entry.status || "success",
-        error: entry.error || null,
+        error: entry.error ? entry.error.slice(0, 500) : null,
       },
     });
   } catch (err) {
@@ -330,7 +367,7 @@ export async function processPaymentWebhook(params: {
 export async function getFounderMetrics(): Promise<{
   totalUsers: number;
   totalApplications: number;
-  totalOptimizations: number;
+  totalAiCalls: number;
   activationRate: number; // % users who analyzed >= 1 CV
   analysisCompletionRate: number; // % started vs completed
   exportCompletionRate: number; // % exported vs analyzed
@@ -338,23 +375,26 @@ export async function getFounderMetrics(): Promise<{
   totalRevenueIdr: number;
   totalAiCostUsd: number;
   contributionMarginIdr: number;
-  failureRate: number; // % failed AI jobs
+  failureRate: number; // % failed model calls
   ledgerHistoryCount: number;
 }> {
   const [
     totalUsers,
     totalApplications,
-    usersWithApps,
+    usersWithCv,
     paidUsers,
     totalRevenueAgg,
-    costLogs,
+    aiCostAggregate,
+    aiCallCount,
+    failedAiCallCount,
+    analyticsSessions,
     ledgerCount,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.application.count(),
-    prisma.application.groupBy({
+    prisma.cvVersion.groupBy({
       by: ["userId"],
-      _count: true,
+      where: { userId: { not: null } },
     }),
     prisma.paymentTransaction.groupBy({
       by: ["userId"],
@@ -364,13 +404,23 @@ export async function getFounderMetrics(): Promise<{
       where: { status: PaymentStatus.PAID },
       _sum: { amount: true },
     }),
-    prisma.aiCostLog.findMany({
-      select: { estimatedCostUsd: true, status: true },
+    prisma.aiCostLog.aggregate({
+      _count: { _all: true },
+      _sum: { estimatedCostUsd: true },
+    }),
+    prisma.aiCostLog.count(),
+    prisma.aiCostLog.count({ where: { status: "failed" } }),
+    prisma.funnelEvent.groupBy({
+      by: ["eventName", "sessionId"],
+      where: {
+        eventName: { in: ["optimize_opened", "analysis_completed", "cv_exported"] },
+        sessionId: { not: null },
+      },
     }),
     prisma.creditLedgerEntry.count(),
   ]);
 
-  const activeUsersCount = usersWithApps.length;
+  const activeUsersCount = usersWithCv.length;
   const paidUsersCount = paidUsers.length;
 
   const activationRate =
@@ -379,22 +429,38 @@ export async function getFounderMetrics(): Promise<{
   const paidConversionRate =
     totalUsers > 0 ? Number(((paidUsersCount / totalUsers) * 100).toFixed(1)) : 0;
 
-  const totalCostUsd = costLogs.reduce((acc, curr) => acc + curr.estimatedCostUsd, 0);
-  const failedJobsCount = costLogs.filter((l) => l.status === "failed").length;
+  const totalCostUsd = aiCostAggregate._sum.estimatedCostUsd ?? 0;
   const failureRate =
-    costLogs.length > 0 ? Number(((failedJobsCount / costLogs.length) * 100).toFixed(1)) : 0;
+    aiCallCount > 0 ? Number(((failedAiCallCount / aiCallCount) * 100).toFixed(1)) : 0;
+  const sessionIdsFor = (eventName: string) =>
+    new Set(
+      analyticsSessions
+        .filter((event) => event.eventName === eventName && event.sessionId)
+        .map((event) => event.sessionId)
+    );
+  const startedSessions = sessionIdsFor("optimize_opened");
+  const analyzedSessions = sessionIdsFor("analysis_completed");
+  const exportedSessions = sessionIdsFor("cv_exported");
+  const analysisCompletionRate =
+    startedSessions.size > 0
+      ? Number(((analyzedSessions.size / startedSessions.size) * 100).toFixed(1))
+      : 0;
+  const exportCompletionRate =
+    analyzedSessions.size > 0
+      ? Number(((exportedSessions.size / analyzedSessions.size) * 100).toFixed(1))
+      : 0;
 
   const totalRevenueIdr = totalRevenueAgg._sum.amount || 0;
-  const totalCostIdr = Math.round(totalCostUsd * USD_TO_IDR_RATE);
+  const totalCostIdr = Math.round(totalCostUsd * getUsdToIdrRate());
   const contributionMarginIdr = totalRevenueIdr - totalCostIdr;
 
   return {
     totalUsers,
     totalApplications,
-    totalOptimizations: costLogs.length,
+    totalAiCalls: aiCostAggregate._count._all,
     activationRate,
-    analysisCompletionRate: totalUsers > 0 ? 98.4 : 0,
-    exportCompletionRate: 92.1,
+    analysisCompletionRate,
+    exportCompletionRate,
     paidConversionRate,
     totalRevenueIdr,
     totalAiCostUsd: Number(totalCostUsd.toFixed(4)),

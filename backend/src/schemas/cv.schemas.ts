@@ -125,6 +125,7 @@ export const interviewQuestionSchema = z.object({
 export const jobRequirementMatchSchema = z.object({
   requirement: nullableString(),
   evidence: nullableString(),
+  cvEvidenceQuote: nullableString().optional(),
   status: z
     .preprocess((val) => {
       const s = String(val || "").trim().toLowerCase();

@@ -50,6 +50,9 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
   const [density, setDensity] = useState<Density>("spacious");
   const [copiedPlainText, setCopiedPlainText] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [outputRating, setOutputRating] = useState<
+    "used_as_is" | "minor_edit" | "major_edit" | "discarded" | null
+  >(null);
 
   const handleOpenGmail = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,7 +92,11 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
       );
       const name = (cv.personalInfo.name || "CV").replace(/\s+/g, "_");
       triggerBrowserDownload(blob, `${name}_Optimized.${format}`);
-      void trackProductEvent("cv_exported");
+      void trackProductEvent("cv_exported", {
+        format,
+        template,
+        density,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mengunduh berkas CV.");
     } finally {
@@ -99,6 +106,16 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleOutputRating = (
+    rating: "used_as_is" | "minor_edit" | "major_edit" | "discarded"
+  ) => {
+    setOutputRating(rating);
+    void trackProductEvent("ai_output_accepted", {
+      rating,
+      outputType: "cv",
+    });
   };
 
   const handleCopyPlainText = async () => {
@@ -174,7 +191,7 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
               CV Tailored Siap Kirim
             </h3>
             <p className="text-[11px] text-ink-soft">
-              Diformat khusus agar mudah dipindai HR dalam 6 detik & lolos ATS
+              Tersusun rapi untuk ditinjau HR; tetap periksa format sebelum dikirim
             </p>
           </div>
         </div>
@@ -231,7 +248,7 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
             className="text-xs py-1.5 px-3.5"
           >
             <Download className="h-3.5 w-3.5" />
-            {downloading === "pdf" ? "Memproses..." : "Unduh PDF ATS"}
+            {downloading === "pdf" ? "Memproses..." : "Unduh PDF"}
           </Button>
         </div>
       </div>
@@ -262,6 +279,33 @@ export function CvPreview({ cv, onChange }: CvPreviewProps) {
       </form>
 
       {error && <p className="mt-3 text-xs text-rust font-medium">{error}</p>}
+
+      <div className="mt-4 rounded-xl border border-line bg-paper p-4">
+        <p className="text-sm font-semibold text-ink">
+          Seberapa siap hasil AI CV ini untuk dipakai?
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {([
+            ["used_as_is", "Pakainya apa adanya"],
+            ["minor_edit", "Edit kecil"],
+            ["major_edit", "Edit besar"],
+            ["discarded", "Buang"],
+          ] as const).map(([value, label]) => (
+            <button
+              type="button"
+              key={value}
+              onClick={() => handleOutputRating(value)}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                outputRating === value
+                  ? "border-forest bg-forest text-white"
+                  : "border-line bg-paper-raised text-ink-soft hover:border-forest/40 hover:text-ink"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Style & Layout Controls Bar */}
       {!editing && (

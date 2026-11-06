@@ -5,8 +5,6 @@ import {
   generateInterviewInviteController,
   generateRecruiterPitchController,
   analyzeCustomJobController,
-  importJobFromUrlController,
-  importJobFromTextController,
   getOutcomeMetricsController,
 } from "../controllers/jobs.controller";
 import { optionalAuth, requireAuth } from "../middleware/auth.middleware";
@@ -30,10 +28,6 @@ router.post("/analyze-custom", optionalAuth, analyzeCustomJobController);
 router.post("/outreach-pitch", optionalAuth, generateRecruiterPitchController);
 
 // ── Job Importer ──────────────────────────────────────────────────────────────
-// Import from a public job listing URL (LinkedIn, Glints, JobStreet, etc.)
-router.post("/import-url", aiSubmitRateLimiter, importJobFromUrlController);
-// Fallback: paste raw job description text
-router.post("/import-text", aiSubmitRateLimiter, importJobFromTextController);
 
 // ── Career Outcome Intelligence ───────────────────────────────────────────────
 router.get("/outcome-metrics", requireAuth, getOutcomeMetricsController);

@@ -3,6 +3,8 @@ import * as cheerio from "cheerio";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { extractJson } from "../ai/jsonExtractor";
 import { logger } from "../../utils/logger";
+import { lookup } from "node:dns/promises";
+import net from "node:net";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const AI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
@@ -70,6 +72,69 @@ function detectPlatform(url: string): string {
   return "manual";
 }
 
+function isPrivateIp(address: string): boolean {
+  if (net.isIPv4(address)) {
+    const [a, b] = address.split(".").map(Number);
+    return (
+      a === 10 ||
+      a === 127 ||
+      a === 0 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 100 && b >= 64 && b <= 127)
+    );
+  }
+
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd")
+  );
+}
+
+export async function validatePublicJobUrl(rawUrl: string): Promise<URL> {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("URL lowongan tidak valid.");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("URL lowongan harus menggunakan HTTPS.");
+  }
+  if (parsed.username || parsed.password || parsed.port) {
+    throw new Error("URL lowongan tidak boleh menyertakan credential atau port khusus.");
+  }
+
+  const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+    throw new Error("URL lowongan tidak boleh menunjuk ke host lokal.");
+  }
+
+  if (net.isIP(hostname)) {
+    if (isPrivateIp(hostname)) {
+      throw new Error("URL lowongan tidak boleh menunjuk ke alamat privat.");
+    }
+  } else {
+    let addresses: Awaited<ReturnType<typeof lookup>>[];
+    try {
+      addresses = await lookup(hostname, { all: true });
+    } catch {
+      throw new Error("Host URL lowongan tidak dapat ditemukan.");
+    }
+    if (!addresses.length || addresses.some((item) => isPrivateIp(item.address))) {
+      throw new Error("URL lowongan tidak boleh menunjuk ke alamat privat.");
+    }
+  }
+
+  return parsed;
+}
+
 /**
  * Fetch raw HTML from a URL with a browser-like User-Agent.
  * This fetches publicly accessible pages only — no login bypass.
@@ -85,7 +150,40 @@ async function fetchPageHtml(url: string): Promise<string> {
       "Accept-Encoding": "gzip, deflate, br",
       Connection: "keep-alive",
     },
-    maxRedirects: 5,
+    maxRedirects: 0,
+    maxContentLength: 5 * 1024 * 1024,
+    maxBodyLength: 5 * 1024 * 1024,
+    validateStatus: (status) => status >= 200 && status < 300,
+    lookup: (
+      hostname,
+      options,
+      callback
+    ) => {
+      const resolveAll = (options as { all?: boolean }).all === true;
+      lookup(hostname, { all: true })
+        .then((addresses) => {
+          if (addresses.some((item) => isPrivateIp(item.address))) {
+            callback(Object.assign(new Error("Private address blocked"), { code: "PRIVATE_ADDRESS_BLOCKED" }), []);
+            return;
+          }
+          if (resolveAll) {
+            callback(
+              null,
+              addresses.map((item) => ({
+                address: item.address,
+                family: item.family as 4 | 6,
+              }))
+            );
+          } else {
+            callback(
+              null,
+              addresses[0].address,
+              addresses[0].family as 4 | 6
+            );
+          }
+        })
+        .catch((error: NodeJS.ErrnoException) => callback(error, []));
+    },
   });
   return response.data as string;
 }
@@ -163,14 +261,16 @@ Return ONLY a valid JSON object (no markdown):
  * Strategy: HTML fetch → fast selector extraction → AI enhancement/fallback.
  */
 export async function importJobFromUrl(url: string): Promise<ImportedJob> {
-  const platform = detectPlatform(url);
+  const validatedUrl = await validatePublicJobUrl(url);
+  const normalizedUrl = validatedUrl.toString();
+  const platform = detectPlatform(normalizedUrl);
   let html = "";
 
   try {
-    html = await fetchPageHtml(url);
+    html = await fetchPageHtml(normalizedUrl);
   } catch (err) {
     logger.warn("job_importer_fetch_failed", {
-      url,
+      url: normalizedUrl,
       error: err instanceof Error ? err.message : String(err),
     });
     throw new Error(
@@ -186,7 +286,7 @@ export async function importJobFromUrl(url: string): Promise<ImportedJob> {
   if (selectorResult && selectorResult.description.length > 100) {
     // Got good data from selectors, use AI only to enrich skills/requirements
     try {
-      const enriched = await extractWithAi(selectorResult.description, url);
+      const enriched = await extractWithAi(selectorResult.description, normalizedUrl);
       jobData = {
         company: selectorResult.company || enriched.company,
         position: selectorResult.title || enriched.position,
@@ -217,12 +317,12 @@ export async function importJobFromUrl(url: string): Promise<ImportedJob> {
     $("script, style, nav, footer, header, aside, [role='navigation']").remove();
     const cleanText = $("body").text().replace(/\s+/g, " ").trim();
 
-    jobData = await extractWithAi(cleanText, url);
+    jobData = await extractWithAi(cleanText, normalizedUrl);
   }
 
   return {
     ...jobData,
-    sourceUrl: url,
+    sourceUrl: normalizedUrl,
     sourcePlatform: platform,
     importedAt: new Date().toISOString(),
   };

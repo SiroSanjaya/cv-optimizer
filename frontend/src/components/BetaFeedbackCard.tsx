@@ -16,6 +16,8 @@ type FeedbackFields = {
   reuseIntent: BetaFeedback["reuseIntent"] | "";
   willingnessToPay: BetaFeedback["willingnessToPay"] | "";
   mainBlocker: BetaFeedback["mainBlocker"] | "";
+  baselineMinutesBefore: number | "";
+  estimatedApplicationsPerHourBefore: number | "";
 };
 
 const initialFeedback: FeedbackFields = {
@@ -27,6 +29,8 @@ const initialFeedback: FeedbackFields = {
   reuseIntent: "",
   willingnessToPay: "",
   mainBlocker: "",
+  baselineMinutesBefore: "",
+  estimatedApplicationsPerHourBefore: "",
 };
 
 export function BetaFeedbackCard() {
@@ -62,12 +66,24 @@ export function BetaFeedbackCard() {
       reuseIntent: feedback.reuseIntent,
       willingnessToPay: feedback.willingnessToPay,
       mainBlocker: feedback.mainBlocker,
+      ...(feedback.baselineMinutesBefore !== ""
+        ? { baselineMinutesBefore: feedback.baselineMinutesBefore }
+        : {}),
+      ...(feedback.estimatedApplicationsPerHourBefore !== ""
+        ? { estimatedApplicationsPerHourBefore: feedback.estimatedApplicationsPerHourBefore }
+        : {}),
     };
     setIsSubmitting(true);
     setError(null);
     setSubmissionResult(null);
     try {
       const result = await submitBetaFeedback(answers, analyticsConsent);
+      if (feedback.baselineMinutesBefore !== "") {
+        localStorage.setItem(
+          "cv_optimizer_baseline_minutes_before",
+          String(feedback.baselineMinutesBefore)
+        );
+      }
       setSubmissionResult(result);
       setSubmitted(result.bonusGranted > 0 || result.alreadyRewarded);
       if (result.bonusGranted > 0) await refreshUser();
@@ -135,6 +151,40 @@ export function BetaFeedbackCard() {
                 {" "}Kamu bisa perbaiki masukan lalu kirim lagi.
               </p>
             )}
+            <label className="text-sm font-semibold text-ink">
+              Tanpa aplikasi ini, berapa menit rata-rata untuk menyiapkan satu lamaran?
+              <input
+                type="number"
+                min={1}
+                max={360}
+                className={fieldClassName}
+                value={feedback.baselineMinutesBefore}
+                onChange={(event) =>
+                  setFeedback({
+                    ...feedback,
+                    baselineMinutesBefore: event.target.value ? Number(event.target.value) : "",
+                  })
+                }
+                placeholder="Contoh: 45"
+              />
+            </label>
+            <label className="text-sm font-semibold text-ink">
+              Berapa lamaran yang bisa kamu selesaikan per jam sebelum pakai aplikasi?
+              <input
+                type="number"
+                min={0}
+                max={60}
+                className={fieldClassName}
+                value={feedback.estimatedApplicationsPerHourBefore}
+                onChange={(event) =>
+                  setFeedback({
+                    ...feedback,
+                    estimatedApplicationsPerHourBefore: event.target.value ? Number(event.target.value) : "",
+                  })
+                }
+                placeholder="Contoh: 2"
+              />
+            </label>
             <label className="text-sm font-semibold text-ink">
               Seberapa sering kamu melamar?
               <select

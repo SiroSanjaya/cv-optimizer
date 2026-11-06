@@ -22,6 +22,8 @@ import { prisma } from "../../utils/prisma";
 import { structuredCvSchema } from "../../schemas/cv.schemas";
 import type { Prisma } from "@prisma/client";
 import { saveCareerDevelopmentPlan } from "../careerDevelopment.service";
+import { importJobFromUrl, importJobFromText } from "../jobs/jobImporter.service";
+import { extractStarStoriesFromCv } from "../vault/vault.service";
 
 async function saveCvVersion(
   userId: string,
@@ -115,6 +117,21 @@ export async function processAiJob(
         request.input.skillGaps
       );
       return { success: true, plan };
+    }
+    case "jobs.import-url": {
+      const job = await importJobFromUrl(request.input.url);
+      return { success: true, job };
+    }
+    case "jobs.import-text": {
+      const job = await importJobFromText(
+        request.input.text,
+        request.input.sourceUrl
+      );
+      return { success: true, job };
+    }
+    case "vault.extract-star": {
+      const extracted = await extractStarStoriesFromCv(request.input.cvContent);
+      return { success: true, count: extracted.length, extracted };
     }
   }
 }

@@ -22,6 +22,8 @@ import {
   calculateEvidenceMatchScore,
   deduplicateJobRequirements,
 } from "../cv/matchScore";
+import { logAiCost } from "../monetization/creditLedger.service";
+import { getAiCostContext } from "./aiCostContext";
 
 const AI_TIMEOUT_MS = 45_000;
 const RETRY_DELAYS_MS = [1_000, 2_000];
@@ -94,10 +96,41 @@ export class GeminiProvider implements AIProvider {
       },
     });
 
-    const result = await withTimeout(model.generateContent(prompt));
-    const text = result.response.text();
-    if (!text) throw Errors.aiFailed();
-    return text;
+    const startedAt = Date.now();
+    const context = getAiCostContext();
+    let promptTokens = 0;
+    let completionTokens = 0;
+
+    try {
+      const result = await withTimeout(model.generateContent(prompt));
+      promptTokens = result.response.usageMetadata?.promptTokenCount ?? 0;
+      completionTokens = result.response.usageMetadata?.candidatesTokenCount ?? 0;
+      const text = result.response.text();
+      if (!text) throw Errors.aiFailed();
+
+      await logAiCost({
+        ...context,
+        taskType: context?.taskType ?? "unattributed",
+        model: modelName,
+        promptTokens,
+        completionTokens,
+        latencyMs: Date.now() - startedAt,
+        status: "success",
+      });
+      return text;
+    } catch (error) {
+      await logAiCost({
+        ...context,
+        taskType: context?.taskType ?? "unattributed",
+        model: modelName,
+        promptTokens,
+        completionTokens,
+        latencyMs: Date.now() - startedAt,
+        status: "failed",
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+      throw error;
+    }
   }
 
   /**

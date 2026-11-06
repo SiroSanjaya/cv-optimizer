@@ -326,6 +326,8 @@ describe("Quality Test Suite: PDF & Layout Document Integrity", () => {
 
 describe("Quality Test Suite: Monetization, Credit Ledger & Idempotency", () => {
   it("computes sub-cent Gemini token cost accurately", () => {
+    process.env.AI_COST_INPUT_USD_PER_MILLION = "0.1";
+    process.env.AI_COST_OUTPUT_USD_PER_MILLION = "0.4";
     // 1500 prompt tokens + 600 completion tokens
     const cost = estimateCostUsd(1500, 600);
     assert.ok(cost > 0);

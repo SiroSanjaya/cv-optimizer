@@ -41,7 +41,7 @@ services:
     command: ["npm", "run", "start:migrate"]
     environment:
       PORT: 4000
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-production}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       DATABASE_URL: postgresql://${POSTGRES_USER:-cvoptimizer}:${POSTGRES_PASSWORD:-cvoptimizer}@db:5432/${POSTGRES_DB:-cv_optimizer}?schema=public
@@ -50,6 +50,9 @@ services:
       AI_JOB_ENCRYPTION_KEY: ${AI_JOB_ENCRYPTION_KEY:?AI_JOB_ENCRYPTION_KEY is required; set a random base64-encoded 32-byte key in .env}
       AI_MONTHLY_QUOTA: ${AI_MONTHLY_QUOTA:-10}
       AI_WORKER_CONCURRENCY: ${AI_WORKER_CONCURRENCY:-4}
+      AI_COST_INPUT_USD_PER_MILLION: ${AI_COST_INPUT_USD_PER_MILLION:-}
+      AI_COST_OUTPUT_USD_PER_MILLION: ${AI_COST_OUTPUT_USD_PER_MILLION:-}
+      USD_TO_IDR_RATE: ${USD_TO_IDR_RATE:-16000}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       AI_PROVIDER: gemini
@@ -81,12 +84,15 @@ services:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-production}
       DATABASE_URL: postgresql://${POSTGRES_USER:-cvoptimizer}:${POSTGRES_PASSWORD:-cvoptimizer}@db:5432/${POSTGRES_DB:-cv_optimizer}?schema=public
       REDIS_URL: redis://redis:6379
       AI_JOB_ENCRYPTION_KEY: ${AI_JOB_ENCRYPTION_KEY:?AI_JOB_ENCRYPTION_KEY is required; set a random base64-encoded 32-byte key in .env}
       AI_MONTHLY_QUOTA: ${AI_MONTHLY_QUOTA:-10}
       AI_WORKER_CONCURRENCY: ${AI_WORKER_CONCURRENCY:-4}
+      AI_COST_INPUT_USD_PER_MILLION: ${AI_COST_INPUT_USD_PER_MILLION:-}
+      AI_COST_OUTPUT_USD_PER_MILLION: ${AI_COST_OUTPUT_USD_PER_MILLION:-}
+      USD_TO_IDR_RATE: ${USD_TO_IDR_RATE:-16000}
       AI_PROVIDER: gemini
       GEMINI_API_KEY: ${GEMINI_API_KEY:?GEMINI_API_KEY is required — set it in your .env file}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}

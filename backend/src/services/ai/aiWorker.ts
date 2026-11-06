@@ -8,6 +8,7 @@ import { logger } from "../../utils/logger";
 import { prisma } from "../../utils/prisma";
 import { validateJobEncryptionKey } from "./jobEncryption";
 import { pruneSettledReservations, settleMonthlyAction } from "./aiTasks";
+import { withAiCostContext } from "./aiCostContext";
 
 interface AiJobData {
   userId: string;
@@ -37,7 +38,10 @@ async function main() {
       try {
         const request = decryptJobValue<AiJobRequest>(job.data.payload);
         if (!job.id) throw new Error("AI job is missing its id.");
-        const result = await processAiJob(request, job.data.userId, job.id);
+        const result = await withAiCostContext(
+          { userId: job.data.userId, jobId: job.id, taskType: request.task },
+          () => processAiJob(request, job.data.userId, job.id!)
+        );
         return encryptJobValue(result);
       } catch (error) {
         logger.error("ai_job_failed", {

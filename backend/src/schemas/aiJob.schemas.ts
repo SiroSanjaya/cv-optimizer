@@ -82,6 +82,19 @@ const careerDevelopmentInputSchema = z.object({
   })).max(20),
 });
 
+const jobImportUrlInputSchema = z.object({
+  url: z.string().url().max(2_000),
+});
+
+const jobImportTextInputSchema = z.object({
+  text: z.string().min(30).max(30_000),
+  sourceUrl: z.string().max(2_000).optional(),
+});
+
+const vaultExtractInputSchema = z.object({
+  cvContent: z.string().min(30).max(40_000),
+});
+
 export const aiJobRequestSchema = z.discriminatedUnion("task", [
   z.object({ task: z.literal("cv.analyze"), input: analyzeCvJobInputSchema }),
   z.object({ task: z.literal("cv.generate"), input: generateRequestSchema }),
@@ -92,6 +105,9 @@ export const aiJobRequestSchema = z.discriminatedUnion("task", [
   z.object({ task: z.literal("profile.import"), input: profileImportInputSchema }),
   z.object({ task: z.literal("jobs.bulk-screen"), input: bulkScreenInputSchema }),
   z.object({ task: z.literal("career-development.plan"), input: careerDevelopmentInputSchema }),
+  z.object({ task: z.literal("jobs.import-url"), input: jobImportUrlInputSchema }),
+  z.object({ task: z.literal("jobs.import-text"), input: jobImportTextInputSchema }),
+  z.object({ task: z.literal("vault.extract-star"), input: vaultExtractInputSchema }),
 ]);
 
 export type AiJobRequest = z.infer<typeof aiJobRequestSchema>;

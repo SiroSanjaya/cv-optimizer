@@ -11,6 +11,8 @@ const configuredEnv = [
   "AI_JOB_ENCRYPTION_KEY",
   "AI_MONTHLY_QUOTA",
   "TRUST_PROXY_HOPS",
+  "AI_COST_INPUT_USD_PER_MILLION",
+  "AI_COST_OUTPUT_USD_PER_MILLION",
 ];
 
 function withProductionEnv(overrides, run) {
@@ -26,6 +28,8 @@ function withProductionEnv(overrides, run) {
     AI_JOB_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64"),
     AI_MONTHLY_QUOTA: "10",
     TRUST_PROXY_HOPS: "1",
+    AI_COST_INPUT_USD_PER_MILLION: "0.1",
+    AI_COST_OUTPUT_USD_PER_MILLION: "0.4",
     ...overrides,
   });
 
@@ -57,5 +61,20 @@ test("production config rejects missing Redis and insecure public frontend URLs"
 test("production config validates trusted proxy hop count", () => {
   withProductionEnv({ TRUST_PROXY_HOPS: "not-a-number" }, () => {
     assert.throws(() => validateProductionConfiguration(), /TRUST_PROXY_HOPS/);
+  });
+
+  test("production config requires both AI cost rates when either is configured", () => {
+    withProductionEnv({
+      AI_COST_INPUT_USD_PER_MILLION: "0.1",
+      AI_COST_OUTPUT_USD_PER_MILLION: "",
+    }, () => {
+      assert.throws(() => validateProductionConfiguration(), /must be configured together/);
+    });
+    withProductionEnv({
+      AI_COST_INPUT_USD_PER_MILLION: "0.1",
+      AI_COST_OUTPUT_USD_PER_MILLION: "invalid",
+    }, () => {
+      assert.throws(() => validateProductionConfiguration(), /finite non-negative numbers/);
+    });
   });
 });

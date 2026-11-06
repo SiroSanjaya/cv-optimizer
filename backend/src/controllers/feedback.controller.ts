@@ -5,6 +5,7 @@ import { Errors } from "../utils/AppError";
 import { betaFeedbackSchema, productEventSchema } from "../schemas/feedback.schemas";
 import { getMonthlyQuota } from "../services/ai/aiTasks";
 import { assessFeedbackQuality } from "../services/feedbackQuality.service";
+import { withAiCostContext } from "../services/ai/aiCostContext";
 
 export async function recordProductEventController(
   req: Request,
@@ -21,6 +22,7 @@ export async function recordProductEventController(
       data: {
         eventName: parsed.data.eventName,
         sessionId: parsed.data.sessionId,
+        metadata: parsed.data.metadata ?? undefined,
       },
     });
     res.status(202).json({ success: true });
@@ -68,7 +70,10 @@ export async function submitBetaFeedbackController(
       });
     }
 
-    const assessment = await assessFeedbackQuality(answers.feedbackDetail);
+    const assessment = await withAiCostContext(
+      { userId, jobId: `feedback-${sessionId}`, taskType: "feedback.quality" },
+      () => assessFeedbackQuality(answers.feedbackDetail)
+    );
     await prisma.funnelEvent.create({
       data: {
         eventName: "beta_feedback",

@@ -42,6 +42,85 @@ export interface User {
   bonusCredits?: number;
 }
 
+export interface AdminDashboardData {
+  generatedAt: string;
+  periodDays: number;
+  periodStart: string;
+  totalUsers: number;
+  ratesConfigured: boolean;
+  costRates: {
+    inputUsdPerMillion: number;
+    outputUsdPerMillion: number;
+  } | null;
+  ai: {
+    requestCount: number;
+    failedCount: number;
+    failureRate: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+    averageLatencyMs: number;
+    usersWithAiUsage: number;
+  };
+  currentMonth: {
+    quotaPerUser: number;
+    usersWithUsageRecord: number;
+    monthlyCreditsConsumed: number;
+    bonusCreditsConsumed: number;
+    bonusCreditsRemaining: number;
+  };
+  daily: Array<{
+    day: string;
+    requests: number;
+    failures: number;
+    estimatedCostUsd: number;
+  }>;
+  byTaskType: Array<{
+    taskType: string;
+    requests: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+  }>;
+  usersByCost: Array<{
+    userId: string | null;
+    requests: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+  }>;
+  funnelEvents: Array<{ eventName: string; count: number }>;
+  betaEffectiveness: {
+    sampleSize: {
+      completedAnalyses: number;
+      completedWorkflows: number;
+      exportedSessions: number;
+      acceptedOutputs: number;
+      submittedApplications: number;
+    };
+    medianMinutes: {
+      analysis: number | null;
+      actionableScore: number | null;
+      completeWorkflow: number | null;
+    };
+    baseline: {
+      medianMinutesBefore: number | null;
+      medianApplicationsPerHourBefore: number | null;
+      baselineResponses: number;
+    };
+    aiOutputUsabilityRate: number | null;
+    applicationOutcomes: {
+      byStatus: Record<string, number>;
+      totalSubmitted: number;
+      interviewReached: number;
+      interviewRate: number | null;
+    };
+  };
+}
+
 export interface CareerDevelopmentAnalysis {
   targetRole: string;
   jobCount: number;
@@ -119,6 +198,7 @@ export interface ApplicationItem {
   status: ApplicationStatus;
   appliedAt: string;
   notes?: string | null;
+  nextFollowUpAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -139,7 +219,11 @@ export type ProductEventName =
   | "optimization_completed"
   | "cv_exported"
   | "tracker_saved"
-  | "optimization_restarted";
+  | "optimization_restarted"
+  | "workflow_started"
+  | "analysis_actionable"
+  | "ai_output_accepted"
+  | "application_submitted";
 
 export interface BetaFeedback {
   feedbackDetail: string;
@@ -172,6 +256,8 @@ export interface BetaFeedback {
     | "missing_workflow"
     | "price"
     | "other";
+  baselineMinutesBefore?: number;
+  estimatedApplicationsPerHourBefore?: number;
 }
 
 export function getProductSessionId(): string {
@@ -193,12 +279,16 @@ export function hasProductAnalyticsConsent(): boolean {
   }
 }
 
-export async function trackProductEvent(eventName: ProductEventName): Promise<void> {
+export async function trackProductEvent(
+  eventName: ProductEventName,
+  metadata?: Record<string, string | number | boolean | null>
+): Promise<void> {
   try {
     if (!hasProductAnalyticsConsent()) return;
     await publicApi.post("/api/feedback/events", {
       eventName,
       sessionId: getProductSessionId(),
+      ...(metadata ? { metadata } : {}),
     });
   } catch (error) {
     console.warn("Could not record anonymous product usage event.", error);
@@ -643,6 +733,18 @@ export async function fetchCurrentUser(): Promise<User | null> {
   }
 }
 
+export async function fetchAdminDashboard(days = 30): Promise<AdminDashboardData> {
+  try {
+    const { data } = await api.get<{ success: boolean; dashboard: AdminDashboardData }>(
+      "/api/admin/dashboard",
+      { params: { days } }
+    );
+    return data.dashboard;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Gagal memuat dashboard admin."));
+  }
+}
+
 export async function googleLogin(credentialOrToken: string): Promise<{ user: User; token: string }> {
   try {
     const { data } = await api.post<{ success: boolean; user: User; token: string }>("/api/auth/google", {
@@ -711,6 +813,7 @@ export async function createApplication(app: {
   hireProb?: number;
   status?: ApplicationStatus;
   notes?: string;
+  nextFollowUpAt?: string;
 }): Promise<ApplicationItem> {
   try {
     const { data } = await api.post<{ success: boolean; application: ApplicationItem }>(
@@ -1146,12 +1249,13 @@ export async function extractVaultStoriesFromCv(
   cvContent: string
 ): Promise<CreateVaultStoryInput[]> {
   try {
-    const { data } = await api.post<{
-      success: boolean;
-      count: number;
-      extracted: CreateVaultStoryInput[];
-    }>("/api/vault/extract-from-cv", { cvContent });
-    return data.extracted;
+    const result = await waitForAiJob<{ success: boolean; count: number; extracted: CreateVaultStoryInput[] }>(
+      api.post<AiJobSubmission>("/api/ai/jobs", {
+        task: "vault.extract-star",
+        input: { cvContent },
+      })
+    );
+    return result.extracted;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal mengekstrak STAR stories dari CV."));
   }
@@ -1204,8 +1308,13 @@ export interface ImportedJob {
 
 export async function importJobFromUrl(url: string): Promise<ImportedJob> {
   try {
-    const { data } = await api.post<{ success: boolean; job: ImportedJob }>("/api/jobs/import-url", { url });
-    return data.job;
+    const result = await waitForAiJob<{ success: boolean; job: ImportedJob }>(
+      api.post<AiJobSubmission>("/api/ai/jobs", {
+        task: "jobs.import-url",
+        input: { url },
+      })
+    );
+    return result.job;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal mengimpor lowongan dari URL. Coba salin teks JD secara manual."));
   }
@@ -1213,11 +1322,13 @@ export async function importJobFromUrl(url: string): Promise<ImportedJob> {
 
 export async function importJobFromText(text: string, sourceUrl?: string): Promise<ImportedJob> {
   try {
-    const { data } = await api.post<{ success: boolean; job: ImportedJob }>("/api/jobs/import-text", {
-      text,
-      sourceUrl,
-    });
-    return data.job;
+    const result = await waitForAiJob<{ success: boolean; job: ImportedJob }>(
+      api.post<AiJobSubmission>("/api/ai/jobs", {
+        task: "jobs.import-text",
+        input: { text, sourceUrl },
+      })
+    );
+    return result.job;
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal memproses teks job description."));
   }

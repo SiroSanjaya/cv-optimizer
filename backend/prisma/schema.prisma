@@ -32,47 +32,47 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
-  picture   String?  // Google profile photo URL
+  picture   String? // Google profile photo URL
   googleId  String?  @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cvVersions   CvVersion[]
-  careerProfile CareerProfile?
-  savedJobs SavedJob[]
-  applications Application[]
-  experienceVault ExperienceVaultItem[]
-  usageCredit  UsageCredit?
-  aiJobReservations AiJobReservation[]
-  creditLedger CreditLedgerEntry[]
-  paymentTransactions PaymentTransaction[]
-  aiCostLogs AiCostLog[]
-  funnelEvents FunnelEvent[]
-  betaFeedbackReward BetaFeedbackReward?
+  cvVersions            CvVersion[]
+  careerProfile         CareerProfile?
+  savedJobs             SavedJob[]
+  applications          Application[]
+  experienceVault       ExperienceVaultItem[]
+  usageCredit           UsageCredit?
+  aiJobReservations     AiJobReservation[]
+  creditLedger          CreditLedgerEntry[]
+  paymentTransactions   PaymentTransaction[]
+  aiCostLogs            AiCostLog[]
+  funnelEvents          FunnelEvent[]
+  betaFeedbackReward    BetaFeedbackReward?
   careerDevelopmentPlan CareerDevelopmentPlan?
 }
 
 model ExperienceVaultItem {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  company        String
-  role           String
-  periodStart    String?
-  periodEnd      String?
-  category       String   @default("technical")
-  skillsUsed     String[]
+  company     String
+  role        String
+  periodStart String?
+  periodEnd   String?
+  category    String   @default("technical")
+  skillsUsed  String[]
 
-  situation      String   @db.Text
-  task           String   @db.Text
-  action         String   @db.Text
-  result         String   @db.Text
+  situation String @db.Text
+  task      String @db.Text
+  action    String @db.Text
+  result    String @db.Text
 
-  polishedBullet String?  @db.Text
+  polishedBullet String? @db.Text
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([userId, category])
@@ -108,19 +108,19 @@ model CareerProfile {
 }
 
 model CareerDevelopmentPlan {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  targetRole             String
-  jobCount               Int
-  skillDemand            Json
-  skillGaps              Json
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetRole              String
+  jobCount                Int
+  skillDemand             Json
+  skillGaps               Json
   learningRecommendations Json
-  portfolioProjects      Json
-  certifications         Json
-  progress               Json     @default("{}")
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  portfolioProjects       Json
+  certifications          Json
+  progress                Json     @default("{}")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model SavedJob {
@@ -157,54 +157,55 @@ model SavedJob {
 }
 
 model Application {
-  id             String            @id @default(cuid())
-  userId         String?
-  user           User?             @relation(fields: [userId], references: [id])
-  cvVersionId    String?
-  cvVersion      CvVersion?        @relation(fields: [cvVersionId], references: [id])
+  id          String     @id @default(cuid())
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id])
+  cvVersionId String?
+  cvVersion   CvVersion? @relation(fields: [cvVersionId], references: [id])
 
   // Job info
   company        String?
   position       String?
   jobDescription String
-  jobUrl         String?           // link to job posting
+  jobUrl         String? // link to job posting
 
   // Analysis
-  matchScore     Int?
-  hireProb       Int?              // hire probability 0-100
-  analysis       Json?
+  matchScore Int?
+  hireProb   Int? // hire probability 0-100
+  analysis   Json?
 
   // Tracking
   status         ApplicationStatus @default(applied)
   appliedAt      DateTime          @default(now())
   notes          String?
+  nextFollowUpAt DateTime?
 
   // Timestamps
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model UsageCredit {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  used        Int      @default(0)
-  limit       Int      @default(10)
-  bonusCredits Int     @default(0)
-  periodStart DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  used         Int      @default(0)
+  limit        Int      @default(10)
+  bonusCredits Int      @default(0)
+  periodStart  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model AiJobReservation {
-  id          String   @id @default(cuid())
-  jobId       String   @unique
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  periodStart DateTime
-  status      String   @default("reserved")
-  creditSource String  @default("monthly")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  jobId        String   @unique
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodStart  DateTime
+  status       String   @default("reserved")
+  creditSource String   @default("monthly")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([userId, periodStart])
 }
@@ -229,12 +230,12 @@ model CreditLedgerEntry {
   id           String          @id @default(cuid())
   userId       String
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount       Int             // positive for additions, negative for deductions
+  amount       Int // positive for additions, negative for deductions
   balanceAfter Int
   type         LedgerEntryType
   reason       String
   jobId        String?
-  referenceId  String?         // paymentTransactionId, promoId, etc.
+  referenceId  String? // paymentTransactionId, promoId, etc.
   createdAt    DateTime        @default(now())
 
   @@index([userId])
@@ -249,21 +250,21 @@ enum PaymentStatus {
 }
 
 model PaymentTransaction {
-  id              String        @id @default(cuid())
-  userId          String
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  idempotencyKey  String        @unique
-  orderId         String        @unique
-  gateway         String        @default("midtrans") // midtrans, stripe, xendit
-  amount          Int           // e.g. 9900 IDR, 39000 IDR
-  currency        String        @default("IDR")
-  creditsGranted  Int
-  status          PaymentStatus @default(PENDING)
-  paymentMethod   String?
-  rawPayload      Json?
-  paidAt          DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey String        @unique
+  orderId        String        @unique
+  gateway        String        @default("midtrans") // midtrans, stripe, xendit
+  amount         Int // e.g. 9900 IDR, 39000 IDR
+  currency       String        @default("IDR")
+  creditsGranted Int
+  status         PaymentStatus @default(PENDING)
+  paymentMethod  String?
+  rawPayload     Json?
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([userId])
 }
@@ -273,7 +274,7 @@ model AiCostLog {
   userId           String?
   user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   jobId            String?
-  taskType         String   // analyze, tailor, cover_letter, interview
+  taskType         String // analyze, tailor, cover_letter, interview
   model            String   @default("gemini-3.5-flash-lite")
   promptTokens     Int      @default(0)
   completionTokens Int      @default(0)
@@ -287,6 +288,7 @@ model AiCostLog {
 
   @@index([taskType])
   @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model FunnelEvent {
@@ -294,7 +296,7 @@ model FunnelEvent {
   userId    String?
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   sessionId String?
-  eventName String   // landing_viewed, upload_started, analysis_completed, export_completed, checkout_started, payment_success, repeat_optimization
+  eventName String // landing_viewed, upload_started, analysis_completed, export_completed, checkout_started, payment_success, repeat_optimization
   metadata  Json?
   createdAt DateTime @default(now())
 

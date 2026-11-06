@@ -350,8 +350,8 @@ export async function importJobFromUrlController(
 ) {
   try {
     const { url } = req.body;
-    if (!url || typeof url !== "string" || !url.startsWith("http")) {
-      res.status(400).json({ success: false, error: "URL lowongan tidak valid. Pastikan dimulai dengan https://" });
+    if (!url || typeof url !== "string" || !url.startsWith("https://")) {
+      res.status(400).json({ success: false, error: "URL lowongan tidak valid. Pastikan menggunakan HTTPS." });
       return;
     }
 

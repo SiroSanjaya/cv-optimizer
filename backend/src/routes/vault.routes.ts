@@ -9,7 +9,6 @@ import {
   matchForJobController,
 } from "../controllers/vault.controller";
 import { requireAuth } from "../middleware/auth.middleware";
-import { aiSubmitRateLimiter } from "../middleware/rateLimiter";
 
 const router = Router();
 
@@ -18,7 +17,6 @@ router.use(requireAuth);
 
 router.get("/", listVaultController);
 router.post("/", createVaultController);
-router.post("/extract-from-cv", aiSubmitRateLimiter, extractFromCvController);
 router.post("/match-for-job", matchForJobController);
 
 router.get("/:id", getVaultController);

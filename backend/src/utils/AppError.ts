@@ -9,6 +9,7 @@ export type AppErrorCode =
   | "AI_RESPONSE_INVALID"
   | "QUOTA_EXCEEDED"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "NOT_FOUND"
   | "INTERNAL_ERROR"
   | "VALIDATION_ERROR";
@@ -68,6 +69,8 @@ export const Errors = {
     new AppError("You've used your free CV optimizations.", 403, "QUOTA_EXCEEDED"),
   unauthorized: (message = "Authentication required.") =>
     new AppError(message, 401, "UNAUTHORIZED"),
+  forbidden: (message = "You do not have permission to access this resource.") =>
+    new AppError(message, 403, "FORBIDDEN"),
   notFound: (message = "Resource not found.") =>
     new AppError(message, 404, "NOT_FOUND"),
   internal: (message = "Internal server error.") =>

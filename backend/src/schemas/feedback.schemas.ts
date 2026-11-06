@@ -9,8 +9,13 @@ export const productEventSchema = z.object({
     "cv_exported",
     "tracker_saved",
     "optimization_restarted",
+    "workflow_started",
+    "analysis_actionable",
+    "ai_output_accepted",
+    "application_submitted",
   ]),
   sessionId: z.string().uuid(),
+  metadata: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
 }).strict();
 
 export const betaFeedbackSchema = z.object({
@@ -44,4 +49,6 @@ export const betaFeedbackSchema = z.object({
     "price",
     "other",
   ]),
+  baselineMinutesBefore: z.number().int().min(1).max(360).optional(),
+  estimatedApplicationsPerHourBefore: z.number().int().min(0).max(60).optional(),
 }).strict();

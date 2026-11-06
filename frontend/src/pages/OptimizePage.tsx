@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -270,6 +270,12 @@ export function OptimizePage() {
   const [claimedSkills, setClaimedSkills] = useState<string[]>([]);
   const [tailoredTab, setTailoredTab] = useState<"cv" | "diff" | "cover_letter">("cv");
   const [feedbackVersion, setFeedbackVersion] = useState(0);
+  const workflowStartedAtRef = useRef<number | null>(null);
+  const [workflowDurationMs, setWorkflowDurationMs] = useState<number | null>(null);
+  const [baselineMinutesBefore] = useState(() => {
+    const value = Number(localStorage.getItem("cv_optimizer_baseline_minutes_before") || 0);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  });
 
   useEffect(() => {
     void trackProductEvent("optimize_opened");
@@ -526,6 +532,8 @@ export function OptimizePage() {
   const onAnalyze = async (values: FormValues) => {
     setSubmitError(null);
     setClaimedSkills([]);
+    workflowStartedAtRef.current = Date.now();
+    void trackProductEvent("workflow_started");
 
     if (batchTargets.length > 0) {
       await onPrepareBatch(values.jobDescription);
@@ -551,7 +559,17 @@ export function OptimizePage() {
         saveSessionCvSkills(uid, result.cv.skills);
       }
       setStage("results");
-      void trackProductEvent("analysis_completed");
+      const durationMs = workflowStartedAtRef.current
+        ? Date.now() - workflowStartedAtRef.current
+        : null;
+      void trackProductEvent("analysis_completed", {
+        durationMs: durationMs ?? 0,
+        matchScore: result.analysis?.matchScore ?? 0,
+      });
+      void trackProductEvent("analysis_actionable", {
+        durationMs: durationMs ?? 0,
+        matchScore: result.analysis?.matchScore ?? 0,
+      });
       if ((result.analysis?.matchScore || 0) >= 70) {
         setTimeout(() => fireConfetti(2500), 300);
       }
@@ -587,7 +605,14 @@ export function OptimizePage() {
       setCvVersionId(result.cvVersionId);
       setStage("tailored");
       setFeedbackVersion((version) => version + 1);
-      void trackProductEvent("optimization_completed");
+      const durationMs = workflowStartedAtRef.current
+        ? Date.now() - workflowStartedAtRef.current
+        : null;
+      setWorkflowDurationMs(durationMs);
+      void trackProductEvent("optimization_completed", {
+        durationMs: durationMs ?? 0,
+        matchScore: analysis?.matchScore ?? 0,
+      });
       setTimeout(() => fireConfetti(3500), 300);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Terjadi kesalahan saat membuat CV tailored.");
@@ -1416,6 +1441,32 @@ export function OptimizePage() {
 
         {stage === "tailored" && (tailoredCv || structuredCv) && (
           <div className="mt-8 space-y-6">
+            {workflowDurationMs !== null && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-sm font-bold text-emerald-950">
+                  Waktu workflow aplikasi: {Math.max(1, Math.round(workflowDurationMs / 60000))} menit
+                </p>
+                {baselineMinutesBefore !== null ? (
+                  <p className="mt-1 text-xs leading-5 text-emerald-900">
+                    {(() => {
+                      const actualMinutes = Math.max(1, workflowDurationMs / 60000);
+                      const savedMinutes = Math.round(baselineMinutesBefore - actualMinutes);
+                      if (savedMinutes > 0) {
+                        return `Estimasi penghematan berdasarkan baseline kamu: ${savedMinutes} menit per lamaran (${Math.max(1, Math.round((savedMinutes / baselineMinutesBefore) * 100))}% lebih cepat).`;
+                      }
+                      if (savedMinutes < 0) {
+                        return `Alur ini belum lebih cepat dari baseline kamu sebesar ${Math.abs(savedMinutes)} menit. Catat hasil berikutnya agar trend lebih akurat.`;
+                      }
+                      return "Waktu workflow hampir sama dengan baseline kamu.";
+                    })()}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs leading-5 text-emerald-900">
+                    Isi baseline waktu di feedback beta untuk melihat penghematan pribadi. Angka ini bukan janji hasil lamaran.
+                  </p>
+                )}
+              </div>
+            )}
             {/* Segmented Tab Switcher */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-4">
               <div className="inline-flex rounded-xl border border-line bg-paper-raised p-1 text-xs shadow-2xs">

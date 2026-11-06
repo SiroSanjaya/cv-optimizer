@@ -78,6 +78,7 @@ export interface CoverLetterOptions {
 export interface JobRequirementMatch {
   requirement: string;
   evidence: string;
+  cvEvidenceQuote?: string;
   status: "Supported" | "Partial" | "Gap";
   category?: string;
 }
