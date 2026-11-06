@@ -902,7 +902,11 @@ export async function getJobRecommendations(params?: {
         },
       }
     );
-    return data;
+    return {
+      query: data?.query ?? null,
+      jobs: Array.isArray(data?.jobs) ? data.jobs : [],
+      sources: Array.isArray(data?.sources) ? data.sources : [],
+    };
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Failed to fetch job recommendations."));
   }
@@ -911,7 +915,7 @@ export async function getJobRecommendations(params?: {
 export async function getSavedJobs(): Promise<SavedJob[]> {
   try {
     const { data } = await api.get<{ success: boolean; jobs: SavedJob[] }>("/api/jobs/saved");
-    return data.jobs;
+    return Array.isArray(data?.jobs) ? data.jobs : [];
   } catch (err) {
     throw new Error(extractErrorMessage(err, "Gagal memuat lowongan tersimpan."));
   }

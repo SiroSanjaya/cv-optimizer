@@ -222,7 +222,7 @@ export function JobsPage() {
     })
       .then((res) => {
         if (isMounted) {
-          setJobs(res.jobs);
+          setJobs(Array.isArray(res?.jobs) ? res.jobs : []);
           setJobSources(res.sources ?? []);
           setIsPersonalized(Boolean(res.query?.isPersonalized));
         }
@@ -421,7 +421,7 @@ export function JobsPage() {
     });
   };
 
-  const eligibleJobs = jobs.filter(
+  const eligibleJobs = (Array.isArray(jobs) ? jobs : []).filter(
     (job) =>
       (job.matchScore ?? 0) >= autoApplyMinScore &&
       isSupportedApplicationUrl(job.url)
