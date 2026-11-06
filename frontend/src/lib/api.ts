@@ -269,6 +269,9 @@ export interface BetaFeedback {
     | "other";
   baselineMinutesBefore?: number;
   estimatedApplicationsPerHourBefore?: number;
+  workflowMinutesWithApp?: number;
+  outputAcceptance?: "as_is" | "small_edit" | "large_edit" | "discard";
+  applicationOutcome?: "hr_screening" | "interview" | "rejected" | "no_response" | "not_applied";
 }
 
 export function getProductSessionId(): string {

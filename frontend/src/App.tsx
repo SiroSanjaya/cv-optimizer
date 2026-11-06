@@ -40,6 +40,9 @@ const RecruiterPage = lazy(() =>
 const PrivacyPage = lazy(() =>
   import("./pages/PrivacyPage").then((module) => ({ default: module.PrivacyPage }))
 );
+const TermsPage = lazy(() =>
+  import("./pages/TermsPage").then((module) => ({ default: module.TermsPage }))
+);
 const FaqPage = lazy(() =>
   import("./pages/FaqPage").then((module) => ({ default: module.FaqPage }))
 );
@@ -95,6 +98,7 @@ function App() {
               <Route path="/optimize" element={<OptimizePage />} />
               <Route path="/recruiter" element={<RecruiterPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
               <Route path="/faq" element={<FaqPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
               <Route element={<RequireAuth />}>

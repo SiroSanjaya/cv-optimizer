@@ -51,4 +51,13 @@ export const betaFeedbackSchema = z.object({
   ]),
   baselineMinutesBefore: z.number().int().min(1).max(360).optional(),
   estimatedApplicationsPerHourBefore: z.number().int().min(0).max(60).optional(),
+  workflowMinutesWithApp: z.number().int().min(1).max(360).optional(),
+  outputAcceptance: z.enum(["as_is", "small_edit", "large_edit", "discard"]).optional(),
+  applicationOutcome: z.enum([
+    "hr_screening",
+    "interview",
+    "rejected",
+    "no_response",
+    "not_applied",
+  ]).optional(),
 }).strict();

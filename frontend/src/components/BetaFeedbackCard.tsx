@@ -18,6 +18,9 @@ type FeedbackFields = {
   mainBlocker: BetaFeedback["mainBlocker"] | "";
   baselineMinutesBefore: number | "";
   estimatedApplicationsPerHourBefore: number | "";
+  workflowMinutesWithApp: number | "";
+  outputAcceptance: BetaFeedback["outputAcceptance"] | "";
+  applicationOutcome: BetaFeedback["applicationOutcome"] | "";
 };
 
 const initialFeedback: FeedbackFields = {
@@ -31,6 +34,9 @@ const initialFeedback: FeedbackFields = {
   mainBlocker: "",
   baselineMinutesBefore: "",
   estimatedApplicationsPerHourBefore: "",
+  workflowMinutesWithApp: "",
+  outputAcceptance: "",
+  applicationOutcome: "",
 };
 
 export function BetaFeedbackCard() {
@@ -72,6 +78,11 @@ export function BetaFeedbackCard() {
       ...(feedback.estimatedApplicationsPerHourBefore !== ""
         ? { estimatedApplicationsPerHourBefore: feedback.estimatedApplicationsPerHourBefore }
         : {}),
+      ...(feedback.workflowMinutesWithApp !== ""
+        ? { workflowMinutesWithApp: feedback.workflowMinutesWithApp }
+        : {}),
+      ...(feedback.outputAcceptance ? { outputAcceptance: feedback.outputAcceptance } : {}),
+      ...(feedback.applicationOutcome ? { applicationOutcome: feedback.applicationOutcome } : {}),
     };
     setIsSubmitting(true);
     setError(null);
@@ -184,6 +195,56 @@ export function BetaFeedbackCard() {
                 }
                 placeholder="Contoh: 2"
               />
+            </label>
+            <label className="text-sm font-semibold text-ink">
+              Berapa menit kamu selesai memakai alur aplikasi untuk satu lamaran?
+              <input
+                type="number"
+                min={1}
+                max={360}
+                className={fieldClassName}
+                value={feedback.workflowMinutesWithApp}
+                onChange={(event) =>
+                  setFeedback({
+                    ...feedback,
+                    workflowMinutesWithApp: event.target.value ? Number(event.target.value) : "",
+                  })
+                }
+                placeholder="Contoh: 20"
+              />
+            </label>
+            <label className="text-sm font-semibold text-ink">
+              Hasil AI setelah export dibuat seperti apa?
+              <select
+                className={fieldClassName}
+                value={feedback.outputAcceptance}
+                onChange={(event) =>
+                  setFeedback({ ...feedback, outputAcceptance: event.target.value as FeedbackFields["outputAcceptance"] })
+                }
+              >
+                <option value="">Pilih jawaban</option>
+                <option value="as_is">Dipakai apa adanya</option>
+                <option value="small_edit">Edit kecil</option>
+                <option value="large_edit">Edit besar</option>
+                <option value="discard">Dibuang</option>
+              </select>
+            </label>
+            <label className="text-sm font-semibold text-ink">
+              Status lamaran dengan aplikasi ini?
+              <select
+                className={fieldClassName}
+                value={feedback.applicationOutcome}
+                onChange={(event) =>
+                  setFeedback({ ...feedback, applicationOutcome: event.target.value as FeedbackFields["applicationOutcome"] })
+                }
+              >
+                <option value="">Belum ada data</option>
+                <option value="hr_screening">Masuk HR screening</option>
+                <option value="interview">Masuk tahap interview</option>
+                <option value="rejected">Ditolak</option>
+                <option value="no_response">Belum ada respon</option>
+                <option value="not_applied">Belum melamar</option>
+              </select>
             </label>
             <label className="text-sm font-semibold text-ink">
               Seberapa sering kamu melamar?

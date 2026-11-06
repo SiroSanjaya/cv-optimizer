@@ -12,6 +12,7 @@ import {
 import { Button } from "./Button";
 import { fireConfetti } from "../lib/confetti";
 import type { StructuredCv } from "../types/cv";
+import { getProductSessionId } from "../lib/api";
 
 interface ShareableScoreModalProps {
   isOpen: boolean;
@@ -39,13 +40,21 @@ export function ShareableScoreModal({
 
   const validScore = Math.min(100, Math.max(0, Math.round(score)));
   const matchedSkills = (cv?.skills || []).slice(0, 6);
+  const referralId =
+    localStorage.getItem("satsetcv_referral")
+    || sessionStorage.getItem("satsetcv_share_referral")
+    || getProductSessionId().slice(0, 8);
+  if (!sessionStorage.getItem("satsetcv_share_referral")) {
+    sessionStorage.setItem("satsetcv_share_referral", referralId);
+  }
+  const referralUrl = `${window.location.origin}/?ref=${encodeURIComponent(referralId)}`;
 
   const viralCaption = `🚀 Saya lagi menyiapkan CV untuk posisi ${targetRole} dengan satsetCV.
 
 Saya bisa membandingkan pengalaman di CV dengan kebutuhan posisi, lalu meninjau bagian yang perlu diperbaiki sebelum melamar.
 
 Coba siapkan CV-mu untuk posisi yang dituju:
-👉 ${window.location.origin}/optimize
+👉 ${referralUrl}
 
 #CareerGrowth #JobHunting #CVReview #JobOpportunity #satsetCV`;
 
@@ -205,7 +214,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
     ctx.textAlign = "right";
     ctx.fillStyle = "#10B981";
     ctx.font = "bold 15px 'Plus Jakarta Sans', sans-serif";
-    ctx.fillText("cv-optimizer.app", W - 70, H - 55);
+    ctx.fillText("satsetCV", W - 70, H - 55);
   }, [isOpen, validScore, candidateName, targetRole, matchedSkills]);
 
   if (!isOpen) return null;
@@ -238,7 +247,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
 
   const handleShareLinkedIn = () => {
     handleCopyCaption();
-    const url = encodeURIComponent(window.location.origin);
+    const url = encodeURIComponent(referralUrl);
     window.open(
       `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
       "_blank",
@@ -248,7 +257,7 @@ Coba siapkan CV-mu untuk posisi yang dituju:
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `Halo! Saya sedang menyiapkan CV untuk posisi ${targetRole} dengan satsetCV. Lihat kecocokan pengalaman dan rapikan materi lamaranmu di sini: ${window.location.origin}/optimize`
+      `Halo! Saya sedang menyiapkan CV untuk posisi ${targetRole} dengan satsetCV. Lihat review CV dan rapikan materi lamaranmu di sini: ${referralUrl}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
   };

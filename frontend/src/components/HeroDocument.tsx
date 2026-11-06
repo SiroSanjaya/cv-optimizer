@@ -37,10 +37,10 @@ export function HeroDocument() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-line p-4">
+          <div className="rounded-xl border border-line bg-white p-4">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-forest" aria-hidden="true" />
-              <p className="text-xs font-bold text-ink">Tinjau CV untuk posisi ini</p>
+              <p className="text-xs font-bold text-ink">Contoh review 7 perspektif</p>
             </div>
             <div className="mt-4 space-y-3">
               <div className="flex gap-3">
@@ -48,9 +48,9 @@ export function HeroDocument() {
                   <Check className="h-3 w-3" aria-hidden="true" />
                 </span>
                 <div>
-                  <p className="text-xs font-semibold text-ink">Pengalaman terkait</p>
+                  <p className="text-xs font-semibold text-ink">HR: pengalaman relevan terlihat jelas</p>
                   <p className="mt-0.5 text-[11px] leading-5 text-ink-soft">
-                    Periksa pengalaman mana yang mendukung posisi ini.
+                    CV menyebutkan dampak project secara spesifik dan mudah dipindai.
                   </p>
                 </div>
               </div>
@@ -59,9 +59,9 @@ export function HeroDocument() {
                   <Check className="h-3 w-3" aria-hidden="true" />
                 </span>
                 <div>
-                  <p className="text-xs font-semibold text-ink">Materi lamaran</p>
+                  <p className="text-xs font-semibold text-ink">Hiring manager: tambahkan angka dampak</p>
                   <p className="mt-0.5 text-[11px] leading-5 text-ink-soft">
-                    Siapkan draf CV dan cover letter untuk kamu tinjau.
+                    Ubah “memimpin tim” menjadi hasil terukur agar lebih kredibel.
                   </p>
                 </div>
               </div>
@@ -69,7 +69,7 @@ export function HeroDocument() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {["Lowongan", "CV disesuaikan", "Latihan wawancara"].map((item) => (
+            {["HR", "ATS", "Hiring Manager", "Rekruter", "Career Coach", "Rekan Kerja", "Kandidat"].map((item) => (
               <span
                 key={item}
                 className="rounded-full border border-line bg-paper px-3 py-1.5 text-[10px] font-medium text-ink-soft"

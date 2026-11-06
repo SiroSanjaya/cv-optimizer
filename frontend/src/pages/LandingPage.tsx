@@ -43,6 +43,10 @@ const steps = [
 export function LandingPage() {
   useEffect(() => {
     void trackProductEvent("landing_viewed");
+    const referral = new URLSearchParams(window.location.search).get("ref");
+    if (referral && /^[a-zA-Z0-9_-]{8,80}$/.test(referral)) {
+      localStorage.setItem("satsetcv_referral", referral);
+    }
   }, []);
 
   return (
@@ -64,33 +68,33 @@ export function LandingPage() {
             <div className="min-w-0">
               <span className="inline-flex items-center gap-2 rounded-full border border-forest/15 bg-forest-tint px-3 py-1.5 text-[11px] font-bold text-forest">
                 <BriefcaseBusiness className="h-3.5 w-3.5" />
-                Ruang kerja untuk pencari kerja
+                Review CV untuk pencari kerja
               </span>
 
               <h1 className="mt-5 max-w-2xl font-serif text-[2.35rem] font-semibold leading-[1.06] tracking-tight text-ink sm:mt-6 sm:text-5xl lg:text-6xl">
-                Persiapan lamaran, lebih tertata.
+                Tingkatkan CV dari 7 sudut pandang sebelum melamar
               </h1>
 
               <p className="mt-5 max-w-xl text-sm leading-7 text-ink-soft sm:text-base">
-                Satukan lowongan yang kamu incar, CV yang sudah disesuaikan, dan
-                progres lamaran dalam satu tempat. Kamu tetap memeriksa dan
-                mengirim sendiri.
+                Lihat CV seperti dilihat HR, ATS, hiring manager, recruiter,
+                career coach, rekan kerja, dan kandidat. Lalu dapatkan revisi,
+                bukti skill, dan link belajar yang relevan.
               </p>
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link
-                  to="/jobs"
+                  to="/optimize"
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-forest px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-forest-dark"
                 >
-                  Cari lowongan
+                  Optimalkan CV Gratis
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
-                  to="/optimize"
+                  to="/jobs"
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:border-forest/50 hover:bg-paper"
                 >
                   <FileText className="h-4 w-4 text-forest" />
-                  Mulai dari CV
+                  Cari Lowongan
                 </Link>
               </div>
 
@@ -225,6 +229,9 @@ export function LandingPage() {
         <div className="mt-2 flex justify-center gap-4">
           <Link to="/privacy" className="font-semibold text-forest underline">
             Privasi & penggunaan AI
+          </Link>
+          <Link to="/terms" className="font-semibold text-forest underline">
+            Syarat penggunaan
           </Link>
           <Link to="/faq" className="font-semibold text-forest underline">
             Pusat Bantuan
