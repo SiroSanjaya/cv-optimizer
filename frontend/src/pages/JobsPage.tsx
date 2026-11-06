@@ -35,7 +35,6 @@ import {
   CheckCircle2,
   FileText,
   PlusCircle,
-  Filter,
   Globe,
   BrainCircuit,
   Clock,
@@ -799,35 +798,47 @@ export function JobsPage() {
           )}
         </div>
 
-        {/* Banner Hero */}
-        <section className="order-1 flex flex-col overflow-hidden rounded-2xl border border-forest/20 bg-gradient-to-br from-forest-tint/60 via-paper-raised to-paper-raised p-4 shadow-sm sm:p-5 lg:p-6">
-          <div className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-forest/20 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-forest">
-            <Sparkles className="h-3.5 w-3.5" />
-            Satsetin cari kerja
+        {/* Search workspace */}
+        <section className="order-1 overflow-hidden rounded-3xl bg-[#173f3a] px-4 py-5 text-white shadow-[0_16px_40px_rgba(23,63,58,0.16)] sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/90">
+                <Sparkles className="h-3.5 w-3.5 text-[#b9d9a8]" />
+                Pencarian lowongan
+              </div>
+              <h1 className="max-w-2xl font-serif text-[28px] font-bold leading-tight tracking-tight text-white sm:text-4xl">
+                Temukan peran yang benar-benar relevan.
+              </h1>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/70">
+                Cari berdasarkan profesi, lokasi, atau pasar kerja favoritmu.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenGoogleJobs}
+              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              Buka Google Jobs
+              <ExternalLink className="h-3 w-3" />
+            </button>
           </div>
-          <h1 className="font-serif text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl">
-            Cari kerja yang cocok, bukan sekadar banyak.
-          </h1>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-soft">
-            Pilih peran dan lokasi. CV opsional untuk melihat kecocokan skill.
-          </p>
 
-          {/* Search Form */}
           <form
             role="search"
             aria-label="Cari lowongan kerja"
             onSubmit={handleSearch}
-            className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_190px_auto]"
+            className="mt-5 rounded-2xl bg-white p-2 shadow-sm sm:grid sm:grid-cols-[minmax(0,1fr)_170px_auto] sm:items-center"
           >
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-3 h-4 w-4 text-ink-soft" />
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6e7773]" />
               <input
                 type="text"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Contoh: admin, perawat, software engineer"
+                placeholder="Nama profesi atau keahlian"
                 aria-label="Posisi atau keahlian"
-                className="min-h-11 w-full rounded-xl border border-line bg-paper pl-10 pr-4 py-2.5 text-sm text-ink shadow-xs placeholder:text-ink-soft/60 focus:border-forest focus:outline-none"
+                className="min-h-12 w-full rounded-xl border-0 bg-transparent pl-10 pr-4 text-sm font-medium text-[#173f3a] outline-none placeholder:text-[#929b97]"
               />
             </div>
             <label className="sr-only" htmlFor="job-location-filter">Filter lokasi lowongan</label>
@@ -841,7 +852,7 @@ export function JobsPage() {
                 setJobSources([]);
                 setLocationFilter(nextLocation);
               }}
-              className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-sm font-medium text-ink focus:border-forest focus:outline-none"
+              className="mt-2 min-h-11 w-full rounded-xl border border-[#dfe5e2] bg-white px-3 text-sm font-semibold text-[#173f3a] outline-none sm:mt-0 sm:border-y-0 sm:border-r-0 sm:border-l sm:rounded-none"
             >
               <option value="all">Semua lokasi</option>
               <option value="indonesia">Indonesia</option>
@@ -850,13 +861,59 @@ export function JobsPage() {
               <option value="australia">Australia</option>
               <option value="remote">Remote</option>
             </select>
-            <Button type="submit" className="gap-2 text-xs py-2.5 px-5">
+            <Button type="submit" className="mt-2 w-full gap-2 rounded-xl bg-[#173f3a] px-5 py-3 text-xs font-bold text-white hover:bg-[#102f2b] sm:mt-0 sm:ml-2 sm:w-auto">
               <Search className="h-3.5 w-3.5" />
-              Cari Lowongan
+              Cari
             </Button>
           </form>
 
-          <details className="mt-3 rounded-xl border border-line bg-paper/70 p-3">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold text-white/60">Populer</span>
+            {suggestedRoles.slice(0, 6).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setLoadError(null);
+                  setJobSources([]);
+                  setSearchKeyword(role);
+                  setSubmittedKeyword(role);
+                  if (role === submittedKeyword) setRetryKey((key) => key + 1);
+                }}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  submittedKeyword.toLowerCase() === role.toLowerCase()
+                    ? "bg-[#dbe8c8] text-[#173f3a]"
+                    : "border border-white/15 text-white/80 hover:border-white/30 hover:bg-white/10"
+                }`}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={() => setSalaryModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              <Calculator className="h-3.5 w-3.5" />
+              Kalkulator gaji
+            </button>
+            <button
+              id="job-importer-open"
+              type="button"
+              onClick={() => setJobImporterOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              Impor lowongan
+            </button>
+          </div>
+        </section>
+
+        <details className="order-1 mt-3 rounded-xl border border-line bg-paper-raised px-4 py-3">
             <summary className="cursor-pointer text-xs font-semibold text-forest">
               Filter lanjutan: perusahaan, industri, pengalaman, tipe kerja, dan gaji
             </summary>
@@ -988,108 +1045,6 @@ export function JobsPage() {
               </p>
             </div>
           </details>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-ink-soft">
-              <Filter className="h-3 w-3" /> Coba:
-            </span>
-            {suggestedRoles.slice(0, 5).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => {
-                  setLoading(true);
-                  setLoadError(null);
-                  setJobSources([]);
-                  setSearchKeyword(role);
-                  setSubmittedKeyword(role);
-                  if (role === submittedKeyword) {
-                    setRetryKey((key) => key + 1);
-                  }
-                }}
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ${
-                  submittedKeyword.toLowerCase() === role.toLowerCase()
-                    ? "border-forest/40 bg-forest text-white"
-                    : "border-line bg-paper-raised text-ink-soft hover:border-forest/40 hover:text-ink"
-                }`}
-              >
-                {role}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={handleOpenGoogleJobs}
-              className="ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-forest hover:bg-white/70"
-              title="Buka pencarian live di Google Jobs"
-            >
-              <Globe className="h-3.5 w-3.5" />
-              Google Jobs ↗
-            </button>
-          </div>
-
-          <details className="mt-3 border-t border-line/70 pt-2.5 text-xs">
-            <summary className="w-fit cursor-pointer font-semibold text-forest hover:text-forest-dark">
-              Profesi lain & alat tambahan
-            </summary>
-            <div className="mt-3 space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {suggestedRoles.slice(5).map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    onClick={() => {
-                      setLoading(true);
-                      setLoadError(null);
-                      setJobSources([]);
-                      setSearchKeyword(role);
-                      setSubmittedKeyword(role);
-                      if (role === submittedKeyword) {
-                        setRetryKey((key) => key + 1);
-                      }
-                    }}
-                    className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition-colors ${
-                      submittedKeyword.toLowerCase() === role.toLowerCase()
-                        ? "border-forest/40 bg-forest text-white"
-                        : "border-line bg-paper-raised text-ink-soft hover:border-forest/40 hover:text-ink"
-                    }`}
-                  >
-                    {role}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-2 border-t border-line/70 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setSalaryModalOpen(true)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-forest/50"
-                >
-                  <Calculator className="h-3.5 w-3.5 text-forest" />
-                  Kalkulator gaji tech
-                </button>
-                <button
-                  id="job-importer-open"
-                  type="button"
-                  onClick={() => setJobImporterOpen(true)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-forest/50"
-                >
-                  <Link2 className="h-3.5 w-3.5 text-forest" />
-                  Impor lowongan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-forest/50"
-                >
-                  <PlusCircle className="h-3.5 w-3.5 text-forest" />
-                  Analisis deskripsi
-                </button>
-              </div>
-              <p className="text-[11px] leading-relaxed text-ink-soft">
-                Indonesia memakai Kalibrr; Malaysia, Singapura, dan Australia memerlukan Jooble API key opsional. Informasi visa hanya berdasarkan teks lowongan—“belum disebut” bukan berarti sponsorship tersedia.
-              </p>
-            </div>
-          </details>
-        </section>
 
         {/* Jobs Grid */}
         <div className="order-3 mt-4">
