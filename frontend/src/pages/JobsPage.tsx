@@ -799,28 +799,24 @@ export function JobsPage() {
         </div>
 
         {/* Search workspace */}
-        <section className="order-1 overflow-hidden rounded-3xl bg-[#173f3a] px-4 py-5 text-white shadow-[0_16px_40px_rgba(23,63,58,0.16)] sm:px-6 sm:py-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <section className="order-1 rounded-2xl border border-line bg-paper-raised px-4 py-4 shadow-sm sm:px-5 sm:py-5">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/90">
-                <Sparkles className="h-3.5 w-3.5 text-[#b9d9a8]" />
+              <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-forest">
+                <Sparkles className="h-3.5 w-3.5" />
                 Pencarian lowongan
               </div>
-              <h1 className="max-w-2xl font-serif text-[28px] font-bold leading-tight tracking-tight text-white sm:text-4xl">
-                Temukan peran yang benar-benar relevan.
+              <h1 className="font-serif text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl">
+                Temukan peran yang relevan.
               </h1>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/70">
-                Cari berdasarkan profesi, lokasi, atau pasar kerja favoritmu.
-              </p>
             </div>
             <button
               type="button"
               onClick={handleOpenGoogleJobs}
-              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              className="hidden items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs font-semibold text-ink-soft hover:border-forest/40 hover:text-forest sm:inline-flex"
             >
               <Globe className="h-3.5 w-3.5" />
-              Buka Google Jobs
-              <ExternalLink className="h-3 w-3" />
+              Google Jobs
             </button>
           </div>
 
@@ -828,17 +824,17 @@ export function JobsPage() {
             role="search"
             aria-label="Cari lowongan kerja"
             onSubmit={handleSearch}
-            className="mt-5 rounded-2xl bg-white p-2 shadow-sm sm:grid sm:grid-cols-[minmax(0,1fr)_170px_auto] sm:items-center"
+            className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px_auto]"
           >
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6e7773]" />
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
               <input
                 type="text"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 placeholder="Nama profesi atau keahlian"
                 aria-label="Posisi atau keahlian"
-                className="min-h-12 w-full rounded-xl border-0 bg-transparent pl-10 pr-4 text-sm font-medium text-[#173f3a] outline-none placeholder:text-[#929b97]"
+                className="min-h-11 w-full rounded-xl border border-line bg-paper pl-10 pr-4 text-sm text-ink outline-none placeholder:text-ink-soft/60 focus:border-forest"
               />
             </div>
             <label className="sr-only" htmlFor="job-location-filter">Filter lokasi lowongan</label>
@@ -852,7 +848,7 @@ export function JobsPage() {
                 setJobSources([]);
                 setLocationFilter(nextLocation);
               }}
-              className="mt-2 min-h-11 w-full rounded-xl border border-[#dfe5e2] bg-white px-3 text-sm font-semibold text-[#173f3a] outline-none sm:mt-0 sm:border-y-0 sm:border-r-0 sm:border-l sm:rounded-none"
+              className="min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-sm font-medium text-ink outline-none focus:border-forest"
             >
               <option value="all">Semua lokasi</option>
               <option value="indonesia">Indonesia</option>
@@ -861,14 +857,64 @@ export function JobsPage() {
               <option value="australia">Australia</option>
               <option value="remote">Remote</option>
             </select>
-            <Button type="submit" className="mt-2 w-full gap-2 rounded-xl bg-[#173f3a] px-5 py-3 text-xs font-bold text-white hover:bg-[#102f2b] sm:mt-0 sm:ml-2 sm:w-auto">
+            <Button type="submit" className="min-h-11 gap-2 px-5 text-xs font-bold">
               <Search className="h-3.5 w-3.5" />
               Cari
             </Button>
           </form>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-semibold text-white/60">Populer</span>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <input
+              value={searchFilters.company}
+              onChange={(event) => updateSearchFilter("company", event.target.value)}
+              maxLength={120}
+              placeholder="Perusahaan"
+              aria-label="Perusahaan"
+              className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none placeholder:text-ink-soft/60 focus:border-forest"
+            />
+            <input
+              value={searchFilters.industry}
+              onChange={(event) => updateSearchFilter("industry", event.target.value)}
+              maxLength={120}
+              placeholder="Industri"
+              aria-label="Industri"
+              className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none placeholder:text-ink-soft/60 focus:border-forest"
+            />
+            <select
+              value={searchFilters.experienceLevel}
+              onChange={(event) =>
+                updateSearchFilter(
+                  "experienceLevel",
+                  event.target.value as JobSearchFilters["experienceLevel"]
+                )
+              }
+              aria-label="Tingkat pengalaman"
+              className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none focus:border-forest"
+            >
+              <option value="">Pengalaman: semua</option>
+              <option value="internship">Magang</option>
+              <option value="entry">Pemula / entry-level</option>
+              <option value="mid">Menengah</option>
+              <option value="senior">Senior</option>
+              <option value="lead">Lead / manajerial</option>
+            </select>
+            <select
+              value={searchFilters.employmentType}
+              onChange={(event) => updateSearchFilter("employmentType", event.target.value)}
+              aria-label="Tipe pekerjaan"
+              className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none focus:border-forest"
+            >
+              <option value="">Tipe: semua</option>
+              <option value="full-time">Full-time</option>
+              <option value="part-time">Part-time</option>
+              <option value="contract">Kontrak</option>
+              <option value="intern">Magang</option>
+              <option value="freelance">Freelance</option>
+            </select>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line/70 pt-3">
+            <span className="mr-1 text-[11px] font-semibold text-ink-soft">Populer</span>
             {suggestedRoles.slice(0, 6).map((role) => (
               <button
                 key={role}
@@ -881,22 +927,19 @@ export function JobsPage() {
                   setSubmittedKeyword(role);
                   if (role === submittedKeyword) setRetryKey((key) => key + 1);
                 }}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                   submittedKeyword.toLowerCase() === role.toLowerCase()
-                    ? "bg-[#dbe8c8] text-[#173f3a]"
-                    : "border border-white/15 text-white/80 hover:border-white/30 hover:bg-white/10"
+                    ? "bg-forest text-white"
+                    : "border border-line bg-paper text-ink-soft hover:border-forest/40 hover:text-forest"
                 }`}
               >
                 {role}
               </button>
             ))}
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-4">
             <button
               type="button"
               onClick={() => setSalaryModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+              className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-ink-soft hover:text-forest"
             >
               <Calculator className="h-3.5 w-3.5" />
               Kalkulator gaji
@@ -905,146 +948,13 @@ export function JobsPage() {
               id="job-importer-open"
               type="button"
               onClick={() => setJobImporterOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-ink-soft hover:text-forest"
             >
               <Link2 className="h-3.5 w-3.5" />
-              Impor lowongan
+              Impor
             </button>
           </div>
         </section>
-
-        <details className="order-1 mt-3 rounded-xl border border-line bg-paper-raised px-4 py-3">
-            <summary className="cursor-pointer text-xs font-semibold text-forest">
-              Filter lanjutan: perusahaan, industri, pengalaman, tipe kerja, dan gaji
-            </summary>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                Perusahaan
-                <input
-                  value={searchFilters.company}
-                  onChange={(event) => updateSearchFilter("company", event.target.value)}
-                  maxLength={120}
-                  placeholder="Nama perusahaan"
-                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
-                />
-              </label>
-              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                Industri
-                <input
-                  value={searchFilters.industry}
-                  onChange={(event) => updateSearchFilter("industry", event.target.value)}
-                  maxLength={120}
-                  placeholder="Contoh: teknologi"
-                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
-                />
-              </label>
-              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                Kota / lokasi
-                <input
-                  value={searchFilters.locationQuery}
-                  onChange={(event) => updateSearchFilter("locationQuery", event.target.value)}
-                  maxLength={120}
-                  placeholder="Contoh: Jakarta"
-                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
-                />
-              </label>
-              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                Tingkat pengalaman
-                <select
-                  value={searchFilters.experienceLevel}
-                  onChange={(event) =>
-                    updateSearchFilter(
-                      "experienceLevel",
-                      event.target.value as JobSearchFilters["experienceLevel"]
-                    )
-                  }
-                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
-                >
-                  <option value="">Semua tingkat</option>
-                  <option value="internship">Magang</option>
-                  <option value="entry">Pemula / entry-level</option>
-                  <option value="mid">Menengah</option>
-                  <option value="senior">Senior</option>
-                  <option value="lead">Lead / manajerial</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                Tipe pekerjaan
-                <select
-                  value={searchFilters.employmentType}
-                  onChange={(event) => updateSearchFilter("employmentType", event.target.value)}
-                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
-                >
-                  <option value="">Semua tipe</option>
-                  <option value="full-time">Full-time</option>
-                  <option value="part-time">Part-time</option>
-                  <option value="contract">Kontrak</option>
-                  <option value="intern">Magang</option>
-                  <option value="freelance">Freelance</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                Gaji minimum
-                <input
-                  type="number"
-                  min="0"
-                  value={searchFilters.salaryMin}
-                  onChange={(event) => updateSearchFilter("salaryMin", event.target.value)}
-                  placeholder="Opsional"
-                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
-                />
-              </label>
-              <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                Gaji maksimum
-                <input
-                  type="number"
-                  min="0"
-                  value={searchFilters.salaryMax}
-                  onChange={(event) => updateSearchFilter("salaryMax", event.target.value)}
-                  placeholder="Opsional"
-                  className="min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink focus:border-forest focus:outline-none"
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                  Mata uang
-                  <select
-                    value={searchFilters.salaryCurrency}
-                    onChange={(event) => updateSearchFilter("salaryCurrency", event.target.value)}
-                    className="min-h-10 w-full rounded-lg border border-line bg-paper px-2 text-xs text-ink focus:border-forest focus:outline-none"
-                  >
-                    <option value="IDR">IDR</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="AUD">AUD</option>
-                    <option value="SGD">SGD</option>
-                    <option value="MYR">MYR</option>
-                  </select>
-                </label>
-                <label className="space-y-1 text-[11px] font-semibold text-ink-soft">
-                  Periode
-                  <select
-                    value={searchFilters.salaryPeriod}
-                    onChange={(event) =>
-                      updateSearchFilter(
-                        "salaryPeriod",
-                        event.target.value as JobSearchFilters["salaryPeriod"]
-                      )
-                    }
-                    className="min-h-10 w-full rounded-lg border border-line bg-paper px-2 text-xs text-ink focus:border-forest focus:outline-none"
-                  >
-                    <option value="monthly">Bulanan</option>
-                    <option value="annual">Tahunan</option>
-                    <option value="hourly">Per jam</option>
-                  </select>
-                </label>
-              </div>
-              <p className="text-[10px] leading-relaxed text-ink-soft sm:col-span-2 lg:col-span-4">
-                Filter gaji hanya mencocokkan data dengan mata uang dan periode yang jelas dari sumber. Lowongan tanpa informasi gaji terstruktur tidak ditampilkan saat rentang gaji diisi.
-              </p>
-            </div>
-          </details>
 
         {/* Jobs Grid */}
         <div className="order-3 mt-4">
