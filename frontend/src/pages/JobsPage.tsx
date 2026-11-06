@@ -1276,17 +1276,17 @@ export function JobsPage() {
               )}
             </div>
           ) : (
-            <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
+            <div className="grid gap-3">
               {visibleJobs.map((job) => (
                 <div
                   key={job.id}
-                  className="rounded-2xl border border-line bg-paper-raised p-4 shadow-sm transition-all hover:border-forest/60 hover:shadow sm:p-5"
+                  className="group rounded-xl border border-line bg-paper-raised p-4 shadow-[0_1px_2px_rgba(23,32,75,0.04)] transition-all hover:border-forest/40 hover:shadow-md sm:p-5"
                 >
                   <div>
                     {/* Header card */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                             job.source === "Kalibrr" ? "bg-blue-100 text-blue-800" :
                             job.source === "Remotive" ? "bg-purple-100 text-purple-800" :
@@ -1300,23 +1300,6 @@ export function JobsPage() {
                               Remote
                             </span>
                           )}
-
-                          <span
-                            className={`rounded border px-2 py-0.5 text-[10px] font-semibold ${
-                              job.visaSponsorship === "available"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                                : job.visaSponsorship === "unavailable"
-                                  ? "border-rose-200 bg-rose-50 text-rose-700"
-                                  : "border-line bg-paper text-ink-soft"
-                            }`}
-                            title="Deteksi berdasarkan teks deskripsi, bukan konfirmasi dari perusahaan."
-                          >
-                            {job.visaSponsorship === "available"
-                              ? "Sponsorship disebut"
-                              : job.visaSponsorship === "unavailable"
-                                ? "Tidak sponsorship"
-                                : "Visa belum disebut"}
-                          </span>
 
                           <span
                             className="text-[10px] text-ink-soft flex items-center gap-1"
@@ -1335,11 +1318,11 @@ export function JobsPage() {
                           )}
                         </div>
 
-                        <h3 className="mt-2 font-serif text-base font-bold text-ink leading-snug">
+                        <h3 className="mt-2 font-serif text-lg font-bold leading-snug text-ink sm:text-xl">
                           {job.title}
                         </h3>
 
-                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-ink-soft">
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft">
                           <span className="flex items-center gap-1 font-semibold text-ink">
                             <Building2 className="h-3.5 w-3.5 text-ink-soft" />
                             {job.company}
@@ -1410,7 +1393,7 @@ export function JobsPage() {
                     </div>
 
                     {/* Description preview */}
-                    <p className="mt-2 text-xs text-ink-soft line-clamp-3 leading-relaxed">
+                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-ink-soft">
                       {job.description}
                     </p>
 
@@ -1419,7 +1402,7 @@ export function JobsPage() {
                       {job.matchingSkills && job.matchingSkills.length > 0 && (
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] font-semibold text-emerald-700">Cocok:</span>
-                          {job.matchingSkills.map((sk, idx) => (
+                          {job.matchingSkills.slice(0, 5).map((sk, idx) => (
                             <span
                               key={idx}
                               className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800 border border-emerald-200"
@@ -1427,6 +1410,9 @@ export function JobsPage() {
                               {sk}
                             </span>
                           ))}
+                          {job.matchingSkills.length > 5 && (
+                            <span className="text-[10px] text-ink-soft">+{job.matchingSkills.length - 5} skill</span>
+                          )}
                         </div>
                       )}
 
@@ -1435,57 +1421,60 @@ export function JobsPage() {
                           <span className="text-[10px] font-semibold text-amber-800">
                             Perlu dipelajari:
                           </span>
-                          {job.missingSkills.map((sk, idx) => (
+                          {job.missingSkills.slice(0, 3).map((sk, idx) => (
                             <button
                               key={idx}
                               type="button"
                               onClick={() => handleAddSkill(sk)}
-                              title={`Klik untuk menambahkan "${sk}" ke CV Anda — skor kecocokan langsung bertambah!`}
-                              className="group inline-flex items-center gap-1 rounded bg-amber-50 hover:bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 hover:text-emerald-900 border border-amber-200 hover:border-emerald-300 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                              title={`Tambah "${sk}" ke profil skill`}
+                              className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-900"
                             >
                               <span>{sk}</span>
-                              <span className="text-[9px] font-bold text-emerald-700 bg-white/80 px-1 rounded opacity-80 group-hover:opacity-100">
-                                + Tambah
+                              <span className="font-bold text-emerald-700">
+                                +
                               </span>
                             </button>
                           ))}
+                          {job.missingSkills.length > 3 && (
+                            <span className="text-[10px] text-ink-soft">+{job.missingSkills.length - 3} skill lain</span>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* Actions Footer */}
-                  <div className="mt-5 border-t border-line pt-3.5 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="mt-4 flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => handleOpenJobDetails(job)}
-                        className="flex items-center gap-1 rounded-lg border border-forest/30 bg-forest-tint px-2.5 py-1.5 text-xs font-semibold text-forest hover:bg-forest hover:text-white transition-colors"
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-forest/30 bg-forest-tint px-3 text-xs font-semibold text-forest transition-colors hover:bg-forest hover:text-white"
                       >
                         <FileText className="h-3.5 w-3.5" />
                         <span>Detail</span>
                       </button>
                       <button
                         onClick={() => handleStartInterviewForJob(job)}
-                        className="flex items-center gap-1 rounded-lg bg-forest-tint px-2.5 py-1.5 text-xs font-semibold text-forest hover:bg-forest hover:text-white transition-all cursor-pointer"
+                        aria-label="Latihan wawancara AI"
+                        className="inline-flex min-h-9 w-9 items-center justify-center rounded-lg border border-line bg-paper text-forest transition-colors hover:border-forest/40 hover:bg-forest-tint"
                         title="Latihan wawancara AI untuk posisi ini"
                       >
                         <BrainCircuit className="h-3.5 w-3.5" />
-                        <span>Latihan Wawancara</span>
                       </button>
 
                       <button
                         onClick={() => handleOpenPitchModal(job)}
-                        className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50/60 px-2.5 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 transition-all cursor-pointer"
+                        aria-label="Chat HR"
+                        className="inline-flex min-h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50/60 text-blue-800 transition-colors hover:bg-blue-100"
                         title="Generator pesan LinkedIn InMail & Cold Email ke HR"
                       >
                         <Send className="h-3.5 w-3.5" />
-                        <span>Chat HR</span>
                       </button>
 
                       <button
                         onClick={() => handleQuickOptimize(job)}
-                        className="flex items-center gap-1 rounded-lg border border-line bg-paper px-2.5 py-1.5 text-xs font-semibold text-ink hover:border-forest hover:text-forest transition-colors cursor-pointer"
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-xs font-semibold text-ink transition-colors hover:border-forest hover:text-forest"
                         title="Sesuaikan CV untuk lowongan ini"
                       >
                         <FileText className="h-3.5 w-3.5" />
@@ -1514,7 +1503,7 @@ export function JobsPage() {
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => void handleToggleSavedJob(job)}
