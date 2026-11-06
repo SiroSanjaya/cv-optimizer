@@ -314,7 +314,7 @@ export function VaultPage() {
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
                 Catat seluruh pencapaian, arsitektur, dan metrik proyek karier Anda sekali seumur hidup.
                 Saat melamar, AI akan menarik cerita spesifik dari Vault ini dan meraciknya secara otomatis
-                ke CV tanpa halusinasi dan hemat token hingga 70%.
+                ke CV hanya dari fakta yang tersimpan dan tetap membutuhkan review pengguna.
               </p>
             </div>
 
@@ -363,7 +363,7 @@ export function VaultPage() {
             </div>
             <div className="rounded-xl border border-line/40 bg-paper/50 p-3">
               <span className="text-xs font-medium text-ink-soft">Integritas Karir</span>
-              <p className="mt-1 text-xl font-bold text-forest">100% Anti-Halusinasi</p>
+              <p className="mt-1 text-xl font-bold text-forest">Wajib Review User</p>
             </div>
           </div>
         </div>

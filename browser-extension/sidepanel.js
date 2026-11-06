@@ -3,6 +3,8 @@ const summary = document.querySelector("#package-summary");
 const jobPickerLabel = document.querySelector("#job-picker-label");
 const jobPicker = document.querySelector("#job-picker");
 const fillButton = document.querySelector("#fill-button");
+const submitButton = document.querySelector("#submit-button");
+const reviewConfirmation = document.querySelector("#review-confirmation");
 const status = document.querySelector("#status");
 
 let applications = [];
@@ -75,6 +77,11 @@ function renderPackage() {
   if (!current) {
     summary.hidden = true;
     fillButton.disabled = true;
+    submitButton.disabled = true;
+    reviewConfirmation.disabled = true;
+    reviewConfirmation.checked = false;
+    reviewConfirmation.disabled = true;
+    reviewConfirmation.checked = false;
     return;
   }
 
@@ -89,12 +96,16 @@ function renderPackage() {
   summary.hidden = false;
   jobPickerLabel.hidden = applications.length < 2;
   fillButton.disabled = false;
+  reviewConfirmation.disabled = true;
+  reviewConfirmation.checked = false;
+  submitButton.disabled = true;
 }
 
 fileInput.addEventListener("change", async () => {
   applications = [];
   jobPicker.replaceChildren();
   fillButton.disabled = true;
+  submitButton.disabled = true;
   jobPickerLabel.hidden = true;
   summary.hidden = true;
 
@@ -162,11 +173,64 @@ fillButton.addEventListener("click", async () => {
     status.textContent = result.filled.length
       ? `${result.reason} Terisi: ${result.filled.join(", ")}.`
       : result.reason || "Tidak ada field yang dikenali. Isi form secara manual.";
+    if (result.ok) {
+      reviewConfirmation.checked = false;
+      reviewConfirmation.disabled = false;
+      status.textContent += " Setelah memeriksa, aktifkan persetujuan review untuk membuka tombol kirim.";
+    }
   } catch (error) {
     status.textContent = error instanceof Error
       ? `${error.message} Jika baru memasang extension, refresh tab form.`
       : "Gagal mengisi form. Refresh tab dan coba lagi.";
   } finally {
     fillButton.disabled = false;
+  }
+});
+
+reviewConfirmation.addEventListener("change", () => {
+  submitButton.disabled = !reviewConfirmation.checked;
+});
+
+submitButton.addEventListener("click", async () => {
+  const application = selectedApplication();
+  if (!application || !reviewConfirmation.checked) return;
+
+  const confirmed = confirm(
+    `Kirim lamaran ke ${application.job.company} untuk posisi ${application.job.title}? ` +
+    "Ini hanya akan dikirim jika form lengkap dan tidak ada CAPTCHA."
+  );
+  if (!confirmed) return;
+
+  submitButton.disabled = true;
+  status.textContent = "Memeriksa kelengkapan form...";
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url) throw new Error("Tidak dapat membaca tab aktif.");
+
+    const currentUrl = new URL(tab.url);
+    const targetUrl = new URL(application.job.url);
+    const normalizePath = (pathname) =>
+      pathname.replace(/\/apply\/?$/i, "").replace(/\/+$/, "") || "/";
+    if (
+      currentUrl.protocol !== "https:" ||
+      currentUrl.origin !== targetUrl.origin ||
+      normalizePath(currentUrl.pathname) !== normalizePath(targetUrl.pathname)
+    ) {
+      throw new Error("Buka kembali halaman lowongan yang dipilih sebelum mengirim.");
+    }
+
+    const result = await chrome.tabs.sendMessage(tab.id, {
+      type: "CV_OPTIMIZER_SUBMIT",
+      data: application,
+      reviewConfirmed: true,
+    });
+    if (!result?.ok) throw new Error(result?.error || "Lamaran tidak dapat dikirim.");
+    status.textContent = result.sent
+      ? "Lamaran dikirim melalui tombol pengiriman pada form ATS. Kembalikan status menjadi Lamaran Terkirim hanya setelah konfirmasi situs."
+      : "Lamaran belum dikirim.";
+  } catch (error) {
+    status.textContent = error instanceof Error ? error.message : "Gagal mengirim lamaran.";
+  } finally {
+    submitButton.disabled = !reviewConfirmation.checked;
   }
 });

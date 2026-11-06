@@ -146,6 +146,12 @@ export function ApplicationsPage() {
   }, [navigate]);
 
   const handleStatusChange = async (id: string, newStatus: ApplicationStatus) => {
+    if (newStatus === "applied") {
+      const confirmed = confirm(
+        "Konfirmasi hanya jika lamaran benar-benar sudah dikirim oleh Anda. Status ini tidak akan mengirim lamaran otomatis."
+      );
+      if (!confirmed) return;
+    }
     try {
       const updatedApplication = await updateApplication(id, { status: newStatus });
       setApplications((prev) =>

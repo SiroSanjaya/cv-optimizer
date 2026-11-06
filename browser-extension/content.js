@@ -134,6 +134,107 @@
   };
 
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
+    if (message?.type === "CV_OPTIMIZER_SUBMIT") {
+      const host = window.location.hostname;
+      const supported =
+        host === "boards.greenhouse.io" ||
+        host === "job-boards.greenhouse.io" ||
+        host === "jobs.lever.co";
+      if (!supported) {
+        respond({ ok: false, error: "Halaman ini bukan form Greenhouse atau Lever yang didukung." });
+        return false;
+      }
+      if (message.reviewConfirmed !== true) {
+        respond({ ok: false, error: "Review final pengguna belum dikonfirmasi." });
+        return false;
+      }
+
+      const targetUrl = new URL(message.data.job.url);
+      const normalizePath = (pathname) =>
+        pathname.replace(/\/apply\/?$/i, "").replace(/\/+$/, "") || "/";
+      if (
+        targetUrl.origin !== window.location.origin ||
+        normalizePath(targetUrl.pathname) !== normalizePath(window.location.pathname)
+      ) {
+        respond({ ok: false, error: "Paket ini untuk lowongan lain. Buka halaman ATS yang sesuai." });
+        return false;
+      }
+
+      const captchaPresent = Boolean(document.querySelector(
+        '[class*="captcha"], [id*="captcha"], iframe[src*="captcha"], .g-recaptcha, .h-captcha, [data-sitekey]'
+      ));
+      if (captchaPresent) {
+        respond({ ok: false, error: "CAPTCHA terdeteksi. Selesaikan CAPTCHA, lalu coba kembali." });
+        return false;
+      }
+
+      const incompleteRequired = Array.from(document.querySelectorAll(
+        "input[required]:not([type='radio']), textarea[required], select[required]"
+      ))
+        .filter((element) => visible(element))
+        .filter((element) => {
+          if (element instanceof HTMLInputElement && element.type === "checkbox") {
+            return !element.checked;
+          }
+          if (element instanceof HTMLSelectElement) {
+            return element.selectedIndex < 1 || element.value === "";
+          }
+          return !element.value.trim();
+        });
+      const incompleteRadioGroups = Array.from(
+        document.querySelectorAll("input[type='radio'][required]")
+      )
+        .filter((element) => visible(element))
+        .map((element) => element.name || element.id)
+        .filter((name, index, names) => name && names.indexOf(name) === index)
+        .filter((name) => {
+          const group = Array.from(document.querySelectorAll(
+            `input[type='radio'][required][name="${CSS.escape(name)}"]`
+          ));
+          return !group.some((element) => element.checked);
+        });
+      if (incompleteRadioGroups.length > 0) {
+        respond({
+          ok: false,
+          error: "Masih ada screening question yang belum lengkap.",
+        });
+        return false;
+      }
+      if (incompleteRequired.length > 0) {
+        respond({
+          ok: false,
+          error: "Masih ada field wajib, consent checkbox, atau screening question yang belum lengkap.",
+        });
+        return false;
+      }
+
+      const submitCandidates = Array.from(document.querySelectorAll(
+        'button[type="submit"], input[type="submit"], button, [role="button"]'
+      ))
+        .filter((element) => visible(element) && !element.disabled)
+        .map((element) => ({
+          element,
+          label: [
+            element.innerText,
+            element.getAttribute("aria-label"),
+            element.getAttribute("value"),
+            element.getAttribute("name"),
+          ].filter(Boolean).join(" ").toLowerCase(),
+        }))
+        .filter(({ label }) =>
+          /\b(submit|send application|apply now|submit application)\b|\bkirim lamaran\b|\blamar sekarang\b/.test(label)
+        );
+
+      if (submitCandidates.length === 0) {
+        respond({ ok: false, error: "Tombol kirim belum dikenali. Kirim dari situs ATS secara manual." });
+        return false;
+      }
+
+      submitCandidates[0].element.click();
+      respond({ ok: true, sent: true });
+      return false;
+    }
+
     if (message?.type !== "CV_OPTIMIZER_FILL") return false;
 
     const host = window.location.hostname;

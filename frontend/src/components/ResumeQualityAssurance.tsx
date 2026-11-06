@@ -25,14 +25,14 @@ export function ResumeQualityAssurance({
               Resume Quality Assurance (QA) & Integrity Guard
             </h4>
             <p className="text-2xs text-ink-soft">
-              Dokumen telah diaudit otomatis sebelum diunduh untuk menjamin kepercayaan recruiter.
+              Pemeriksaan format otomatis. Ini bukan penilaian recruiter atau jaminan lolos ATS.
             </p>
           </div>
         </div>
 
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900 shadow-2xs">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
-          100% Evidence-Backed
+          Review sebelum kirim
         </span>
       </div>
 
@@ -46,20 +46,20 @@ export function ResumeQualityAssurance({
             {originalCompanyCount} Perusahaan & {originalSchoolCount} Riwayat
           </p>
           <span className="text-2xs text-ink-soft">
-            Tidak ada perusahaan fiktif atau tanggal yang dimanipulasi.
+            Format perusahaan dan tanggal diperiksa, tetapi data tetap harus ditinjau pengguna.
           </span>
         </div>
 
         <div className="rounded-lg border border-line/60 bg-paper-raised p-3">
           <div className="flex items-center gap-1.5 text-emerald-800 font-semibold text-2xs uppercase tracking-wider">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-            Zero-Hallucination
+            Data dari CV
           </div>
           <p className="mt-1 text-ink font-medium text-xs">
             {tailoredCv.skills.length} Skill Terverifikasi
           </p>
           <span className="text-2xs text-ink-soft">
-            Semua keyword terhubung ke fakta proyek & konfirmasi Anda.
+            Hasil tetap dapat mengandung kesalahan. Pastikan setiap skill dan pencapaian benar.
           </span>
         </div>
 
@@ -70,7 +70,7 @@ export function ResumeQualityAssurance({
           </div>
           <p className="mt-1 text-ink font-medium text-xs">Standard Heading Hierarchy</p>
           <span className="text-2xs text-ink-soft">
-            Lolos parser Workday, Taleo, Greenhouse, dan iCIMS.
+            Format umum yang mudah dibaca. ATS tertentu dapat memiliki aturan format sendiri.
           </span>
         </div>
 

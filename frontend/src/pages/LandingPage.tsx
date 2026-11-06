@@ -84,7 +84,7 @@ export function LandingPage() {
                   to="/optimize"
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-forest px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-forest-dark"
                 >
-                  Optimalkan CV Gratis
+                  Mulai Optimalkan CV
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
