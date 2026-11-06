@@ -68,17 +68,17 @@ export function LandingPage() {
             <div className="min-w-0">
               <span className="inline-flex items-center gap-2 rounded-full border border-forest/15 bg-forest-tint px-3 py-1.5 text-[11px] font-bold text-forest">
                 <BriefcaseBusiness className="h-3.5 w-3.5" />
-                Review CV untuk pencari kerja
+                Ruang kerja untuk pencari kerja
               </span>
 
               <h1 className="mt-5 max-w-2xl font-serif text-[2.35rem] font-semibold leading-[1.06] tracking-tight text-ink sm:mt-6 sm:text-5xl lg:text-6xl">
-                Tingkatkan CV dari 7 sudut pandang sebelum melamar
+                Persiapan lamaran, lebih tertata.
               </h1>
 
               <p className="mt-5 max-w-xl text-sm leading-7 text-ink-soft sm:text-base">
-                Lihat CV seperti dilihat HR, ATS, hiring manager, recruiter,
-                career coach, rekan kerja, dan kandidat. Lalu dapatkan revisi,
-                bukti skill, dan link belajar yang relevan.
+                Satukan lowongan yang kamu incar, CV yang sudah disesuaikan, dan
+                progres lamaran dalam satu tempat. Kamu tetap memeriksa dan
+                mengirim sendiri.
               </p>
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
