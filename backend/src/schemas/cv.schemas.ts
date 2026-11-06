@@ -153,6 +153,38 @@ export const bulletRevisionSchema = z.object({
   metricPrompt: nullableString().optional(),
 });
 
+export const perspectiveReviewSchema = z.object({
+  perspective: nullableString(),
+  summary: nullableString(),
+  strengths: nullableStringArray(),
+  improvements: nullableStringArray(),
+  priority: z.preprocess(
+    (val) => {
+      const value = String(val || "").toLowerCase();
+      if (value.includes("tinggi")) return "Tinggi";
+      if (value.includes("rendah")) return "Rendah";
+      return "Sedang";
+    },
+    z.enum(["Tinggi", "Sedang", "Rendah"])
+  ).default("Sedang"),
+});
+
+export const learningResourceSchema = z.object({
+  skill: nullableString(),
+  title: nullableString(),
+  provider: nullableString(),
+  url: nullableString(),
+  access: z.preprocess(
+    (val) => {
+      const value = String(val || "").toLowerCase();
+      if (value.includes("uji coba")) return "Uji coba gratis";
+      if (value.includes("belajar")) return "Gratis untuk belajar";
+      return "Gratis";
+    },
+    z.enum(["Gratis", "Gratis untuk belajar", "Uji coba gratis"])
+  ).default("Gratis"),
+});
+
 export const cvAnalysisSchema = z.object({
   matchScore: z.preprocess((val) => {
     if (val === null || val === undefined) return 0;
@@ -170,6 +202,8 @@ export const cvAnalysisSchema = z.object({
   interviewQuestions: safeArray(interviewQuestionSchema).optional(),
   jobMatchAnalysis: safeArray(jobRequirementMatchSchema).optional(),
   suggestedRevisions: safeArray(bulletRevisionSchema).optional(),
+  perspectiveReviews: safeArray(perspectiveReviewSchema).optional(),
+  learningResources: safeArray(learningResourceSchema).optional(),
 });
 
 export const generateRequestSchema = z.object({

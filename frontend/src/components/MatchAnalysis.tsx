@@ -9,6 +9,8 @@ import {
   MessagesSquare,
   Copy,
   Lightbulb,
+  ExternalLink,
+  GraduationCap,
 } from "lucide-react";
 import type { CvAnalysis, InterviewQuestion } from "../types/cv";
 import { EvidenceMatchTable } from "./EvidenceMatchTable";
@@ -38,6 +40,20 @@ function toRecommendationString(val: unknown): string {
     );
   }
   return String(val || "");
+}
+
+function getLearningResourceFallback(skill: string) {
+  const normalized = skill.toLowerCase();
+  if (normalized.includes("aws") || normalized.includes("amazon web services")) {
+    return { skill, title: "AWS Cloud Practitioner learning plan", provider: "AWS Skill Builder", url: "https://skillbuilder.aws/", access: "Gratis untuk belajar" as const };
+  }
+  if (normalized.includes("google cloud") || normalized.includes("gcp")) {
+    return { skill, title: "Google Cloud Skills Boost learning paths", provider: "Google Cloud Skills Boost", url: "https://www.cloudskillsboost.google/", access: "Gratis untuk belajar" as const };
+  }
+  if (normalized.includes("azure") || normalized.includes("microsoft")) {
+    return { skill, title: "Microsoft Learn learning paths", provider: "Microsoft Learn", url: "https://learn.microsoft.com/training/", access: "Gratis untuk belajar" as const };
+  }
+  return null;
 }
 
 function scoreColor(score: number) {
@@ -185,6 +201,15 @@ export function MatchAnalysis({
   const missing = analysis?.missingSkills || [];
   const recs = analysis?.recommendations || [];
   const interviewQuestions: InterviewQuestion[] = analysis?.interviewQuestions || [];
+  const perspectiveReviews = analysis?.perspectiveReviews || [];
+  const learningResources = [
+    ...(analysis?.learningResources || []),
+    ...missing
+      .map((skill) => getLearningResourceFallback(toSkillString(skill)))
+      .filter((resource): resource is NonNullable<typeof resource> => Boolean(resource)),
+  ].filter((resource, index, resources) =>
+    resources.findIndex((item) => item.url === resource.url) === index
+  );
 
   const displayScore = score ?? analysis?.matchScore ?? 0;
 
@@ -393,6 +418,104 @@ export function MatchAnalysis({
           )}
         </div>
       </div>
+
+      {perspectiveReviews.length > 0 && (
+        <div className="mt-8 border-t border-line pt-6">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-forest">
+              Review dari 7 perspektif
+            </p>
+            <h4 className="mt-1 text-base font-bold text-ink">
+              Baca CV seperti tim rekrutmen, bukan sekadar skor angka
+            </h4>
+            <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+              Ringkasan ini berbasis bukti pada CV dan deskripsi kerja. Ini review AI, bukan keputusan penerimaan atau klaim ATS resmi.
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {perspectiveReviews.slice(0, 7).map((review, index) => (
+              <article
+                key={`${review.perspective}-${index}`}
+                className="rounded-xl border border-line bg-paper p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h5 className="text-sm font-bold text-ink">{review.perspective}</h5>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    review.priority === "Tinggi"
+                      ? "bg-rust-tint text-rust"
+                      : review.priority === "Rendah"
+                        ? "bg-emerald-50 text-emerald-800"
+                        : "bg-amber-tint text-amber"
+                  }`}>
+                    {review.priority}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-ink-soft">{review.summary}</p>
+                {review.strengths.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-800">Kekuatan</p>
+                    <ul className="mt-1 space-y-1">
+                      {review.strengths.slice(0, 3).map((strength, strengthIndex) => (
+                        <li key={strengthIndex} className="flex gap-1.5 text-xs text-ink-soft">
+                          <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-700" />
+                          <span>{strength}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {review.improvements.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800">Yang perlu diperbaiki</p>
+                    <ul className="mt-1 space-y-1">
+                      {review.improvements.slice(0, 3).map((improvement, improvementIndex) => (
+                        <li key={improvementIndex} className="flex gap-1.5 text-xs text-ink-soft">
+                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber" />
+                          <span>{improvement}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {learningResources.length > 0 && (
+        <div className="mt-8 border-t border-line pt-6">
+          <div className="flex items-start gap-2">
+            <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-forest" />
+            <div>
+              <h4 className="text-sm font-bold text-ink">Belajar untuk menutup gap skill</h4>
+              <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+                Hanya tambah skill ini ke CV jika benar-benar sudah dipelajari. Materi gratis tidak sama dengan sertifikasi berbayar.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {learningResources.slice(0, 8).map((resource, index) => (
+              <a
+                key={`${resource.url}-${index}`}
+                href={resource.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group rounded-xl border border-line bg-paper p-3 transition-colors hover:border-forest/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-forest">{resource.skill}</p>
+                    <p className="mt-1 text-xs font-bold text-ink">{resource.title}</p>
+                    <p className="mt-1 text-[10px] text-ink-soft">{resource.provider} · {resource.access}</p>
+                  </div>
+                  <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-soft group-hover:text-forest" />
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {recs.length > 0 && (
         <div className="mt-8 border-t border-line pt-6">

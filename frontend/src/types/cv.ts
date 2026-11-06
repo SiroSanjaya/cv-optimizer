@@ -82,6 +82,22 @@ export interface BulletRevision {
   status?: "pending" | "accepted" | "rejected";
 }
 
+export interface CvPerspectiveReview {
+  perspective: string;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  priority: "Tinggi" | "Sedang" | "Rendah";
+}
+
+export interface CvLearningResource {
+  skill: string;
+  title: string;
+  provider: string;
+  url: string;
+  access: "Gratis" | "Gratis untuk belajar" | "Uji coba gratis";
+}
+
 export interface CvAnalysis {
   matchScore: number;
   matchedSkills: string[];
@@ -94,4 +110,6 @@ export interface CvAnalysis {
   interviewQuestions?: InterviewQuestion[];
   jobMatchAnalysis?: JobRequirementMatch[];
   suggestedRevisions?: BulletRevision[];
+  perspectiveReviews?: CvPerspectiveReview[];
+  learningResources?: CvLearningResource[];
 }

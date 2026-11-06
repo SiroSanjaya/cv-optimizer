@@ -28,6 +28,21 @@ import { getAiCostContext } from "./aiCostContext";
 const AI_TIMEOUT_MS = 45_000;
 const RETRY_DELAYS_MS = [1_000, 2_000];
 const PRIMARY_MODEL = "gemini-3.5-flash-lite";
+
+const TRUSTED_LEARNING_HOSTS = new Set([
+  "skillbuilder.aws",
+  "aws.amazon.com",
+  "cloudskillsboost.google",
+  "learn.microsoft.com",
+  "docs.microsoft.com",
+  "cloud.google.com",
+  "freecodecamp.org",
+  "www.freecodecamp.org",
+  "developer.mozilla.org",
+  "coursera.org",
+  "www.coursera.org",
+  "www.edx.org",
+]);
 const BACKUP_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.8-flash"];
 
 function isOverloadedOrRateLimited(err: unknown): boolean {
@@ -250,7 +265,16 @@ export class GeminiProvider implements AIProvider {
       throw Errors.malformedAiResponse();
     }
 
-    return { ...parsed.data, jobMatchAnalysis, matchScore };
+    const learningResources = (parsed.data.learningResources ?? []).filter((resource) => {
+      try {
+        const url = new URL(resource.url);
+        return url.protocol === "https:" && TRUSTED_LEARNING_HOSTS.has(url.hostname.toLowerCase());
+      } catch {
+        return false;
+      }
+    });
+
+    return { ...parsed.data, learningResources, jobMatchAnalysis, matchScore };
   }
 
   async generateTailoredCv(

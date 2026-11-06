@@ -55,6 +55,8 @@ RULES:
   For Supported or Partial statuses, also include cvEvidenceQuote: a short, verbatim quote (maximum 240 characters) copied exactly from the candidate's experience, project, summary, or skills. For Gap, use an empty string.
 - Keep each requirement focused on one distinct, explicit, job-related criterion so the application can score all listed requirements equally.
 - suggestedRevisions: For 3 to 5 candidate experience bullet points, provide high-impact X-Y-Z rewrites. Explain the exact reasoning (e.g. 'Menonjolkan aktivitas teknis dan arsitektur tanpa menambahkan angka fiktif') and provide a prompt for candidate to insert their real metric.
+- perspectiveReviews: Review the same CV from exactly these 7 perspectives: HR Manager, ATS/CV Parser, Hiring Manager, Recruiter, Career Coach, Teammate/Colleague, and Candidate/User. Each review must be based on facts and evidence from the CV. Do not invent missing experience, imply hiring probability, or rank the candidate.
+- learningResources: For only genuine skill gaps, recommend legitimate learning resources. Prefer official free learning platforms and clearly label access. Do not claim a free platform provides a free paid certification or guarantee a badge unless the provider's page explicitly states it.
 - Respond with ONLY valid JSON matching the schema. No markdown fences, no commentary.`;
 
 export function buildAnalysisPrompt(
@@ -91,6 +93,24 @@ JSON schema:
       "actionVerb": "Architected",
       "hasQuantifiableMetric": false,
       "metricPrompt": "Punya metrik konkret (misal: 'latency turun 40%', 'melayani 10k pengguna')? Tambahkan di sini."
+    }
+  ],
+  "perspectiveReviews": [
+    {
+      "perspective": "HR Manager|ATS/CV Parser|Hiring Manager|Recruiter|Career Coach|Teammate/Colleague|Candidate/User",
+      "summary": "Ringkasan pandangan singkat",
+      "strengths": ["Kekuatan berbasis bukti"],
+      "improvements": ["Rekomendasi yang bisa dibuktikan, bukan klaim baru"],
+      "priority": "Tinggi|Sedang|Rendah"
+    }
+  ],
+  "learningResources": [
+    {
+      "skill": "AWS",
+      "title": "AWS Skill Builder Cloud Practitioner learning plan",
+      "provider": "AWS Skill Builder",
+      "url": "https://skillbuilder.aws/",
+      "access": "Gratis untuk belajar"
     }
   ],
   "summary": "",
