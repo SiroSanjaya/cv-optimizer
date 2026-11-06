@@ -603,10 +603,10 @@ export function JobsPage() {
     <div className="min-h-screen bg-paper flex flex-col justify-between">
       <Header />
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:px-6 sm:py-8">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-3 py-3 sm:px-6 sm:py-6">
 
         {/* ── JOB-APPLICATION ASSISTANT ──────────────────────────────────── */}
-        <div className="order-2 mb-3 overflow-hidden rounded-xl border border-line bg-paper-raised shadow-sm">
+        <div className="order-2 mb-3 overflow-hidden rounded-xl border border-line bg-paper-raised shadow-sm sm:mb-4">
           {/* Header row */}
           <div className="flex items-center justify-between gap-2 px-2 py-2 sm:px-3">
             <button
@@ -800,7 +800,7 @@ export function JobsPage() {
         </div>
 
         {/* Banner Hero */}
-        <section className="order-1 flex flex-col overflow-hidden rounded-2xl border border-forest/20 bg-gradient-to-br from-forest-tint/60 via-paper-raised to-paper-raised p-4 shadow-sm sm:p-6">
+        <section className="order-1 flex flex-col overflow-hidden rounded-2xl border border-forest/20 bg-gradient-to-br from-forest-tint/60 via-paper-raised to-paper-raised p-4 shadow-sm sm:p-5 lg:p-6">
           <div className="mb-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-forest/20 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-forest">
             <Sparkles className="h-3.5 w-3.5" />
             Satsetin cari kerja

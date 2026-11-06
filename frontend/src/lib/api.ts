@@ -7,7 +7,18 @@ import type {
   InterviewQuestion,
 } from "../types/cv";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const configuredApiUrl = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
+const isBrowserProduction = typeof window !== "undefined" && window.location.protocol === "https:";
+const configuredUrlTargetsLocalMachine =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)/i.test(
+    configuredApiUrl
+  );
+const API_BASE_URL =
+  configuredApiUrl && !(isBrowserProduction && configuredUrlTargetsLocalMachine)
+    ? configuredApiUrl
+    : isBrowserProduction
+      ? ""
+      : "http://localhost:4000";
 const PRODUCT_SESSION_KEY = "satsetcv_product_session";
 const PRODUCT_ANALYTICS_CONSENT_KEY = "satsetcv_product_analytics_consent";
 
