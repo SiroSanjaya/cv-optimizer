@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   CalendarCheck2,
-  Check,
   CheckCircle2,
   FileCheck2,
   FileText,
@@ -12,7 +11,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Header } from "../components/Header";
-import { HeroDocument } from "../components/HeroDocument";
 import { trackProductEvent } from "../lib/api";
 
 const benefits = [
@@ -64,7 +62,7 @@ export function LandingPage() {
             className="pointer-events-none absolute -right-20 -top-16 h-[20rem] w-[20rem] rounded-full border border-forest/10 sm:right-0"
           />
 
-          <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-8 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:px-12 lg:py-20">
+          <div className="relative mx-auto max-w-5xl px-4 py-14 sm:px-8 sm:py-20 lg:px-12 lg:py-24">
             <div className="min-w-0">
               <span className="inline-flex items-center gap-2 rounded-full border border-forest/15 bg-forest-tint px-3 py-1.5 text-[11px] font-bold text-forest">
                 <BriefcaseBusiness className="h-3.5 w-3.5" />
@@ -110,15 +108,6 @@ export function LandingPage() {
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-xl rounded-3xl border border-line bg-paper p-3 shadow-[0_28px_70px_-38px_rgba(23,33,58,0.35)] sm:p-5">
-              <HeroDocument />
-              <div className="absolute -bottom-4 left-4 flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 shadow-lg sm:-left-5 sm:bottom-8">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-forest-tint text-forest">
-                  <Check className="h-4 w-4" />
-                </span>
-                <span className="text-[11px] font-semibold text-ink">Kamu tetap pegang kendali</span>
-              </div>
-            </div>
           </div>
         </section>
 
