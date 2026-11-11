@@ -355,7 +355,7 @@ export interface RecommendedJob {
   location: string;
   salary?: string;
   type?: string;
-  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Jooble" | "RemoteOK" | "Himalayas";
+  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Jooble" | "RemoteOK" | "Himalayas" | "Adzuna";
   url: string;
   description: string;
   skills: string[];

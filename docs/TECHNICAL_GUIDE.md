@@ -278,17 +278,24 @@ Saat ini pencarian talent tidak boleh dipahami sebagai pencarian katalog
 kandidat nyata. Tidak ada database kandidat berizin/consent yang digunakan
 oleh fitur tersebut.
 
-Rekomendasi lowongan mengurutkan hingga 100 listing dengan kecocokan skill CV,
+Rekomendasi lowongan mengurutkan hingga 1.000 listing yang dikembalikan sumber
+dengan kecocokan skill CV,
 target peran, industri, lokasi, dan preferensi tipe kerja yang tersedia, lalu
 memprioritaskan listing yang secara eksplisit menyebut visa sponsorship.
 Pencarian mendukung posisi/keahlian, perusahaan, industri, dan lokasi; filter
-tambahan mencakup tingkat pengalaman, tipe pekerjaan, serta rentang gaji yang
-memiliki mata uang dan periode yang sama. Sumber lokal Indonesia mencakup
-Kalibrr; pencarian negara Malaysia, Singapura, dan Australia menggunakan
-`JOOBLE_API_KEY` opsional. Cakupan dan jumlah hasil tetap bergantung pada sumber
-yang tersedia dan bukan katalog lengkap semua pekerjaan.
+tambahan mencakup tingkat pengalaman, tipe pekerjaan, serta gaji minimum yang
+dihitung dari gaji saat ini dan target persentase kenaikan. Filter gaji hanya
+mencocokkan listing dengan mata uang dan periode yang sama serta data gaji dari
+sumber; preferensi ini disimpan di browser pengguna. Sumber lokal Indonesia
+mencakup Kalibrr; pencarian lintas negara dapat menggunakan `JOOBLE_API_KEY`,
+dan Adzuna tersedia untuk Singapura/Australia dengan `ADZUNA_APP_ID` dan
+`ADZUNA_APP_KEY`. Jumlah aktual tetap tergantung sumber, API key, dan lowongan
+yang tersedia; batas 1.000 adalah maksimum hasil yang ditampilkan, bukan
+jaminan jumlah listing atau perusahaan. LinkedIn, Indeed, dan JobStreet belum
+terhubung langsung. Hanya API resmi yang dikonfigurasi yang digunakan; cakupan
+bukan katalog lengkap semua pekerjaan.
 Halaman Jobs memulai pencarian dari Indonesia dan menampilkan status setiap
-sumber (merespons, tidak ada listing, gagal, atau Jooble belum dikonfigurasi).
+sumber (merespons, tidak ada listing, gagal, atau credential belum dikonfigurasi).
 Jumlah yang ditampilkan adalah listing yang dikembalikan API sebelum filter
 lokasi, validasi tautan, dan deduplikasi; angka ini bukan jumlah lowongan yang
 pasti relevan atau masih aktif. Sumber gagal tidak membatalkan hasil dari
@@ -399,6 +406,8 @@ tersebut juga.
 | `GEMINI_API_KEY` | API bila perlu, worker | Credential Google Gemini |
 | `GEMINI_MODEL` | API/worker | Nama model yang dikonfigurasi |
 | `JOOBLE_API_KEY` | API (opsional) | Pencarian listing per negara di Jooble |
+| `ADZUNA_APP_ID` | API (opsional) | App ID API listing Adzuna untuk Singapura/Australia |
+| `ADZUNA_APP_KEY` | API (opsional) | App key API listing Adzuna |
 | `AI_MONTHLY_QUOTA` | API/worker | Kuota task bulanan per user |
 | `AI_WORKER_CONCURRENCY` | worker | Jumlah task paralel (1-32) |
 | `FRONTEND_URL` | API | Origin CORS yang diizinkan |

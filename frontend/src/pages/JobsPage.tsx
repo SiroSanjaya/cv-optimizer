@@ -94,6 +94,8 @@ interface JobSearchFilters {
   salaryMax: string;
   salaryCurrency: string;
   salaryPeriod: "hourly" | "monthly" | "annual";
+  salaryCurrent: string;
+  raisePercentage: string;
 }
 
 const EMPTY_JOB_SEARCH_FILTERS: JobSearchFilters = {
@@ -106,7 +108,62 @@ const EMPTY_JOB_SEARCH_FILTERS: JobSearchFilters = {
   salaryMax: "",
   salaryCurrency: "IDR",
   salaryPeriod: "monthly",
+  salaryCurrent: "",
+  raisePercentage: "20",
 };
+
+function getSalaryPreferenceKey(userId: string): string {
+  return `cv-optimizer:job-salary-preference:${encodeURIComponent(userId)}`;
+}
+
+function readSalaryPreferences(
+  userId: string
+): Pick<JobSearchFilters, "salaryCurrent" | "raisePercentage" | "salaryCurrency" | "salaryPeriod"> {
+  const defaults = {
+    salaryCurrent: "",
+    raisePercentage: "20",
+    salaryCurrency: "IDR",
+    salaryPeriod: "monthly" as const,
+  };
+  try {
+    const stored = localStorage.getItem(getSalaryPreferenceKey(userId));
+    if (!stored) return defaults;
+    const parsed: unknown = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object") return defaults;
+    const values = parsed as Record<string, unknown>;
+    const currencies = ["IDR", "USD", "EUR", "GBP", "AUD", "SGD", "MYR"];
+    const periods = ["hourly", "monthly", "annual"];
+    return {
+      salaryCurrent: typeof values.salaryCurrent === "string" ? values.salaryCurrent : defaults.salaryCurrent,
+      raisePercentage: typeof values.raisePercentage === "string" ? values.raisePercentage : defaults.raisePercentage,
+      salaryCurrency: typeof values.salaryCurrency === "string" && currencies.includes(values.salaryCurrency)
+        ? values.salaryCurrency
+        : defaults.salaryCurrency,
+      salaryPeriod: typeof values.salaryPeriod === "string" && periods.includes(values.salaryPeriod)
+        ? values.salaryPeriod as JobSearchFilters["salaryPeriod"]
+        : defaults.salaryPeriod,
+    };
+  } catch (error) {
+    console.warn("Could not read saved salary preferences.", error);
+    return defaults;
+  }
+}
+
+function saveSalaryPreferences(
+  userId: string,
+  filters: JobSearchFilters
+): void {
+  try {
+    localStorage.setItem(getSalaryPreferenceKey(userId), JSON.stringify({
+      salaryCurrent: filters.salaryCurrent,
+      raisePercentage: filters.raisePercentage,
+      salaryCurrency: filters.salaryCurrency,
+      salaryPeriod: filters.salaryPeriod,
+    }));
+  } catch (error) {
+    console.warn("Could not save salary preferences.", error);
+  }
+}
 
 export function JobsPage() {
   const navigate = useNavigate();
@@ -121,7 +178,10 @@ export function JobsPage() {
   const [locationFilter, setLocationFilter] = useState<
     "all" | "indonesia" | "malaysia" | "singapore" | "australia" | "remote"
   >("indonesia");
-  const [searchFilters, setSearchFilters] = useState<JobSearchFilters>(EMPTY_JOB_SEARCH_FILTERS);
+  const [searchFilters, setSearchFilters] = useState<JobSearchFilters>(() => ({
+    ...EMPTY_JOB_SEARCH_FILTERS,
+    ...readSalaryPreferences(user?.id || "guest"),
+  }));
   const [appliedSearchFilters, setAppliedSearchFilters] = useState<JobSearchFilters>(EMPTY_JOB_SEARCH_FILTERS);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isPersonalized, setIsPersonalized] = useState<boolean>(false);
@@ -273,12 +333,34 @@ export function JobsPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    const currentSalaryText = searchFilters.salaryCurrent.trim();
+    let salaryMin = searchFilters.salaryMin;
+    if (currentSalaryText) {
+      const currentSalary = Number(currentSalaryText);
+      const raisePercentage = Number(searchFilters.raisePercentage);
+      if (!Number.isFinite(currentSalary) || currentSalary <= 0) {
+        setLoadError("Masukkan gaji saat ini yang valid untuk menghitung target kenaikan.");
+        return;
+      }
+      if (!searchFilters.raisePercentage.trim() ||
+        !Number.isFinite(raisePercentage) || raisePercentage < 0 || raisePercentage > 500) {
+        setLoadError("Persentase kenaikan harus berada di antara 0% dan 500%.");
+        return;
+      }
+      const targetSalary = Math.ceil(currentSalary * (1 + raisePercentage / 100));
+      if (!Number.isFinite(targetSalary) || targetSalary > 2_000_000_000) {
+        setLoadError("Target gaji terlalu besar untuk digunakan sebagai filter.");
+        return;
+      }
+      salaryMin = String(targetSalary);
+    }
+
     setLoading(true);
     setLoadError(null);
     setJobSources([]);
     const nextKeyword = searchKeyword.trim();
     setSubmittedKeyword(nextKeyword);
-    setAppliedSearchFilters({ ...searchFilters });
+    setAppliedSearchFilters({ ...searchFilters, salaryMin });
     if (nextKeyword === submittedKeyword) {
       setRetryKey((key) => key + 1);
     }
@@ -288,7 +370,11 @@ export function JobsPage() {
     key: K,
     value: JobSearchFilters[K]
   ) => {
-    setSearchFilters((current) => ({ ...current, [key]: value }));
+    const nextFilters = { ...searchFilters, [key]: value };
+    setSearchFilters(nextFilters);
+    if (["salaryCurrent", "raisePercentage", "salaryCurrency", "salaryPeriod"].includes(key)) {
+      saveSalaryPreferences(user?.id || "guest", nextFilters);
+    }
   };
 
   const handleOpenJobDetails = (job: RecommendedJob) => {
@@ -597,6 +683,15 @@ export function JobsPage() {
   const visibleJobs: RecommendedJob[] = showSavedJobs
     ? savedJobs.map((job) => ({ ...job, id: job.externalId }))
     : jobs;
+  const currentSalaryAmount = Number(searchFilters.salaryCurrent);
+  const targetRaisePercentage = Number(searchFilters.raisePercentage);
+  const salaryTargetPreview = searchFilters.salaryCurrent.trim() &&
+    Number.isFinite(currentSalaryAmount) && currentSalaryAmount > 0 &&
+    searchFilters.raisePercentage.trim() &&
+    Number.isFinite(targetRaisePercentage) && targetRaisePercentage >= 0 &&
+    targetRaisePercentage <= 500
+    ? Math.ceil(currentSalaryAmount * (1 + targetRaisePercentage / 100))
+    : undefined;
 
   return (
     <div className="min-h-screen bg-paper flex flex-col justify-between">
@@ -913,6 +1008,83 @@ export function JobsPage() {
             </select>
           </div>
 
+          <div className="mt-3 rounded-xl border border-forest/15 bg-forest-tint/20 p-3">
+            <div className="mb-2">
+              <p className="text-xs font-bold text-ink">Filter ekspektasi kenaikan gaji</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-ink-soft">
+                Isi gaji saat ini untuk hanya melihat lowongan bergaji minimal sebesar targetmu. Lowongan tanpa info gaji atau dengan mata uang/periode berbeda tidak bisa dicocokkan.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-[11px] font-semibold text-ink-soft">
+                Gaji saat ini
+                <input
+                  type="number"
+                  min="1"
+                  max="2000000000"
+                  step="any"
+                  value={searchFilters.salaryCurrent}
+                  onChange={(event) => updateSearchFilter("salaryCurrent", event.target.value)}
+                  aria-label="Gaji saat ini"
+                  placeholder="Contoh: 8000000"
+                  className="mt-1 min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none placeholder:text-ink-soft/60 focus:border-forest"
+                />
+              </label>
+              <label className="text-[11px] font-semibold text-ink-soft">
+                Target kenaikan (%)
+                <input
+                  type="number"
+                  min="0"
+                  max="500"
+                  step="1"
+                  value={searchFilters.raisePercentage}
+                  onChange={(event) => updateSearchFilter("raisePercentage", event.target.value)}
+                  aria-label="Target kenaikan gaji dalam persen"
+                  className="mt-1 min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none focus:border-forest"
+                />
+              </label>
+              <label className="text-[11px] font-semibold text-ink-soft">
+                Mata uang
+                <select
+                  value={searchFilters.salaryCurrency}
+                  onChange={(event) => updateSearchFilter("salaryCurrency", event.target.value)}
+                  aria-label="Mata uang gaji"
+                  className="mt-1 min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none focus:border-forest"
+                >
+                  {["IDR", "USD", "EUR", "GBP", "AUD", "SGD", "MYR"].map((currency) => (
+                    <option key={currency} value={currency}>{currency}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[11px] font-semibold text-ink-soft">
+                Periode gaji
+                <select
+                  value={searchFilters.salaryPeriod}
+                  onChange={(event) =>
+                    updateSearchFilter("salaryPeriod", event.target.value as JobSearchFilters["salaryPeriod"])
+                  }
+                  aria-label="Periode gaji"
+                  className="mt-1 min-h-10 w-full rounded-lg border border-line bg-paper px-3 text-xs text-ink outline-none focus:border-forest"
+                >
+                  <option value="monthly">Per bulan</option>
+                  <option value="annual">Per tahun</option>
+                  <option value="hourly">Per jam</option>
+                </select>
+              </label>
+            </div>
+            {salaryTargetPreview !== undefined && salaryTargetPreview <= 2_000_000_000 && (
+              <p className="mt-2 text-[11px] font-semibold text-forest">
+                Batas minimum saat dicari: {new Intl.NumberFormat("id-ID", {
+                  style: "currency",
+                  currency: searchFilters.salaryCurrency,
+                  maximumFractionDigits: 0,
+                }).format(salaryTargetPreview)} / {searchFilters.salaryPeriod === "monthly"
+                  ? "bulan"
+                  : searchFilters.salaryPeriod === "annual" ? "tahun" : "jam"}
+              </p>
+            )}
+          </div>
+
           <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line/70 pt-3">
             <span className="mr-1 text-[11px] font-semibold text-ink-soft">Populer</span>
             {suggestedRoles.slice(0, 6).map((role) => (
@@ -1029,7 +1201,7 @@ export function JobsPage() {
               </button>
             </div>
             <p className="text-xs font-semibold text-ink-soft">
-              Menampilkan <span className="text-ink font-bold">{visibleJobs.length}</span>{showSavedJobs ? " lowongan tersimpan" : " dari maksimal 100 lowongan"}
+              Menampilkan <span className="text-ink font-bold">{visibleJobs.length}</span>{showSavedJobs ? " lowongan tersimpan" : " dari maksimal 1.000 lowongan yang tersedia"}
             </p>
             <span className="text-[11px] text-ink-soft">
               {!showSavedJobs && isPersonalized
@@ -1054,7 +1226,7 @@ export function JobsPage() {
                     : source.status === "failed"
                       ? `${source.label}: gagal`
                       : source.status === "not_configured"
-                        ? `${source.label}: API key belum diatur`
+                        ? `${source.label}: credential API belum diatur`
                         : `${source.label}: tidak ada listing`;
                   const className = source.status === "available"
                     ? "border-emerald-200 bg-emerald-50 text-emerald-800"

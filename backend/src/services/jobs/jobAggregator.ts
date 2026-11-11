@@ -15,7 +15,7 @@ export interface JobItem {
   type?: string;
   industry?: string;
   experienceLevel?: "internship" | "entry" | "mid" | "senior" | "lead";
-  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Jooble" | "RemoteOK" | "Himalayas";
+  source: "Kalibrr" | "Remotive" | "Arbeitnow" | "Jooble" | "RemoteOK" | "Himalayas" | "Adzuna";
   url: string;
   description: string;
   skills: string[];
@@ -35,8 +35,12 @@ export interface JobItem {
 }
 
 const VERIFIED_JOB_SOURCES = new Set<JobItem["source"]>([
-  "Kalibrr", "Remotive", "Arbeitnow", "Jooble", "RemoteOK", "Himalayas",
+  "Kalibrr", "Remotive", "Arbeitnow", "Jooble", "RemoteOK", "Himalayas", "Adzuna",
 ]);
+
+const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID?.trim() || "";
+const ADZUNA_APP_KEY = process.env.ADZUNA_APP_KEY?.trim() || "";
+type AdzunaMarket = "au" | "sg";
 
 export interface JobCandidateContext {
   targetRoles?: string[];
@@ -312,10 +316,12 @@ export function filterJobListings(jobs: JobItem[], options: JobFilterOptions): J
         (job.salaryMin === undefined && job.salaryMax === undefined)
       ) return false;
       if (minSalary !== undefined) {
-        if (job.salaryMax === undefined || job.salaryMax < minSalary) return false;
+        const highestAdvertised = job.salaryMax ?? job.salaryMin;
+        if (highestAdvertised === undefined || highestAdvertised < minSalary) return false;
       }
       if (maxSalary !== undefined) {
-        if (job.salaryMin === undefined || job.salaryMin > maxSalary) return false;
+        const lowestAdvertised = job.salaryMin ?? job.salaryMax;
+        if (lowestAdvertised === undefined || lowestAdvertised > maxSalary) return false;
       }
     }
     return true;
@@ -771,6 +777,135 @@ export async function fetchHimalayasApiJobs(query: string = ""): Promise<JobItem
   }
 }
 
+function getRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function getText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+export function normalizeAdzunaJob(item: unknown, market: AdzunaMarket): JobItem | undefined {
+  const record = getRecord(item);
+  if (!record) return undefined;
+  const company = getText(getRecord(record.company)?.display_name);
+  const title = getText(record.title);
+  const description = stripHtml(getText(record.description));
+  const rawUrl = getText(record.redirect_url);
+  const id = typeof record.id === "string" || typeof record.id === "number"
+    ? String(record.id).trim()
+    : "";
+  if (!company || !title || !description || !rawUrl || !id) return undefined;
+
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return undefined;
+  }
+  const adzunaHosts = ["adzuna.com", "adzuna.co.uk", "adzuna.com.au", "adzuna.sg"];
+  const isAdzunaHost = adzunaHosts.some((host) =>
+    url.hostname === host || url.hostname.endsWith(`.${host}`)
+  );
+  if (url.protocol === "http:" && isAdzunaHost) url.protocol = "https:";
+  if (url.protocol !== "https:") return undefined;
+
+  const location = getText(getRecord(record.location)?.display_name) ||
+    (market === "sg" ? "Singapore" : "Australia");
+  const salaryMin = getNumber(record.salary_min);
+  const salaryMax = getNumber(record.salary_max);
+  const currency = market === "sg" ? "SGD" : "AUD";
+  const formatSalary = (value: number) => new Intl.NumberFormat("en", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+  const isSalaryEstimated = record.salary_is_predicted === 1 ||
+    record.salary_is_predicted === true;
+  const displayedSalary = salaryMin ?? salaryMax;
+  const salary = displayedSalary !== undefined
+    ? `${isSalaryEstimated ? "Perkiraan " : ""}${formatSalary(displayedSalary)}${
+      salaryMin !== undefined && salaryMax !== undefined && salaryMax !== salaryMin
+        ? ` - ${formatSalary(salaryMax)}`
+        : ""
+    } /tahun`
+    : undefined;
+  const cleanDescription = clipDescription(description);
+  const { postedAt, postedAtDate } = formatPostedAt(record.created);
+  const contractTime = getText(record.contract_time).replace(/_/g, "-");
+  const contractType = getText(record.contract_type);
+  const category = getText(getRecord(record.category)?.label);
+
+  return {
+    id: `adzuna-${market}-${id}`,
+    title,
+    company,
+    location,
+    salary,
+    salaryMin,
+    salaryMax,
+    salaryCurrency: salaryMin !== undefined || salaryMax !== undefined ? currency : undefined,
+    salaryPeriod: salaryMin !== undefined || salaryMax !== undefined ? "annual" : undefined,
+    type: [contractTime, contractType].filter(Boolean).join(", ") || undefined,
+    industry: category || undefined,
+    experienceLevel: inferExperienceLevel(`${title} ${cleanDescription}`),
+    source: "Adzuna",
+    url: url.toString(),
+    description: cleanDescription,
+    skills: extractSkillsFromText(`${title} ${cleanDescription}`),
+    postedAt,
+    postedAtDate,
+    remote: /\bremote\b/i.test(`${title} ${location} ${cleanDescription}`),
+    visaSponsorship: detectVisaSponsorship(cleanDescription),
+  };
+}
+
+export async function fetchAdzunaApiJobs(
+  query: string,
+  market: AdzunaMarket,
+  locationQuery?: string
+): Promise<JobItem[]> {
+  if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) return [];
+  try {
+    const response = await axios.get(
+      `https://api.adzuna.com/v1/api/jobs/${market}/search/1`,
+      {
+        timeout: 7_000,
+        params: {
+          app_id: ADZUNA_APP_ID,
+          app_key: ADZUNA_APP_KEY,
+          results_per_page: 50,
+          what: query || undefined,
+          where: locationQuery || undefined,
+          "content-type": "application/json",
+        },
+        headers: { Accept: "application/json" },
+      }
+    );
+    const results = getRecord(response.data)?.results;
+    if (!Array.isArray(results)) {
+      throw new Error("Adzuna returned an invalid jobs response.");
+    }
+    return results
+      .map((item) => normalizeAdzunaJob(item, market))
+      .filter((job): job is JobItem => Boolean(job));
+  } catch (error) {
+    logger.warn("adzuna_api_fetch_failed", {
+      market,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+    throw error;
+  }
+}
+
 /**
  * Calculates skill overlap from the candidate's CV and the job's listed skills.
  */
@@ -909,8 +1044,8 @@ function getPostedAgeDays(postedAt?: string): number {
 }
 
 /**
- * Main aggregator: pulls live jobs from Kalibrr API + Remotive API + Arbeitnow +
- * Jooble + RemoteOK + Himalayas
+ * Main aggregator: pulls live jobs from Kalibrr, Remotive, Arbeitnow, Jooble,
+ * RemoteOK, Himalayas, and the optional Adzuna API.
  */
 export async function getAggregatedRecommendations(
   candidateSkills: string[] = [],
@@ -970,6 +1105,20 @@ export async function getAggregatedRecommendations(
   fetchers.push({ label: "Arbeitnow", source: "Arbeitnow", promise: fetchArbeitnowApiJobs(effectiveKeyword) });
   fetchers.push({ label: "RemoteOK", source: "RemoteOK", promise: fetchRemoteOKApiJobs(effectiveKeyword) });
   fetchers.push({ label: "Himalayas", source: "Himalayas", promise: fetchHimalayasApiJobs(effectiveKeyword) });
+  const adzunaMarkets: AdzunaMarket[] = location === "all"
+    ? ["sg", "au"]
+    : location === "singapore"
+      ? ["sg"]
+      : location === "australia"
+        ? ["au"]
+        : [];
+  for (const market of adzunaMarkets) {
+    fetchers.push({
+      label: `Adzuna (${market === "sg" ? "Singapore" : "Australia"})`,
+      source: "Adzuna",
+      promise: fetchAdzunaApiJobs(effectiveKeyword, market, options.locationQuery?.trim()),
+    });
+  }
 
   // Run in parallel with graceful error handling
   const results = await Promise.allSettled(fetchers.map((fetcher) => fetcher.promise));
@@ -978,8 +1127,11 @@ export async function getAggregatedRecommendations(
 
   for (const [index, result] of results.entries()) {
     const fetcher = fetchers[index];
-    if (fetcher.source === "Jooble" && !JOOBLE_API_KEY) {
-      sources.push({ label: "Jooble", status: "not_configured", receivedCount: 0 });
+    if (
+      (fetcher.source === "Jooble" && !JOOBLE_API_KEY) ||
+      (fetcher.source === "Adzuna" && (!ADZUNA_APP_ID || !ADZUNA_APP_KEY))
+    ) {
+      sources.push({ label: fetcher.label, status: "not_configured", receivedCount: 0 });
     } else if (result.status === "rejected") {
       sources.push({ label: fetcher.label, status: "failed", receivedCount: 0 });
     } else {
@@ -1049,5 +1201,5 @@ export async function getAggregatedRecommendations(
     );
   }
 
-  return { jobs: scoredJobs.slice(0, 100), sources };
+  return { jobs: scoredJobs.slice(0, 1_000), sources };
 }

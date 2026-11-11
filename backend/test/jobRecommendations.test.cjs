@@ -8,6 +8,7 @@ const {
   formatPostedAt,
   inferExperienceLevel,
   isVerifiedJobListing,
+  normalizeAdzunaJob,
   parseSalaryDetails,
 } = require("../dist/services/jobs/jobAggregator");
 const {
@@ -139,6 +140,69 @@ test("job filters compare verified salary metadata in the selected currency and 
     }),
     []
   );
+  const minimumOnly = { ...job, salaryMax: undefined };
+  assert.deepEqual(filterJobListings([minimumOnly], {
+    salaryMin: 7_000_000,
+    salaryCurrency: "IDR",
+    salaryPeriod: "monthly",
+  }), [minimumOnly]);
+  assert.deepEqual(filterJobListings([minimumOnly], {
+    salaryMin: 9_000_000,
+    salaryCurrency: "IDR",
+    salaryPeriod: "monthly",
+  }), []);
+  const maximumOnly = { ...job, salaryMin: undefined };
+  assert.deepEqual(filterJobListings([maximumOnly], {
+    salaryMax: 12_000_000,
+    salaryCurrency: "IDR",
+    salaryPeriod: "monthly",
+  }), [maximumOnly]);
+});
+
+test("Adzuna listings normalize salary metadata and require a secure source link", () => {
+  const listing = normalizeAdzunaJob({
+    id: 123,
+    title: "Software Engineer",
+    company: { display_name: "Example SG" },
+    location: { display_name: "Singapore" },
+    description: "Build reliable services with TypeScript.",
+    redirect_url: "http://www.adzuna.com/jobs/details/123",
+    salary_min: 80_000,
+    salary_max: 100_000,
+    salary_is_predicted: 1,
+    created: "2026-10-30T00:00:00Z",
+    contract_time: "full_time",
+    contract_type: "permanent",
+    category: { label: "IT Jobs" },
+  }, "sg");
+
+  assert.equal(listing.source, "Adzuna");
+  assert.equal(listing.url, "https://www.adzuna.com/jobs/details/123");
+  assert.equal(listing.salaryMin, 80_000);
+  assert.equal(listing.salaryMax, 100_000);
+  assert.equal(listing.salaryCurrency, "SGD");
+  assert.equal(listing.salaryPeriod, "annual");
+  assert.match(listing.salary, /Perkiraan/);
+  assert.equal(isVerifiedJobListing(listing), true);
+  assert.deepEqual(filterJobListings([listing], {
+    salaryMin: 90_000,
+    salaryCurrency: "SGD",
+    salaryPeriod: "annual",
+  }), [listing]);
+  assert.deepEqual(filterJobListings([listing], {
+    salaryMin: 90_000,
+    salaryCurrency: "IDR",
+    salaryPeriod: "monthly",
+  }), []);
+
+  assert.equal(normalizeAdzunaJob({
+    id: 124,
+    title: "Software Engineer",
+    company: { display_name: "Example SG" },
+    location: { display_name: "Singapore" },
+    description: "Build reliable services.",
+    redirect_url: "http://malicious.example/jobs/124",
+  }, "sg"), undefined);
 });
 
 test("experience filters use explicit level indicators and leave ambiguous listings unclassified", () => {

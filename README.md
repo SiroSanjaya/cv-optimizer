@@ -26,10 +26,12 @@ materials while keeping the candidate in control of the final content.
   skills, certifications, languages, and job preferences; keep source-linked
   job listings in a personal saved list.
 - Search live job listings by position, company, industry, and location, with
-  experience, employment type, and comparable salary filters. Results come
-  from integrated job APIs only; entries without a named employer, description,
-  or HTTPS application link are excluded. Coverage depends on each source and
-  is not exhaustive.
+  experience, employment type, and salary filters that can calculate a minimum
+  from current pay plus a desired raise. Results come from integrated job APIs
+  only; entries without a named employer, description, or HTTPS application
+  link are excluded. The app can show up to 1,000 returned listings, but actual
+  volume and platform coverage depend on each source and are not guaranteed.
+  Optional Adzuna API credentials add Singapore and Australia listings.
 - Review a job detail page with profile-fit reasons, matching and missing
   skills, and an apply-priority suggestion. The transparent score is an estimate,
   not a hiring probability. Application deadlines are shown and saved only when
@@ -153,6 +155,10 @@ npm run check
   skills, and claims before using an output.
 - A match score is an estimate based on the provided CV and job description;
   it is not a probability of being hired.
+- Job listings are not a complete directory of companies. LinkedIn, Indeed, and
+  JobStreet are not directly connected; only supported APIs are queried, and
+  source terms/availability limit coverage. Do not treat the listing count as
+  the total number of suitable jobs.
 - AI tasks require a working Gemini configuration and are subject to provider
   availability, quotas, costs, and policies.
 - International country listings use the optional Jooble API key
